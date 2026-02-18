@@ -1,0 +1,37 @@
+{
+  "compilerOptions": {
+    /* Hedef: Modern Node.js (ES2022) */
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+
+    /* Çıktı klasörü */
+    "outDir": "./dist",
+    "rootDir": "./src",
+
+    /* Path Alias — import'larda @/src/... kullanmamızı sağlar */
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+
+    /* Strict mode — hataları derleme zamanında yakalar */
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+
+    /* Interop — CommonJS/ESM modüllerin birbiriyle çalışması */
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+
+    /* Dev experience */
+    "declaration": true,
+    "sourceMap": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist", "output"]
+}

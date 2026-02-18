@@ -5,7 +5,7 @@
  * Bu dosyayla TypeScript'e "bu modül var, güven bana" diyoruz.
  */
 
-declare module 'playwright-extra-plugin-stealth' {
+declare module 'puppeteer-extra-plugin-stealth' {
   import type { PuppeteerExtraPlugin } from 'playwright-extra';
 
   interface StealthPluginOptions {

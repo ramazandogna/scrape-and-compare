@@ -15,6 +15,8 @@
 import type { Page } from 'playwright';
 import type { JobListing, ScraperResult, ScrapeQuery, ScraperConfig } from '@/models/job.model';
 import { createBrowser, createPage, closeBrowser } from '@/scraper/browser.manager';
+import { attachNetworkSniffer, saveSnifferResults } from '@/scraper/network.sniffer';
+import { enrichJobsWithDetails } from '@/scraper/job.detail.fetcher';
 import { sleep, randomBetween, logger } from '@/utils/helpers';
 
 /**
@@ -147,6 +149,9 @@ const parseJobCards = async (page: Page): Promise<JobListing[]> => {
       location: string;
       salary: string | null;
       description: string | null;
+      requirements: string[];
+      seniorityLevel: string | null;
+      employmentType: string | null;
       link: string;
       postedDate: string | null;
       scrapedAt: string;
@@ -215,8 +220,16 @@ const parseJobCards = async (page: Page): Promise<JobListing[]> => {
         if (!title || !company) return;
 
         // Job ID'yi URL'den çıkar
-        const idMatch = link.match(/\/jobs\/view\/(\d+)/) ?? link.match(/jobPosting:(\d+)/);
-        const id = idMatch?.[1] ?? `unknown_${Date.now()}_${Math.random()}`;
+        // LinkedIn URL formatları:
+        //   /jobs/view/1234567890?...
+        //   /jobs/view/frontend-developer-at-company-1234567890?...
+        // Son sayı grubu her zaman job ID'dir
+        const idFromUrl = link.match(/\/jobs\/view\/[^?]*?(\d{5,})/);
+        const idFromUrn = link.match(/jobPosting:(\d+)/);
+        // data-entity-urn attribute olabilir
+        const urnAttr = card.getAttribute('data-entity-urn') ?? '';
+        const idFromAttr = urnAttr.match(/(\d{5,})/);
+        const id = idFromUrl?.[1] ?? idFromUrn?.[1] ?? idFromAttr?.[1] ?? `unknown_${Date.now()}_${Math.random()}`;
 
         results.push({
           id,
@@ -225,6 +238,9 @@ const parseJobCards = async (page: Page): Promise<JobListing[]> => {
           location: locationEl?.textContent?.trim() ?? 'Unknown',
           salary: salaryEl?.textContent?.trim() ?? null,
           description: null, // Description ayrı request gerektirir
+          requirements: [],  // Detail fetcher ile doldurulacak
+          seniorityLevel: null,
+          employmentType: null,
           link: link.startsWith('http') ? link : `https://www.linkedin.com${link}`,
           postedDate: dateEl?.textContent?.trim() ?? dateEl?.getAttribute('datetime') ?? null,
           scrapedAt,
@@ -388,9 +404,14 @@ export const fetchJobs = async (
   const { browser, context } = await createBrowser(config);
   const page = await createPage(context);
 
+  // Network sniffer — LinkedIn'in arka plandaki API çağrılarını yakala
+  // Bu sayede JSON API endpoint'lerini keşfedebiliriz
+  const sniffer = attachNetworkSniffer(page);
+
   const allJobs: JobListing[] = [];
   const errors: Array<{ keyword: string; error: ScraperResult }> = [];
   const seenIds = new Set<string>();
+  const seenLinks = new Set<string>();
 
   try {
     for (const keyword of keywords) {
@@ -404,10 +425,13 @@ export const fetchJobs = async (
       const result = await scrapeKeyword(page, keyword, location, config);
 
       if (result.status === 'success') {
-        // Duplicate filtrele (aynı job birden fazla keyword'de çıkabilir)
+        // Duplicate filtrele — ID veya link bazlı (aynı job birden fazla keyword'de çıkabilir)
         const newJobs = result.data.filter((job) => {
-          if (seenIds.has(job.id)) return false;
+          const isDuplicateId = job.id.startsWith('unknown_') ? false : seenIds.has(job.id);
+          const isDuplicateLink = seenLinks.has(job.link);
+          if (isDuplicateId || isDuplicateLink) return false;
           seenIds.add(job.id);
+          seenLinks.add(job.link);
           return true;
         });
 
@@ -420,7 +444,32 @@ export const fetchJobs = async (
         });
       }
     }
+
+    // Description & requirements çek (config'de aktifse)
+    if (config.fetchDetails && allJobs.length > 0) {
+      const jobsToEnrich = allJobs.slice(0, config.maxDetailFetch);
+      logger.info(`\n📝 İlk ${jobsToEnrich.length} ilanın detayları çekiliyor...`);
+
+      const enrichedJobs = await enrichJobsWithDetails(
+        page,
+        jobsToEnrich,
+        config.requestDelayMin,
+        config.requestDelayMax,
+      );
+
+      // Zenginleştirilmiş job'ları geri yerleştir
+      for (let i = 0; i < enrichedJobs.length; i++) {
+        allJobs[i] = enrichedJobs[i]!;
+      }
+    }
   } finally {
+    // Sniffer sonuçlarını kaydet — LinkedIn API keşfi için
+    sniffer.stop();
+    const captured = sniffer.getCaptured();
+    if (captured.length > 0) {
+      saveSnifferResults(captured, `linkedin-${keywords.join('-')}`);
+    }
+
     // Her durumda browser'ı kapat — memory leak önle
     await closeBrowser(browser);
   }

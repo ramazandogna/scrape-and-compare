@@ -17,6 +17,7 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fetchJobs } from '@/scraper/linkedin.scraper';
+import { enrichJobsWithDetails } from '@/scraper/job.detail.fetcher';
 import type { ScraperConfig, ScrapeOutput } from '@/models/job.model';
 import { logger } from '@/utils/helpers';
 
@@ -34,6 +35,8 @@ const loadConfig = (): ScraperConfig => ({
   maxJobsPerKeyword: Number(process.env['MAX_JOBS_PER_KEYWORD'] ?? 25),
   requestDelayMin: Number(process.env['REQUEST_DELAY_MIN'] ?? 1000),
   requestDelayMax: Number(process.env['REQUEST_DELAY_MAX'] ?? 3000),
+  fetchDetails: process.env['FETCH_DETAILS'] !== 'false', // default: true
+  maxDetailFetch: Number(process.env['MAX_DETAIL_FETCH'] ?? 10),
 });
 
 /**
@@ -103,6 +106,18 @@ const main = async (): Promise<void> => {
     logger.info('\n📋 İlk 5 sonuç:');
     jobs.slice(0, 5).forEach((job, i) => {
       console.log(`  ${i + 1}. ${job.title} @ ${job.company} (${job.location})`);
+      if (job.seniorityLevel) console.log(`     📊 Seviye: ${job.seniorityLevel}`);
+      if (job.employmentType) console.log(`     💼 Tip: ${job.employmentType}`);
+      if (job.description) {
+        const desc = job.description.substring(0, 150);
+        console.log(`     📝 ${desc}...`);
+      }
+      if (job.requirements.length > 0) {
+        console.log(`     ✅ Gereksinimler (${job.requirements.length} madde):`);
+        job.requirements.slice(0, 3).forEach((req) => {
+          console.log(`        • ${req.substring(0, 80)}${req.length > 80 ? '...' : ''}`);
+        });
+      }
       console.log(`     🔗 ${job.link}\n`);
     });
   } else {

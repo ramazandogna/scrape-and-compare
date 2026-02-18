@@ -17,6 +17,12 @@ export interface JobListing {
   salary: string | null;
   /** İş ilanının tam açıklaması */
   description: string | null;
+  /** Gereksinimler listesi (description'dan parse edilir) */
+  requirements: string[];
+  /** Seniority seviyesi — Entry level, Mid-Senior, Director vs. */
+  seniorityLevel: string | null;
+  /** İstihdam tipi — Full-time, Part-time, Contract */
+  employmentType: string | null;
   /** Doğrudan ilan linki */
   link: string;
   /** "2 days ago", "1 week ago" gibi relative tarih */
@@ -71,6 +77,10 @@ export interface ScraperConfig {
   requestDelayMin: number;
   /** Request'ler arası maximum bekleme (ms) */
   requestDelayMax: number;
+  /** Her ilanın detay sayfasından description çekilsin mi */
+  fetchDetails: boolean;
+  /** Detay çekilecek max ilan sayısı */
+  maxDetailFetch: number;
 }
 
 /**

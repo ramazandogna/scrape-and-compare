@@ -24,8 +24,9 @@ import { logger } from '@/utils/helpers';
  * - Permissions query API'yi düzgün döndürür
  */
 const loadStealthPlugin = async () => {
-  // Dynamic import çünkü bu paketler ESM/CJS hybrid
-  const { default: StealthPlugin } = await import('playwright-extra-plugin-stealth');
+  // puppeteer-extra-plugin-stealth playwright-extra ile uyumlu!
+  // playwright-extra-plugin-stealth ise sadece placeholder paket (hata fırlatır)
+  const { default: StealthPlugin } = await import('puppeteer-extra-plugin-stealth');
   return StealthPlugin();
 };
 

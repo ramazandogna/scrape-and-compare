@@ -1,0 +1,202 @@
+{
+  "search_page": [
+    {
+      "type": "DATA_ATTRIBUTES",
+      "selector": "[data-entity-urn] etc.",
+      "size": 6778,
+      "preview": "[{\"tag\":\"DIV\",\"attrs\":{\"data-entity-urn\":\"urn:li:jobPosting:4374771287\",\"data-reference-id\":\"P3SgoohpoCL0pkh59r2DGw==\",\"data-tracking-id\":\"Cto+VQYZCgGSZat3E1ouZA==\",\"data-column\":\"1\",\"data-row\":\"1\"}},{\"tag\":\"DIV\",\"attrs\":{\"data-entity-urn\":\"urn:li:jobPosting:4364577318\",\"data-reference-id\":\"P3SgoohpoCL0pkh59r2DGw==\",\"data-tracking-id\":\"/6CSpW12CIMlfiYdTzij+w==\",\"data-column\":\"1\",\"data-row\":\"2\"}},{\"tag\":\"DIV\",\"attrs\":{\"data-entity-urn\":\"urn:li:jobPosting:4343453756\",\"data-reference-id\":\"P3SgoohpoCL0pkh59r2DGw==\",\"data-tracking-id\":\"BG5TDKLFtt8RNqT91YxEZQ==\",\"data-column\":\"1\",\"data-row\":\"3\"}},{\"tag\":\"DIV\",\"attrs\":{\"data-entity-urn\":\"urn:li:jobPosting:4364744781\",\"data-reference-id\":\"P3SgoohpoCL0pkh59r2DGw==\",\"data-tracking-id\":\"xeOK4Sbs3dnw38IcTMmHWw==\",\"data-column\":\"1\",\"data-row\":\"4\"}},{\"tag\":\"DIV\",\"attrs\":{\"data-entity-urn\":\"urn:li:jobPosting:4363262133\",\"data-reference-id\":\"P3SgoohpoCL0pkh59r2DGw==\",\"data-tracking-id\":\"4kprp0I3qb9Gmgnp3s7EvA==\",\"data-column\":\"1\",\"data-row\":\"5\"}}]",
+      "data": [
+        {
+          "tag": "DIV",
+          "attrs": {
+            "data-entity-urn": "urn:li:jobPosting:4374771287",
+            "data-reference-id": "P3SgoohpoCL0pkh59r2DGw==",
+            "data-tracking-id": "Cto+VQYZCgGSZat3E1ouZA==",
+            "data-column": "1",
+            "data-row": "1"
+          }
+        },
+        {
+          "tag": "DIV",
+          "attrs": {
+            "data-entity-urn": "urn:li:jobPosting:4364577318",
+            "data-reference-id": "P3SgoohpoCL0pkh59r2DGw==",
+            "data-tracking-id": "/6CSpW12CIMlfiYdTzij+w==",
+            "data-column": "1",
+            "data-row": "2"
+          }
+        },
+        {
+          "tag": "DIV",
+          "attrs": {
+            "data-entity-urn": "urn:li:jobPosting:4343453756",
+            "data-reference-id": "P3SgoohpoCL0pkh59r2DGw==",
+            "data-tracking-id": "BG5TDKLFtt8RNqT91YxEZQ==",
+            "data-column": "1",
+            "data-row": "3"
+          }
+        },
+        {
+          "tag": "DIV",
+          "attrs": {
+            "data-entity-urn": "urn:li:jobPosting:4364744781",
+            "data-reference-id": "P3SgoohpoCL0pkh59r2DGw==",
+            "data-tracking-id": "xeOK4Sbs3dnw38IcTMmHWw==",
+            "data-column": "1",
+            "data-row": "4"
+          }
+        },
+        {
+          "tag": "DIV",
+          "attrs": {
+            "data-entity-urn": "urn:li:jobPosting:4363262133",
+            "data-reference-id": "P3SgoohpoCL0pkh59r2DGw==",
+            "data-tracking-id": "4kprp0I3qb9Gmgnp3s7EvA==",
+            "data-column": "1",
+            "data-row": "5"
+          }
+        },
+        {
+          "tag": "DIV",
+          "attrs": {
+            "data-entity-urn": "urn:li:jobPosting:4373948395",
+            "data-impression-id": "jobs-search-desktop-5",
+            "data-reference-id": "P3SgoohpoCL0pkh59r2DGw==",
+            "data-tracking-id": "fy6M24awBPgW+PrGuUDy9w==",
+            "data-column": "1",
+            "data-row": "6"
+          }
+        },
+        {
+          "tag": "DIV",
+          "attrs": {
+            "data-entity-urn": "urn:li:jobPosting:4372465146",
+            "data-impression-id": "jobs-search-desktop-6",
+            "data-reference-id": "P3SgoohpoCL0pkh59r2DGw==",
+            "data-tracking-id": "RGO60UUiT64GbniwQEFpng==",
+            "data-column": "1",
+            "data-row": "7"
+          }
+        },
+        {
+          "tag": "DIV",
+          "attrs": {
+            "data-entity-urn": "urn:li:jobPosting:4372602292",
+            "data-impression-id": "jobs-search-desktop-7",
+            "data-reference-id": "P3SgoohpoCL0pkh59r2DGw==",
+            "data-tracking-id": "81V1eKZhNOT/JIITWxsnyg==",
+            "data-column": "1",
+            "data-row": "8"
+          }
+        },
+        {
+          "tag": "DIV",
+          "attrs": {
+            "data-entity-urn": "urn:li:jobPosting:4371750941",
+            "data-impression-id": "jobs-search-desktop-8",
+            "data-reference-id": "P3SgoohpoCL0pkh59r2DGw==",
+            "data-tracking-id": "svpmQum2Zlsa1Jb8enqb8g==",
+            "data-column": "1",
+            "data-row": "9"
+          }
+        },
+        {
+          "tag": "DIV",
+          "attrs": {
+            "data-entity-urn": "urn:li:jobPosting:4371509198",
+            "data-impression-id": "jobs-search-desktop-9",
+            "data-reference-id": "P3SgoohpoCL0pkh59r2DGw==",
+            "data-tracking-id": "KXa+v9Yq7u+re9OI7MHa6w==",
+            "data-column": "1",
+            "data-row": "10"
+          }
+        }
+      ]
+    },
+    {
+      "type": "META_TAGS",
+      "selector": "meta[property|name]",
+      "size": 1180,
+      "preview": "{\"pageKey\":\"d_jobs_guest_search\",\"robots\":\"max-image-preview:large, noarchive\",\"bingbot\":\"max-image-preview:large, archive\",\"linkedin:pageTag\":\"urlType=jserp_custom;emptyResult=false\",\"locale\":\"en_US\",\"description\":\"Today&#39;s top 28 Frontend Developer jobs in Türkiye. Leverage your professional network, and get hired. New Frontend Developer jobs added daily.\",\"viewport\":\"width=device-width, initial-scale=1\",\"litmsProfileName\":\"jobs-guest-frontend\",\"clientSideIngraphs\":\"1\",\"og:type\":\"website\",\"",
+      "data": {
+        "pageKey": "d_jobs_guest_search",
+        "robots": "max-image-preview:large, noarchive",
+        "bingbot": "max-image-preview:large, archive",
+        "linkedin:pageTag": "urlType=jserp_custom;emptyResult=false",
+        "locale": "en_US",
+        "description": "Today&#39;s top 28 Frontend Developer jobs in Türkiye. Leverage your professional network, and get hired. New Frontend Developer jobs added daily.",
+        "viewport": "width=device-width, initial-scale=1",
+        "litmsProfileName": "jobs-guest-frontend",
+        "clientSideIngraphs": "1",
+        "og:type": "website",
+        "og:title": "28 Frontend Developer jobs in Türkiye",
+        "og:url": "https://tr.linkedin.com/jobs/frontend-developer-jobs",
+        "og:description": "Today&#39;s top 28 Frontend Developer jobs in Türkiye. Leverage your professional network, and get hired. New Frontend Developer jobs added daily.",
+        "twitter:title": "28 Frontend Developer jobs in Türkiye",
+        "twitter:card": "summary_large_image",
+        "twitter:site": "@LinkedIn",
+        "twitter:description": "Today&#39;s top 28 Frontend Developer jobs in Türkiye. Leverage your professional network, and get hired. New Frontend Developer jobs added daily.",
+        "lnkd:url": "https://www.linkedin.com/jobs/search/?keywords=Frontend+Developer&location=Turkey&f_TPR=r604800"
+      }
+    },
+    {
+      "type": "HTML_STATS",
+      "selector": "document",
+      "size": 199591,
+      "preview": "Total HTML: 195KB, Scripts: 4, Links: 77",
+      "data": {
+        "totalHtmlSize": 199591,
+        "scriptCount": 4,
+        "linkCount": 77,
+        "codeTagCount": 15,
+        "imgCount": 29
+      }
+    }
+  ],
+  "job_detail_page": [
+    {
+      "type": "META_TAGS",
+      "selector": "meta[property|name]",
+      "size": 1458,
+      "preview": "{\"pageKey\":\"d_jobs_guest_details\",\"robots\":\"max-image-preview:large, noarchive\",\"bingbot\":\"max-image-preview:large, archive\",\"locale\":\"en_US\",\"description\":\"Posted 2:55:28 PM. Şirket TanımıCRENNO Profesyonel Servisler olarak; Ulaşım Teknolojileri ve Sistemleri alanında…See this and similar jobs on LinkedIn.\",\"viewport\":\"width=device-width, initial-scale=1\",\"litmsProfileName\":\"jobs-guest-frontend\",\"clientSideIngraphs\":\"1\",\"og:type\":\"website\",\"og:title\":\"Crenno hiring Frontend Developer (CR-FRDE02",
+      "data": {
+        "pageKey": "d_jobs_guest_details",
+        "robots": "max-image-preview:large, noarchive",
+        "bingbot": "max-image-preview:large, archive",
+        "locale": "en_US",
+        "description": "Posted 2:55:28 PM. Şirket TanımıCRENNO Profesyonel Servisler olarak; Ulaşım Teknolojileri ve Sistemleri alanında…See this and similar jobs on LinkedIn.",
+        "viewport": "width=device-width, initial-scale=1",
+        "litmsProfileName": "jobs-guest-frontend",
+        "clientSideIngraphs": "1",
+        "og:type": "website",
+        "og:title": "Crenno hiring Frontend Developer (CR-FRDE02) in Kâğıthane, Istanbul, Türkiye | LinkedIn",
+        "og:url": "https://tr.linkedin.com/jobs/view/frontend-developer-cr-frde02-at-crenno-4374771287",
+        "og:description": "Posted 2:55:28 PM. Şirket TanımıCRENNO Profesyonel Servisler olarak; Ulaşım Teknolojileri ve Sistemleri alanında…See this and similar jobs on LinkedIn.",
+        "og:image": "https://static.licdn.com/aero-v1/sc/h/xlk678jv0tjp79pv10kglzkf",
+        "twitter:image": "https://static.licdn.com/aero-v1/sc/h/xlk678jv0tjp79pv10kglzkf",
+        "twitter:title": "Crenno hiring Frontend Developer (CR-FRDE02) in Kâğıthane, Istanbul, Türkiye | LinkedIn",
+        "twitter:card": "summary_large_image",
+        "twitter:site": "@LinkedIn",
+        "twitter:description": "Posted 2:55:28 PM. Şirket TanımıCRENNO Profesyonel Servisler olarak; Ulaşım Teknolojileri ve Sistemleri alanında…See this and similar jobs on LinkedIn.",
+        "theme-color": "#293e49",
+        "titleId": "3172",
+        "companyId": "1015104",
+        "industryIds": "3231",
+        "lnkd:url": "https://www.linkedin.com/jobs/view/4374771287"
+      }
+    },
+    {
+      "type": "HTML_STATS",
+      "selector": "document",
+      "size": 163424,
+      "preview": "Total HTML: 160KB, Scripts: 4, Links: 41",
+      "data": {
+        "totalHtmlSize": 163424,
+        "scriptCount": 4,
+        "linkCount": 41,
+        "codeTagCount": 147,
+        "imgCount": 13
+      }
+    }
+  ]
+}

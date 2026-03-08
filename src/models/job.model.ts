@@ -1,4 +1,32 @@
 /**
+ * Extracted skill — description'dan çıkarılan teknoloji/yetenek.
+ */
+export interface ExtractedSkill {
+  /** Skill adı (ör: "React", "TypeScript") */
+  name: string;
+  /** Kategori (ör: "frontend", "backend", "devops") */
+  category: string;
+  /** Ana skill mi? (title/requirements'da geçiyorsa true, sadece description'da geçiyorsa false) */
+  isMain: boolean;
+}
+
+/**
+ * Parse edilmiş maaş bilgisi — ham salary string'inden normalize edilir.
+ */
+export interface SalaryParsed {
+  /** Minimum maaş (TRY cinsinden, aylık) */
+  min: number | null;
+  /** Maximum maaş (TRY cinsinden, aylık) */
+  max: number | null;
+  /** Orijinal para birimi */
+  currency: 'TRY' | 'USD' | 'EUR';
+  /** Orijinal periyot */
+  period: 'monthly' | 'yearly';
+  /** Ham maaş string'i (orijinal haliyle) */
+  raw: string;
+}
+
+/**
  * LinkedIn Job Listing — Scraper'dan çıkan ham veri modeli.
  *
  * Her alan LinkedIn'den parse edilir. Bazı alanlar (salary, description)
@@ -15,10 +43,14 @@ export interface JobListing {
   location: string;
   /** Maaş bilgisi (LinkedIn'de her zaman gösterilmez) */
   salary: string | null;
+  /** Parse edilmiş ve normalize edilmiş maaş bilgisi */
+  salaryParsed: SalaryParsed | null;
   /** İş ilanının tam açıklaması */
   description: string | null;
   /** Gereksinimler listesi (description'dan parse edilir) */
   requirements: string[];
+  /** Description'dan çıkarılan yetenekler/teknolojiler */
+  skills: ExtractedSkill[];
   /** Seniority seviyesi — Entry level, Mid-Senior, Director vs. */
   seniorityLevel: string | null;
   /** İstihdam tipi — Full-time, Part-time, Contract */

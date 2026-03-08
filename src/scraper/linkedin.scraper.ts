@@ -148,8 +148,10 @@ const parseJobCards = async (page: Page): Promise<JobListing[]> => {
       company: string;
       location: string;
       salary: string | null;
+      salaryParsed: null;
       description: string | null;
       requirements: string[];
+      skills: never[];
       seniorityLevel: string | null;
       employmentType: string | null;
       link: string;
@@ -237,8 +239,10 @@ const parseJobCards = async (page: Page): Promise<JobListing[]> => {
           company,
           location: locationEl?.textContent?.trim() ?? 'Unknown',
           salary: salaryEl?.textContent?.trim() ?? null,
+          salaryParsed: null,
           description: null, // Description ayrı request gerektirir
           requirements: [],  // Detail fetcher ile doldurulacak
+          skills: [],
           seniorityLevel: null,
           employmentType: null,
           link: link.startsWith('http') ? link : `https://www.linkedin.com${link}`,

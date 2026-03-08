@@ -223,8 +223,10 @@ const fastParseSearchPage = async (
       company: string;
       location: string;
       salary: string | null;
+      salaryParsed: null;
       description: string | null;
       requirements: string[];
+      skills: never[];
       seniorityLevel: string | null;
       employmentType: string | null;
       link: string;
@@ -298,8 +300,10 @@ const fastParseSearchPage = async (
           company,
           location: (locationEl?.textContent ?? '').trim() || 'Unknown',
           salary: (salaryEl?.textContent ?? '').trim() || null,
+          salaryParsed: null,
           description: null,
           requirements: [],
+          skills: [],
           seniorityLevel: null,
           employmentType: null,
           link: link.startsWith('http') ? link : `https://www.linkedin.com${link}`,

@@ -1,0 +1,70 @@
+# name: Publish Accessibility Dashboard API Types
+
+# on:
+#   # push:
+#   #   paths:
+#   #   - "accessibility-dashboard-api/package.json"
+#   #   branches:
+#   #   - main
+#   #   - master
+#   #   - beta
+#   workflow_dispatch:
+
+# jobs:
+#   publish:
+#     runs-on: ubuntu-latest
+#     defaults:
+#       run:
+#         working-directory: ./accessibility-dashboard-api
+
+#     permissions:
+#       contents: write
+#       packages: write
+#       id-token: write
+
+#     steps:
+#     - name: Checkout
+#       uses: actions/checkout@v4
+
+#     - name: Setup Node.js
+#       uses: actions/setup-node@v4
+#       with:
+#         node-version: "20.x"
+#         registry-url: "https://npm.pkg.github.com"
+#         scope: "@efilli"
+
+#     - name: Configure npm for GitHub Packages
+#       run: |
+#         echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" > ~/.npmrc
+#         echo "@efilli:registry=https://npm.pkg.github.com" >> ~/.npmrc
+
+#     - name: Install dependencies
+#       run: npm install --no-package-lock
+#       env:
+#         NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+#     - name: Build package
+#       run: npm run build
+
+#     - name: Run type checking
+#       run: npm run type-check
+
+#     - name: Bump version
+#       run: |
+#         git config --global user.email "github-actions[bot]@users.noreply.github.com"
+#         git config --global user.name "github-actions[bot]"
+#         npm version patch -m "Bump version to %s [skip ci]"
+#       env:
+#         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+#     - name: Push version update
+#       run: |
+#         git push
+#         git push --tags
+#       env:
+#         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+#     - name: Publish package
+#       run: npm publish
+#       env:
+#         NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

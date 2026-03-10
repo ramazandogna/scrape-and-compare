@@ -22,4 +22,4 @@ Thumbs.db
 *.log
 
 # Github copilot instructions (kişisel config)
-.github/
+# .github/

@@ -1,65 +1,135 @@
 # 🚀 PROJECT: AI-Driven Talent Acquisition & Job Matching Engine
-**Context:** You are a Senior Full-Stack Engineer and Automation Expert. We are building a high-performance system that automates job searching by scraping platforms like LinkedIn and scoring opportunities using LLMs.
+
+AI destekli iş arama motoru. LinkedIn gibi platformları scrape eder, LLM ile fırsatları puanlar ve en uygun eşleşmeleri sunar.
 
 ---
 
 ## 🏗️ 1. ARCHITECTURAL BLUEPRINT (The Stack)
-- **Runtime:** Node.js (v20+) with TypeScript.
-- **Backend:** NestJS (Modular Architecture).
-- **Frontend:** Next.js 15 (App Router) + Tailwind CSS + Shadcn/UI.
-- **Scraping Engine:** Playwright with `stealth-plugin` & `fingerprint-generator`.
-- **Database:** PostgreSQL (Prisma ORM) for job persistence & User matching logs.
-- **Intelligence Layer:** OpenAI GPT-4o mini (for parsing JDs and semantic scoring).
+
+| Katman | Teknoloji |
+|--------|-----------|
+| Runtime | Node.js 20+, TypeScript 5.9+ |
+| Monorepo | pnpm workspaces (`apps/` + `packages/`) |
+| Backend | NestJS 11 (Modular Architecture) — `apps/backend/` |
+| Frontend | Next.js 15 (App Router) + Tailwind + Shadcn/UI — `apps/web/` *(gelecek)* |
+| Database | PostgreSQL 15 + Prisma ORM 6 — `packages/database/` |
+| Shared | Discriminated unions, Zod schemas — `packages/shared/` |
+| Scraping | Playwright + stealth plugin + resource blocking |
+| Intelligence | OpenAI GPT-4o mini (JD parsing + semantic scoring) |
+| Infrastructure | Docker Compose (PostgreSQL + pgAdmin) |
+
+### Monorepo Yapısı
+
+```
+scrape-and-compare/
+├── apps/
+│   └── backend/                 # NestJS — scraper, API, iş mantığı
+│       └── src/
+│           ├── main.ts          # HTTP server giriş noktası
+│           ├── cli.ts           # CLI scraper giriş noktası
+│           ├── app.module.ts    # Root module (Database + Scraper)
+│           ├── scraper/         # LinkedIn fast scraper (Playwright stealth)
+│           ├── database/        # PrismaService (@Global, lifecycle hooks)
+│           ├── extractors/      # Skill extraction + Salary parsing
+│           └── utils/           # Logger, sleep, helpers
+├── packages/
+│   ├── shared/                  # Paylaşılan tipler, Zod şemaları, sabitler
+│   │   └── src/
+│   │       ├── types/           # JobListing, ScraperError (discriminated union)
+│   │       ├── schemas/         # Zod validasyonları
+│   │       └── constants/       # EXCHANGE_RATES, SCRAPER_DEFAULTS
+│   └── database/                # Prisma schema + client re-export
+│       ├── prisma/schema.prisma # 4 tablo, 4 enum
+│       └── src/index.ts         # PrismaClient + tip re-export
+├── docker-compose.yml           # PostgreSQL 15 + pgAdmin
+├── tsconfig.base.json           # Shared strict TS config
+└── pnpm-workspace.yaml          # Workspace tanımları
+```
+
+### Bağımlılık Akışı
+
+```
+@scrape/shared (saf tipler)
+       ↓
+@scrape/database (Prisma + shared tipleri)
+       ↓
+@scrape/backend (her ikisini kullanır)
+```
 
 ---
 
-## 🛠️ 2. CORE MODULES & AI PROMPT DIRECTIVES
+## 🛠️ 2. CORE MODULES
 
 ### Module A: The Ghost Scraper (Data Ingestion)
-**Objective:** Bypass Cloudflare, TLS Fingerprinting, and Bot Detection on job boards.
-- **Requirement:** Implementation of `playwright-extra-plugin-stealth`.
-- **Logic:** Must handle multi-keyword searches (e.g., "Frontend", "React", "Fullstack") concurrently using Worker Threads or async queues.
-- **Success Metric:** Successfully extracting Job Title, Company, Description, and Link without triggering 403 Forbidden or Captcha.
+**Konum:** `apps/backend/src/scraper/`
 
-### Module B: The CV Parser & Skills Extractor
-**Objective:** Convert raw CV/User Input into a structured JSON profile.
-- **Logic:** Use LLM to extract { "skills": [], "experience_years": number, "tech_stack": [] } from user input.
-- **Constraint:** Must support automated CV upload (PDF parsing) in future iterations.
+- Playwright + stealth plugin ile bot koruması bypass
+- Resource blocking (JS/CSS/Image/Font) — sadece HTML yüklenir
+- Paralel tab pool ile concurrent detay çekme
+- Exponential backoff retry (max 3 attempt)
+- **Hedef:** 50+ ilan / keyword / 2 dakika, 0 captcha
+
+### Module B: CV Parser & Skills Extractor
+**Konum:** `apps/backend/src/extractors/` + gelecek LLM servisi
+
+- OpenAI GPT-4o mini ile skill/experience extraction
+- Zod ile tüm LLM çıktıları validate edilir
+- Plain text, PDF desteği (pdfparse)
+- **Hedef:** <2sn parse, >90% precision
 
 ### Module C: Semantic Matcher (The Brain)
-**Objective:** Compare extracted Job Descriptions (JD) with User Profile.
-- **Logic:** Scoring formula: 
-  - (Matched Skills / Required Skills) * 0.6 + (Years Experience Fit) * 0.4.
-- **Constraint:** Only return jobs with a confidence score > 50%.
-- **Output:** A curated list of "Perfect Matches" with a summary of *why* they match.
+**Konum:** Gelecek — `apps/backend/src/matcher/`
+
+- Scoring: `(Matched Skills / Required) × 0.6 + (Experience Fit) × 0.4`
+- Score > 50% filtresi, eşleşme açıklaması
+- **Hedef:** 100 iş / <3sn, >80% precision
 
 ---
 
-## 🗺️ 3. EXECUTION ROADMAP (Phase-by-Phase)
+## 🗺️ 3. EXECUTION ROADMAP
 
-### Phase 1: Infiltration (Scraping & Bypass)
-- [ ] Initialize NestJS project with Playwright.
-- [ ] Implement TLS Fingerprint rotation using `curl_cffi` or Playwright Stealth.
-- [ ] Create a scraper that takes a "Keyword" and "Location" and returns 50 job listings.
+### Phase 0: Foundation ✅
+- [x] Fast scraper v1.0 (Playwright stealth, resource blocking, paralel tabs)
+- [x] Skill extraction (80+ teknoloji, 8 kategori)
+- [x] Salary parsing (TL/USD/EUR → TRY normalize)
+- [x] JSON output (timestamped dosyalar)
 
-### Phase 2: Intelligence (LLM Scoring)
-- [ ] Build a service to feed Job Descriptions to GPT-4o.
-- [ ] Implement the semantic scoring logic to filter out noise.
-- [ ] Map 5 different search queries into a single unified result set.
+### Phase 1: Modular Monolith Migration ✅
+- [x] pnpm workspaces monorepo yapısı
+- [x] `@scrape/shared` — tipler, Zod şemaları, sabitler
+- [x] `@scrape/database` — Prisma schema (4 tablo, 4 enum), generated client
+- [x] `apps/backend` — NestJS modüler yapı (ScraperModule, DatabaseModule)
+- [x] Docker Compose altyapısı (PostgreSQL 15 + pgAdmin)
+- [x] TypeScript project references (strict, zero errors)
+- [x] Eski flat `src/` yapısından tam migration + temizlik
 
-### Phase 3: Interface (Next.js Dashboard)
-- [ ] Build a clean UI where the user inputs their role and skills.
-- [ ] Display results in a card-based layout with "Match Percentage" badges.
-- [ ] Add "Apply" button redirecting to the original listing.
+### Phase 2: Database Integration 🔜
+- [ ] PostgreSQL bağlantı testi + Prisma migration
+- [ ] Scraper çıktılarını JobListing tablosuna kaydet
+- [ ] ScraperAudit state machine (IDLE → SCANNING → EXTRACTING → COMPLETED/FAILED)
+- [ ] Deduplication (externalId + url unique constraint)
+
+### Phase 3: Intelligence (LLM Scoring)
+- [ ] CV/Profil parse servisi (GPT-4o mini)
+- [ ] Zod validated LLM output pipeline
+- [ ] Semantic matching + scoring algoritması
+- [ ] MatchResult tablosuna sonuçları kaydet
+
+### Phase 4: Interface (Next.js Dashboard)
+- [ ] `apps/web` — Next.js 15 App Router
+- [ ] Kullanıcı profil girişi (skills, preferences)
+- [ ] Eşleşme sonuçları kartları (match %, açıklama)
+- [ ] "Apply" butonu → orijinal ilan linki
 
 ---
 
-## 🤖 4. INITIAL AGENT INSTRUCTIONS (Launch Prompt)
+## 🗄️ 4. DATABASE SCHEMA
 
-"Act as a Lead Software Architect. Based on the roadmap above, your first task is to write a **Robust Scraping Service** in TypeScript. 
+| Tablo | Açıklama |
+|-------|----------|
+| **User** | Kullanıcı profili (techStack, experienceYears, preferredRoles) |
+| **JobListing** | Scrape edilen ilanlar (title, company, skills, salary*, requirements) |
+| **MatchResult** | AI eşleşme sonuçları (score, explanation, matchedSkills, missingSkills) |
+| **ScraperAudit** | Scraper çalışma logları (state machine, stats, errors) |
 
-1. Use **Playwright** with **Stealth Plugin**.
-2. Create a function `fetchJobs(keywords: string[], location: string)` that rotates through the keywords.
-3. Ensure the browser profile mimics a human (random delays, mouse movements, realistic headers).
-4. The output must be a cleaned JSON array of job postings.
-5. Explain how you will handle LinkedIn's dynamic class names and anti-bot challenges."
+**Enum'lar:** `SalaryCurrency`, `SalaryPeriod`, `JobSource`, `ScraperStatus`

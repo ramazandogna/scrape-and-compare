@@ -1,0 +1,179 @@
+// ═══════════════════════════════════════════════════════════
+// Prisma Schema — PostgreSQL Database Definition
+// ═══════════════════════════════════════════════════════════
+//
+// Bu dosya veritabanı yapısının "single source of truth"'u.
+// prisma generate → TypeScript client üretir (type-safe query)
+// prisma migrate  → SQL migration dosyaları üretir
+//
+// copilot-instructions kuralları:
+// - Raw SQL yasak, Prisma ORM kullan
+// - State Machine: ScraperAudit.status enum ile
+// - @unique constraint: externalId, url
+// ═══════════════════════════════════════════════════════════
+
+generator client {
+  provider = "prisma-client-js"
+  // pnpm strict isolation: .prisma/client pnpm store içinde kalır,
+  // VS Code TS server symlink zincirini çözemez.
+  // Explicit output ile generated client'ı proje içine alıyoruz.
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── ENUM'LAR ───────────────────────────────────────────
+
+/// Para birimi — salary normalization için
+enum SalaryCurrency {
+  TRY
+  USD
+  EUR
+}
+
+/// Maaş periyodu — yıllık mı aylık mı
+enum SalaryPeriod {
+  MONTHLY
+  YEARLY
+}
+
+/// İş ilanı kaynağı — hangi platform'dan geldi
+enum JobSource {
+  LINKEDIN
+  INDEED
+  GLASSDOOR
+}
+
+/// Scraper State Machine — copilot-instructions kural #11
+/// Boolean flag yerine açık durumlar. Geçerli geçişler:
+/// IDLE → SCANNING → EXTRACTING → COMPLETED
+///                 ↘ FAILED     ↗ FAILED
+///                   FAILED → IDLE
+enum ScraperStatus {
+  IDLE
+  SCANNING
+  EXTRACTING
+  COMPLETED
+  FAILED
+}
+
+// ─── TABLOLAR ───────────────────────────────────────────
+
+/// Kullanıcı profili — CV parse sonucu ve tercihler
+model User {
+  id                String   @id @default(uuid())
+  email             String   @unique
+  name              String
+  techStack         String[] /// Bildiği teknolojiler: ["React", "TypeScript", ...]
+  experienceYears   Int      @default(0)
+  preferredRoles    String[] /// ["Frontend Developer", "Fullstack Engineer"]
+  preferredLocations String[] /// ["İstanbul", "Remote"]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// User'ın eşleşme sonuçları
+  matchResults MatchResult[]
+
+  @@map("users")
+}
+
+/// İş ilanı — scraper'dan gelen zenginleştirilmiş veri
+model JobListing {
+  id         String @id @default(uuid())
+
+  /// LinkedIn'deki orijinal job ID — duplicate önleme
+  externalId String @unique
+  /// Doğrudan ilan linki — duplicate önleme
+  url        String @unique
+
+  title      String
+  company    String
+  location   String
+
+  /// Ham maaş string'i (LinkedIn'den gelen orijinal)
+  salary         String?
+  /// Normalize edilmiş maaş aralığı (TRY/ay cinsinden)
+  salaryMin      Int?
+  salaryMax      Int?
+  salaryCurrency SalaryCurrency?
+  salaryPeriod   SalaryPeriod?
+
+  /// İlan açıklaması (tam metin)
+  description    String?   @db.Text
+  /// Gereksinimler listesi
+  requirements   String[]
+  /// Çıkarılan skill'ler (JSON array: ExtractedSkill[])
+  skills         Json      @default("[]")
+
+  seniorityLevel String?
+  employmentType String?
+  postedDate     String?
+
+  /// Hangi platform'dan geldi
+  source    JobSource @default(LINKEDIN)
+  /// Ne zaman scrape edildi
+  scrapedAt DateTime  @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Bu ilana ait eşleşme sonuçları
+  matchResults MatchResult[]
+
+  @@map("job_listings")
+}
+
+/// Eşleşme sonucu — User ile JobListing arasındaki skor
+model MatchResult {
+  id     String @id @default(uuid())
+
+  /// İlişkiler
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobId  String
+  job    JobListing @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  /// 0-100 arası eşleşme yüzdesi
+  score       Float
+  /// AI tarafından üretilen eşleşme gerekçesi
+  explanation String    @db.Text
+  /// Eşleşen yetenekler
+  matchedSkills  String[]
+  /// Eksik yetenekler
+  missingSkills  String[]
+
+  createdAt DateTime @default(now())
+
+  /// Aynı user-job çifti için tek eşleşme
+  @@unique([userId, jobId])
+  @@map("match_results")
+}
+
+/// Scraper denetim kaydı — her scrape oturumunun logu
+model ScraperAudit {
+  id     String @id @default(uuid())
+
+  /// State Machine durumu
+  status   ScraperStatus @default(IDLE)
+  keyword  String
+  location String
+
+  /// Metrikler
+  totalFound     Int @default(0)
+  totalExtracted Int @default(0)
+  errorCount     Int @default(0)
+
+  /// Hata detayları (JSON array: ScraperError[])
+  errorDetails Json?
+  /// Toplam süre (milisaniye)
+  durationMs   Int   @default(0)
+
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  @@map("scraper_audits")
+}

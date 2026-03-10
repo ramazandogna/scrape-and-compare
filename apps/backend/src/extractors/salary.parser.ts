@@ -12,99 +12,57 @@
  * Normalize:
  * - Tüm değerler TRY'ye çevrilir (statik kur)
  * - Yıllık maaşlar aylığa bölünür
- *
- * Statik kurlar (yaklaşık, 2025 Q1):
- * - 1 USD ≈ 35 TRY
- * - 1 EUR ≈ 38 TRY
  */
 
-import type { SalaryParsed } from '@/models/job.model';
-
-// ═══════════════════════════════════════════
-// SABİTLER
-// ═══════════════════════════════════════════
-
-/** Statik döviz kurları (TRY cinsinden) */
-const EXCHANGE_RATES: Record<string, number> = {
-  TRY: 1,
-  USD: 35,
-  EUR: 38,
-};
+import type { SalaryParsed, SalaryCurrency, SalaryPeriod } from '@scrape/shared';
+import { EXCHANGE_RATES } from '@scrape/shared';
 
 // ═══════════════════════════════════════════
 // YARDIMCI FONKSİYONLAR
 // ═══════════════════════════════════════════
 
-/**
- * Currency sembol/kısaltma → standart currency kodu.
- *
- * @param text İçinden currency tespit edilecek metin
- * @returns Currency kodu
- */
-const detectCurrency = (text: string): 'TRY' | 'USD' | 'EUR' => {
+/** Currency sembol/kısaltma → standart currency kodu */
+const detectCurrency = (text: string): SalaryCurrency => {
   const normalized = text.toUpperCase();
-
   if (normalized.includes('$') || normalized.includes('USD')) return 'USD';
   if (normalized.includes('€') || normalized.includes('EUR')) return 'EUR';
   if (normalized.includes('₺') || normalized.includes('TL') || normalized.includes('TRY')) return 'TRY';
-
-  // Default: TRY (Türkiye odaklı scraper)
   return 'TRY';
 };
 
-/**
- * Yıllık mı aylık mı tespit eder.
- *
- * @param text İçinden periyot tespit edilecek metin
- * @returns Periyot
- */
-const detectPeriod = (text: string): 'monthly' | 'yearly' => {
+/** Yıllık mı aylık mı tespit eder */
+const detectPeriod = (text: string): SalaryPeriod => {
   const lower = text.toLowerCase();
-
   if (
-    lower.includes('yıllık') ||
-    lower.includes('yillik') ||
-    lower.includes('yearly') ||
-    lower.includes('annual') ||
-    lower.includes('/yr') ||
-    lower.includes('per year') ||
+    lower.includes('yıllık') || lower.includes('yillik') ||
+    lower.includes('yearly') || lower.includes('annual') ||
+    lower.includes('/yr') || lower.includes('per year') ||
     lower.includes('p.a.')
   ) {
     return 'yearly';
   }
-
   return 'monthly';
 };
 
 /**
  * Sayı string'ini temizler ve number'a çevirir.
  * "30.000" → 30000, "30,000" → 30000, "50K" → 50000
- *
- * @param numStr Ham sayı string'i
- * @returns Parse edilmiş sayı veya null
  */
 const parseNumber = (numStr: string): number | null => {
   let cleaned = numStr.trim();
 
-  // "50K" → "50000"
   if (/\d+[kK]$/i.test(cleaned)) {
     cleaned = cleaned.replace(/[kK]$/, '');
     const base = Number(cleaned.replace(/[.,]/g, ''));
     return Number.isNaN(base) ? null : base * 1000;
   }
 
-  // Binlik ayraç tespiti:
-  // "30.000" (TR format) vs "30,000" (EN format) vs "30000.00" (decimal)
-  // Eğer sonda .XX varsa → decimal point
   if (/\.\d{2}$/.test(cleaned)) {
-    // "$80,000.00" format — virgüller binlik
     cleaned = cleaned.replace(/,/g, '');
   } else if (/\.\d{3}/.test(cleaned)) {
-    // "30.000" TR format — noktalar binlik
     cleaned = cleaned.replace(/\./g, '');
     cleaned = cleaned.replace(/,/g, '.');
   } else {
-    // "30,000" EN format veya "30000"
     cleaned = cleaned.replace(/,/g, '');
   }
 
@@ -112,18 +70,11 @@ const parseNumber = (numStr: string): number | null => {
   return Number.isNaN(num) ? null : num;
 };
 
-/**
- * Maaş değerini aylık TRY'ye normalize eder.
- *
- * @param value Orijinal değer
- * @param currency Para birimi
- * @param period Periyot
- * @returns Aylık TRY değeri
- */
+/** Maaş değerini aylık TRY'ye normalize eder */
 const normalizeToMonthlyTRY = (
   value: number,
-  currency: 'TRY' | 'USD' | 'EUR',
-  period: 'monthly' | 'yearly',
+  currency: SalaryCurrency,
+  period: SalaryPeriod,
 ): number => {
   const rate = EXCHANGE_RATES[currency] ?? 1;
   const inTRY = value * rate;
@@ -134,22 +85,11 @@ const normalizeToMonthlyTRY = (
 // ANA PARSER
 // ═══════════════════════════════════════════
 
-/**
- * Salary regex pattern'leri — sıralama önemli (spesifik → genel)
- *
- * Her pattern bir [min, max?] capture grubu döndürür.
- */
+/** Salary regex pattern'leri — sıralama önemli (spesifik → genel) */
 const SALARY_PATTERNS: RegExp[] = [
-  // Range: "$80,000.00/yr - $120,000.00/yr" (LinkedIn card format)
   /[$€₺]?\s*([\d.,]+)\s*(?:\/\w+)?\s*[-–—]\s*[$€₺]?\s*([\d.,]+)\s*(?:\/\w+)?/,
-
-  // Range: "30.000 - 50.000 TL", "30.000-50.000₺"
   /([\d.,]+[kK]?)\s*[-–—]\s*([\d.,]+[kK]?)\s*(?:TL|₺|TRY|USD|\$|EUR|€)/,
-
-  // Range with currency prefix: "$5,000 - $8,000"
   /[$€₺]\s*([\d.,]+[kK]?)\s*[-–—]\s*[$€₺]?\s*([\d.,]+[kK]?)/,
-
-  // Single value: "30.000 TL", "₺30.000", "$5000"
   /[$€₺]\s*([\d.,]+[kK]?)/,
   /([\d.,]+[kK]?)\s*(?:TL|₺|TRY|USD|\$|EUR|€)/,
 ];
@@ -158,7 +98,7 @@ const SALARY_PATTERNS: RegExp[] = [
  * Ham maaş string'ini parse eder ve normalize eder.
  *
  * @param rawSalary LinkedIn'den gelen ham maaş string'i
- * @returns Parse edilmiş maaş bilgisi veya null (parse edilemezse)
+ * @returns Parse edilmiş maaş bilgisi veya null
  */
 export const parseSalary = (rawSalary: string | null): SalaryParsed | null => {
   if (!rawSalary || rawSalary.trim().length === 0) return null;
@@ -167,32 +107,23 @@ export const parseSalary = (rawSalary: string | null): SalaryParsed | null => {
   const currency = detectCurrency(text);
   const period = detectPeriod(text);
 
-  // Pattern'leri sırayla dene
   for (const pattern of SALARY_PATTERNS) {
     const match = text.match(pattern);
     if (!match) continue;
 
     const first = match[1];
     const second = match[2];
-
     if (!first) continue;
 
     const minRaw = parseNumber(first);
     const maxRaw = second ? parseNumber(second) : null;
 
-    // Çok küçük sayılar geçersiz (ör: "3" tek başına maaş değil)
     if (minRaw !== null && minRaw < 100) continue;
 
     const min = minRaw !== null ? normalizeToMonthlyTRY(minRaw, currency, period) : null;
     const max = maxRaw !== null ? normalizeToMonthlyTRY(maxRaw, currency, period) : null;
 
-    return {
-      min,
-      max,
-      currency,
-      period,
-      raw: text,
-    };
+    return { min, max, currency, period, raw: text };
   }
 
   return null;
@@ -200,7 +131,6 @@ export const parseSalary = (rawSalary: string | null): SalaryParsed | null => {
 
 /**
  * Description metninden maaş bilgisi çıkarmaya çalışır.
- * Card'da salary yoksa description'daki maaş bilgisini arar.
  *
  * @param description Job açıklaması
  * @returns Parse edilmiş maaş veya null
@@ -208,7 +138,6 @@ export const parseSalary = (rawSalary: string | null): SalaryParsed | null => {
 export const extractSalaryFromDescription = (description: string | null): SalaryParsed | null => {
   if (!description) return null;
 
-  // Maaş ile ilgili cümleleri bul
   const salaryKeywords = [
     /maaş[ı]?\s*[:;]?\s*([^\n.]{5,80})/i,
     /ücret[i]?\s*[:;]?\s*([^\n.]{5,80})/i,
@@ -220,7 +149,6 @@ export const extractSalaryFromDescription = (description: string | null): Salary
   for (const keyword of salaryKeywords) {
     const contextMatch = description.match(keyword);
     if (!contextMatch?.[1]) continue;
-
     const result = parseSalary(contextMatch[1]);
     if (result) return result;
   }

@@ -1,6 +1,6 @@
-# 🔍 Scrape & Compare — LinkedIn Job Scraper
+# 🔍 Scrape & Compare — AI-Driven Job Matching Engine
 
-AI destekli LinkedIn iş ilanı scraper'ı. Playwright stealth ile bot korumasını aşar, paralel tab pool ile hızlı çalışır, skill extraction ve salary parsing ile verileri zenginleştirir.
+AI destekli LinkedIn iş ilanı scraper'ı ve eşleştirme motoru. Playwright stealth ile bot korumasını aşar, paralel tab pool ile hızlı çalışır, skill extraction ve salary parsing ile verileri zenginleştirir.
 
 ## ✨ Özellikler
 
@@ -12,16 +12,21 @@ AI destekli LinkedIn iş ilanı scraper'ı. Playwright stealth ile bot koruması
 - **Salary Parsing:** TL/USD/EUR parse + aylık TRY'ye normalize
 - **Batch + Retry:** Rate limit'e takılınca exponential backoff ile yeniden dener
 - **Adaptive Delay:** Çok keyword varsa gecikmeleri otomatik artırır
-- **Timestamp Output:** Her çalıştırmada benzersiz dosya adı
+- **Modular Monolith:** pnpm workspaces ile paylaşılan tipler, veritabanı, backend ayrımı
+- **Type-Safe:** Discriminated unions, Zod validasyon, strict TypeScript
 
 ## 🛠️ Teknoloji
 
 | Katman | Teknoloji |
 |--------|-----------|
 | Runtime | Node.js 20+ |
-| Dil | TypeScript 5.9 (tsx ile çalıştırma) |
+| Dil | TypeScript 5.9 (strict, project references) |
+| Monorepo | pnpm 10+ workspaces |
+| Backend | NestJS 11 (Modular Architecture) |
+| Database | PostgreSQL 15 + Prisma ORM 6 |
 | Scraping | Playwright + playwright-extra + stealth plugin |
-| Package Manager | pnpm 10+ |
+| Validation | Zod (schema validation) |
+| Infrastructure | Docker Compose (PostgreSQL + pgAdmin) |
 | Output | JSON (output/ klasörü) |
 
 ## 🚀 Kurulum
@@ -34,17 +39,29 @@ cd scrape-and-compare
 # 2. Bağımlılıkları yükle
 pnpm install
 
-# 3. Playwright browser'larını yükle
+# 3. Prisma client generate et
+pnpm --filter @scrape/database generate
+
+# 4. Playwright browser'larını yükle
 pnpm exec playwright install chromium
 
-# 4. .env dosyasını düzenle
+# 5. .env dosyasını düzenle
 cp .env.example .env
-# KEYWORDS, LOCATION vb. ayarla
+# DATABASE_URL, KEYWORDS, LOCATION vb. ayarla
+
+# 6. PostgreSQL altyapısını başlat
+docker compose up -d
+
+# 7. Veritabanı migration'larını çalıştır
+pnpm --filter @scrape/database migrate
 ```
 
 ## ⚙️ Konfigürasyon (.env)
 
 ```env
+# Veritabanı
+DATABASE_URL=postgresql://scrape:scrape_dev_2024@localhost:5432/scrape_db
+
 # Browser ayarları
 HEADLESS=false          # true = arka planda, false = browser görünür (debug)
 SLOW_MO=0               # Aksiyon arası yapay gecikme (ms)
@@ -69,37 +86,61 @@ PARALLEL_TABS=5          # fazla olursa LinkedIn rate limit verir
 ## 📖 Kullanım
 
 ```bash
-# Fast scraper (önerilen)
-pnpm run fast
+# Fast scraper (CLI — NestJS standalone context)
+pnpm --filter @scrape/backend scrape
 
-# Eski scraper (debug/test için)
-pnpm run dev
+# HTTP server başlat
+pnpm --filter @scrape/backend start
+
+# Prisma Studio (veritabanı görsel arayüzü)
+pnpm --filter @scrape/database studio
+
+# TypeScript build (tüm workspace)
+pnpm build
 ```
 
-Çıktı `output/job-YYYY-MM-DD-HH-MM.json` olarak kaydedilir.
+Scraper çıktısı `output/job-YYYY-MM-DD-HH-MM.json` olarak kaydedilir.
 
 ## 📁 Proje Yapısı
 
 ```
-src/
-├── index.fast.ts              # Fast scraper entry point
-├── index.ts                   # Eski scraper entry point
-├── discover.ts                # HTML analiz aracı (dev tool)
-├── models/
-│   └── job.model.ts           # Tüm TypeScript interface'leri
-├── scraper/
-│   ├── browser.manager.ts     # Stealth Chromium yönetimi
-│   ├── fast.scraper.ts        # Resource blocking + paralel tab scraper
-│   ├── linkedin.scraper.ts    # Eski scraper (JS render + scroll)
-│   ├── job.detail.fetcher.ts  # Eski sıralı detay çekici
-│   └── network.sniffer.ts     # Network capture (dev tool)
-├── extractors/
-│   ├── skill.extractor.ts     # Teknoloji/skill çıkarıcı (80+ keyword)
-│   └── salary.parser.ts       # Maaş parse + TRY normalize
-├── utils/
-│   └── helpers.ts             # sleep, randomBetween, logger
-└── types/
-    └── declarations.d.ts      # Stealth plugin type declarations
+scrape-and-compare/
+├── apps/
+│   └── backend/                     # @scrape/backend — NestJS uygulaması
+│       └── src/
+│           ├── main.ts              # HTTP server giriş noktası (port 3000)
+│           ├── cli.ts               # CLI scraper giriş noktası
+│           ├── app.module.ts        # Root module (Database + Scraper)
+│           ├── scraper/
+│           │   ├── scraper.module.ts    # NestJS module tanımı
+│           │   ├── scraper.service.ts   # Fast LinkedIn scraper (~740 satır)
+│           │   └── browser.service.ts   # Playwright stealth yönetimi
+│           ├── database/
+│           │   ├── database.module.ts   # @Global Prisma module
+│           │   └── prisma.service.ts    # PrismaClient lifecycle hooks
+│           ├── extractors/
+│           │   ├── skill.extractor.ts   # 80+ teknoloji, 8 kategori
+│           │   └── salary.parser.ts     # TL/USD/EUR → TRY normalize
+│           ├── utils/
+│           │   └── helpers.ts           # sleep, randomBetween, logger
+│           └── types/
+│               └── declarations.d.ts    # Stealth plugin type stubs
+├── packages/
+│   ├── shared/                      # @scrape/shared — paylaşılan tipler
+│   │   └── src/
+│   │       ├── types/               # JobListing, ScraperError, ScraperResult<T>
+│   │       ├── schemas/             # Zod: jobListing, skill, salary, llm
+│   │       └── constants/           # EXCHANGE_RATES, SCRAPER_DEFAULTS
+│   └── database/                    # @scrape/database — Prisma ORM
+│       ├── prisma/schema.prisma     # 4 tablo, 4 enum
+│       └── src/
+│           ├── index.ts             # PrismaClient + tip re-export
+│           └── generated/prisma/    # Prisma generated client (gitignore)
+├── docker-compose.yml               # PostgreSQL 15 + pgAdmin
+├── tsconfig.base.json               # Shared strict TS config
+├── tsconfig.json                    # Project references hub
+├── pnpm-workspace.yaml              # apps/* + packages/*
+└── .env                             # DATABASE_URL, KEYWORDS, LOCATION
 ```
 
 ## 📊 Çıktı Formatı
@@ -149,6 +190,32 @@ src/
 | Success rate | ~85% | ~95%+ |
 
 ## 📋 Patch Notes
+
+### v2.0.0 — Modular Monolith Migration
+
+**Mimari Değişiklikler:**
+- 🏗️ **pnpm Workspaces:** Flat `src/` yapısından `apps/` + `packages/` monorepo'ya geçiş
+- 📦 **@scrape/shared:** Tüm tipler, Zod şemaları ve sabitler ayrı pakette
+- 🗃️ **@scrape/database:** PostgreSQL + Prisma ORM (4 tablo, 4 enum, generated client)
+- 🚀 **@scrape/backend:** NestJS modüler yapı (ScraperModule, DatabaseModule)
+- 🐘 **Docker Compose:** PostgreSQL 15 + pgAdmin altyapısı
+- 📐 **TypeScript Project References:** Strict build sırası (shared → database → backend)
+
+**Type Safety:**
+- 🎯 **Discriminated Unions:** ScraperError, ParserError, MatcherError — her state'in kendi tipi
+- 🔒 **Zod Validation:** jobListingSchema, extractedSkillSchema, salaryParsedSchema, llmSkillExtractionSchema
+- 🚫 **`any` yasak:** Tüm codebase strict TypeScript, sıfır `any`
+
+**NestJS Entegrasyon:**
+- 💉 **Dependency Injection:** ScraperService, BrowserService, PrismaService
+- 🌐 **İki giriş noktası:** `main.ts` (HTTP server) + `cli.ts` (standalone scraper)
+- 🌍 **@Global DatabaseModule:** PrismaService tüm modüllerden erişilebilir
+
+**Prisma Schema:**
+- 👤 User (profil, techStack, preferredRoles)
+- 📋 JobListing (ilan detayları, skills, salary normalization)
+- 🎯 MatchResult (AI eşleşme, score, explanation)
+- 📊 ScraperAudit (state machine: IDLE→SCANNING→EXTRACTING→COMPLETED/FAILED)
 
 ### v1.0.0 — İlk Stabil Sürüm
 

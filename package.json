@@ -1,30 +1,35 @@
 {
   "name": "scrape-and-compare",
   "version": "1.0.0",
-  "description": "AI-Driven Job Scraping & Matching Engine",
+  "private": true,
+  "description": "AI-Driven Job Scraping & Matching Engine — Monorepo",
   "type": "module",
-  "main": "dist/index.js",
-  "scripts": {
-    "dev": "tsx src/index.ts",
-    "scrape": "tsx src/index.ts",
-    "discover": "tsx src/discover.ts",
-    "fast": "tsx src/index.fast.ts",
-    "build": "tsc",
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "engines": {
+    "pnpm": ">=9",
+    "node": ">=20"
   },
-  "keywords": [],
+  "scripts": {
+    "dev": "pnpm --filter @scrape/backend dev",
+    "scrape": "pnpm --filter @scrape/backend scrape",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "db:generate": "pnpm --filter @scrape/database generate",
+    "db:migrate": "pnpm --filter @scrape/database migrate",
+    "db:studio": "pnpm --filter @scrape/database studio",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down"
+  },
+  "keywords": ["scraper", "linkedin", "job-matching", "ai", "monorepo"],
   "author": "",
   "license": "ISC",
   "packageManager": "pnpm@10.13.1",
-  "dependencies": {
-    "dotenv": "^17.3.1",
-    "playwright": "^1.58.2",
-    "playwright-extra": "^4.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2"
-  },
-  "devDependencies": {
-    "@types/node": "^25.2.3",
-    "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "@prisma/client",
+      "@prisma/engines",
+      "esbuild",
+      "prisma"
+    ]
   }
 }

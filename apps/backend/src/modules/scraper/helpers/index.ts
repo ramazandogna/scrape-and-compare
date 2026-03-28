@@ -36,3 +36,10 @@ export {
   calculateBatchCooldown,
   adaptiveWait,
 } from './delay';
+
+// Job mapper — scraper ↔ database field transformation
+export { mapJobToCreateInput, mapJobToUpdateInput } from './job.mapper';
+
+// Job persistence — Prisma upsert
+export { upsertJobs } from './job.persistence';
+export type { JobPersistResult, UpsertSummary } from './job.persistence';

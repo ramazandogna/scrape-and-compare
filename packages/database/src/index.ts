@@ -29,6 +29,13 @@ export {
 } from './generated/prisma';
 
 /**
+ * Prisma namespace re-export — input/output tipleri için.
+ * Kullanım: import { Prisma } from '@scrape/database';
+ *           type CreateInput = Prisma.JobListingCreateInput;
+ */
+export { Prisma } from './generated/prisma';
+
+/**
  * Prisma'nın ürettiği model tiplerini re-export et.
  * Type-safe query yazmak için gerekli.
  */

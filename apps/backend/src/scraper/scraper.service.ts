@@ -20,6 +20,7 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { BrowserContext, Page, Route } from 'playwright';
 import type {
+  ExtractedSkill,
   JobListing,
   ScrapeOutput,
   ScraperConfig,
@@ -692,7 +693,7 @@ export class ScraperService {
     const withSkills = jobs.filter((j) => j.skills.length > 0).length;
     const withSalary = jobs.filter((j) => j.salaryParsed !== null).length;
     const totalSkills = jobs.reduce((sum, j) => sum + j.skills.length, 0);
-    const mainSkillCount = jobs.reduce((sum, j) => sum + j.skills.filter((s) => s.isMain).length, 0);
+    const mainSkillCount = jobs.reduce((sum, j) => sum + j.skills.filter((s: ExtractedSkill) => s.isMain).length, 0);
     const withDesc = jobs.filter((j) => j.description && j.description.length > 20).length;
     const withReqs = jobs.filter((j) => j.requirements.length > 0).length;
 
@@ -722,8 +723,8 @@ export class ScraperService {
       if (job.seniorityLevel) console.log(`     📊 Seviye: ${job.seniorityLevel}`);
       if (job.employmentType) console.log(`     💼 Tip: ${job.employmentType}`);
       if (job.skills.length > 0) {
-        const mainSkillNames = job.skills.filter((s) => s.isMain).map((s) => s.name);
-        const sideSkillNames = job.skills.filter((s) => !s.isMain).map((s) => s.name);
+        const mainSkillNames = job.skills.filter((s: ExtractedSkill) => s.isMain).map((s: ExtractedSkill) => s.name);
+        const sideSkillNames = job.skills.filter((s: ExtractedSkill) => !s.isMain).map((s: ExtractedSkill) => s.name);
         if (mainSkillNames.length > 0) console.log(`     🎯 Ana: ${mainSkillNames.join(', ')}`);
         if (sideSkillNames.length > 0) console.log(`     📌 Yan: ${sideSkillNames.join(', ')}`);
       }

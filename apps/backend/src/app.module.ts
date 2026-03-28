@@ -12,7 +12,7 @@
 
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@/database/database.module';
-import { ScraperModule } from '@/scraper/scraper.module';
+import { ScraperModule } from '@/modules/scraper/scraper.module';
 
 @Module({
   imports: [DatabaseModule, ScraperModule],

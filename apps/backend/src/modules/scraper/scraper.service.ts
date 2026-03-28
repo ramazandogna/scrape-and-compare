@@ -26,7 +26,7 @@ import type {
   ScraperConfig,
   ScraperErrorLegacy,
 } from '@scrape/shared';
-import { BrowserService } from '@/scraper/browser.service';
+import { BrowserService } from './browser.service';
 import { extractSkills } from '@/extractors/skill.extractor';
 import { parseSalary, extractSalaryFromDescription } from '@/extractors/salary.parser';
 import { sleep, randomBetween, logger } from '@/utils/helpers';

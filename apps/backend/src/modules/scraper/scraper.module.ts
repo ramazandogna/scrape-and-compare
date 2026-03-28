@@ -14,8 +14,8 @@
  */
 
 import { Module } from '@nestjs/common';
-import { ScraperService } from '@/scraper/scraper.service';
-import { BrowserService } from '@/scraper/browser.service';
+import { ScraperService } from './scraper.service';
+import { BrowserService } from './browser.service';
 
 @Module({
   providers: [ScraperService, BrowserService],

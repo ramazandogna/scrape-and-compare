@@ -26,3 +26,13 @@ export {
   deduplicateJobs,
 } from './config';
 export type { FastScraperConfig } from './config';
+
+// Adaptive backoff & error classification
+export {
+  classifyHttpError,
+  classifyRuntimeError,
+  isRetryable,
+  calculateBackoff,
+  calculateBatchCooldown,
+  adaptiveWait,
+} from './delay';

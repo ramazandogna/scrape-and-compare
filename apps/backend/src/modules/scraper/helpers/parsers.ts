@@ -16,6 +16,7 @@
 import type { Page } from 'playwright';
 import type { JobListing } from '@scrape/shared';
 import type { PagePool } from './resource';
+import { classifyHttpError, classifyRuntimeError, adaptiveWait, calculateBatchCooldown } from './delay';
 import { sleep, randomBetween, logger } from '@/utils/helpers';
 
 // ═══════════════════════════════════════════
@@ -176,17 +177,20 @@ const parseJobCardsFromDom = (scrapedAt: string): JobListing[] => {
 // DETAIL PAGE PARSER
 // ═══════════════════════════════════════════
 
-const MAX_RETRIES = 2;
-
 /**
- * Tek bir job'un detail sayfasını parse eder — retry mekanizmalı.
- * HTTP 4xx veya context destroyed hatalarında exponential backoff ile tekrar dener.
+ * Tek bir job'un detail sayfasını parse eder — adaptive retry mekanizmalı.
+ *
+ * Eski davranış: Sabit 3s/6s backoff, her hata aynı muamele.
+ * Yeni davranış: HTTP status ve hata mesajı ScraperError'a sınıflandırılır,
+ * her error tipi kendi base delay × exponential + jitter ile beklenir.
  */
 export const fastParseDetailPage = async (
   page: Page,
   job: JobListing,
   retryCount: number = 0,
 ): Promise<{ job: JobListing; success: boolean }> => {
+  const label = job.title.substring(0, 35);
+
   try {
     const cleanUrl = job.id.startsWith('unknown_')
       ? job.link.split('?')[0] ?? job.link
@@ -199,12 +203,9 @@ export const fastParseDetailPage = async (
 
     const status = response?.status() ?? 0;
     if (status >= 400) {
-      if (retryCount < MAX_RETRIES) {
-        const backoff = retryCount === 0 ? 3000 : 6000;
-        logger.warn(`[RETRY] HTTP ${status} — ${job.title.substring(0, 35)} — ${backoff}ms bekle (deneme ${retryCount + 1}/${MAX_RETRIES})`);
-        await sleep(backoff);
-        return fastParseDetailPage(page, job, retryCount + 1);
-      }
+      const error = classifyHttpError(status, cleanUrl);
+      const shouldRetry = await adaptiveWait(error, retryCount, label);
+      if (shouldRetry) return fastParseDetailPage(page, job, retryCount + 1);
       return { job, success: false };
     }
 
@@ -228,19 +229,14 @@ export const fastParseDetailPage = async (
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown';
-    const isRetryable =
-      message.includes('Execution context was destroyed') ||
-      message.includes('ERR_HTTP_RESPONSE_CODE_FAILURE');
+    const error = classifyRuntimeError(message);
+    const shouldRetry = await adaptiveWait(error, retryCount, label);
 
-    if (isRetryable && retryCount < MAX_RETRIES) {
-      const backoff = retryCount === 0 ? 3000 : 6000;
-      logger.warn(`[RETRY] ${job.title.substring(0, 35)} — ${backoff}ms bekle (deneme ${retryCount + 1}/${MAX_RETRIES})`);
-      await sleep(backoff);
-      return fastParseDetailPage(page, job, retryCount + 1);
-    }
+    if (shouldRetry) return fastParseDetailPage(page, job, retryCount + 1);
 
-    logger.warn(`[FAST] Detail hatası: ${job.title.substring(0, 40)}`, {
+    logger.warn(`[FAST] Detail hatası: ${label}`, {
       error: message.substring(0, 80),
+      code: error.code,
       retries: retryCount,
     });
     return { job, success: false };
@@ -371,8 +367,11 @@ export const parallelFetchDetails = async (
     }
 
     if (consecutiveFails >= 2) {
-      logger.warn(`[COOLDOWN] ${consecutiveFails} batch üst üste çoğunlukla hata — 8sn mola...`);
-      await sleep(8000);
+      const cooldown = calculateBatchCooldown(batchFail, batch.length);
+      if (cooldown > 0) {
+        logger.warn(`[COOLDOWN] ${consecutiveFails} batch üst üste çoğunlukla hata — ${(cooldown / 1000).toFixed(1)}sn mola...`);
+        await sleep(cooldown);
+      }
       consecutiveFails = 0;
     }
 

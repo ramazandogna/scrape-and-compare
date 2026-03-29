@@ -35,3 +35,17 @@ export const VALID_SCRAPER_TRANSITIONS: Record<string, readonly string[]> = {
   COMPLETED: ['IDLE'],
   FAILED: ['IDLE'],
 } as const;
+
+// ═══════════════════════════════════════════
+// QUEUE CONSTANTS
+// ═══════════════════════════════════════════
+
+/**
+ * BullMQ kuyruk isimleri — magic string'leri önler.
+ *
+ * Neden sabit? 'scraper' string'ini 5 farklı dosyaya yazmak yerine
+ * tek bir yerden import et. Typo yapma şansın sıfır.
+ */
+export const QUEUE_NAMES = {
+  SCRAPER: 'scraper',
+} as const;

@@ -29,3 +29,11 @@ export type {
   ParserResult,
   MatcherResult,
 } from './results';
+
+export type {
+  ScrapeJobData,
+  ScrapeJobCompleted,
+  ScrapeJobFailed,
+  ScrapeJobResult,
+  ScrapeJobProgress,
+} from './queue';

@@ -27,6 +27,11 @@ export type {
   ScraperResult,
   ParserResult,
   MatcherResult,
+  ScrapeJobData,
+  ScrapeJobCompleted,
+  ScrapeJobFailed,
+  ScrapeJobResult,
+  ScrapeJobProgress,
 } from './types/index';
 
 // Schemas
@@ -43,4 +48,5 @@ export {
   EXCHANGE_RATES,
   SCRAPER_DEFAULTS,
   VALID_SCRAPER_TRANSITIONS,
+  QUEUE_NAMES,
 } from './constants/index';

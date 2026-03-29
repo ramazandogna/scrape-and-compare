@@ -18,6 +18,8 @@ import { parseSalary, extractSalaryFromDescription } from '@/extractors/salary.p
 
 export interface FastScraperConfig extends ScraperConfig {
   parallelTabs: number;
+  /** Search fazında aynı anda kaç keyword taranacak (default: 2) */
+  searchConcurrency: number;
 }
 
 // ═══════════════════════════════════════════
@@ -57,6 +59,7 @@ export const loadFastConfig = (keywordCount: number): FastScraperConfig => {
     fetchDetails: process.env['FETCH_DETAILS'] !== 'false',
     maxDetailFetch: Number(process.env['MAX_DETAIL_FETCH'] ?? 25),
     parallelTabs: Number(process.env['PARALLEL_TABS'] ?? 5),
+    searchConcurrency: Number(process.env['SEARCH_CONCURRENCY'] ?? 2),
   };
 };
 

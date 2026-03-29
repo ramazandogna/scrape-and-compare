@@ -13,7 +13,8 @@
  *   3. Search sayfalarını tara (keyword başına)
  *   4. Detail sayfalarını paralel çek (N tab)
  *   5. Skill extraction + salary parsing
- *   6. JSON dosyasına yaz
+ *   6. DB'ye upsert (PostgreSQL via Prisma)
+ *   7. JSON dosyasına yaz (debug/backup)
  */
 
 import { Injectable } from '@nestjs/common';
@@ -26,9 +27,9 @@ import type {
   ScraperErrorLegacy,
 } from '@scrape/shared';
 import { BrowserService } from './browser.service';
-import { sleep, randomBetween, logger } from '@/utils/helpers';
+import { PrismaService } from '@/database/prisma.service';
+import { randomBetween, logger } from '@/utils/helpers';
 import {
-  enableResourceBlocking,
   createPagePool,
   fastParseSearchPage,
   parallelFetchDetails,
@@ -38,8 +39,20 @@ import {
   generateOutputFilename,
   enrichJobsWithExtractors,
   deduplicateJobs,
+  upsertJobs,
+  createAudit,
+  transitionAudit,
+  updateAuditFound,
+  updateAuditExtracted,
+  completeAudit,
+  failAudit,
+  runConcurrent,
+  extractFulfilled,
+  extractRejected,
 } from './helpers';
 import type { FastScraperConfig } from './helpers';
+import type { Prisma } from '@scrape/database';
+import { ScraperStatus } from '@scrape/database';
 
 // ═══════════════════════════════════════════
 // ANA SERVİS
@@ -47,33 +60,78 @@ import type { FastScraperConfig } from './helpers';
 
 @Injectable()
 export class ScraperService {
-  constructor(private readonly browserService: BrowserService) {}
+  constructor(
+    private readonly browserService: BrowserService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   /**
    * Fast scrape çalıştırır — CLI entry point'ten çağrılır.
+   *
+   * Audit lifecycle:
+   *   createAudit (IDLE) → SCANNING → EXTRACTING → COMPLETED
+   *   Herhangi bir adımda hata → FAILED
    */
   async runFastScrape(): Promise<void> {
     const keywords = loadKeywords();
     const location = loadLocation();
     const config = loadFastConfig(keywords.length);
 
-    logger.info('⚡ FAST LinkedIn Job Scraper v2.0.0 (NestJS) başlatılıyor', {
+    // Audit kaydı oluştur (keyword'leri virgülle birleştir — schema tek string)
+    const auditId = await createAudit(this.prisma, keywords.join(', '), location);
+
+    logger.info('FAST LinkedIn Job Scraper v2.0.0 (NestJS) başlatılıyor', {
       keywords,
       location,
+      searchConcurrency: config.searchConcurrency,
       parallelTabs: config.parallelTabs,
       maxDetailFetch: config.maxDetailFetch,
       adaptiveDelay: keywords.length > 2 ? '1.5x' : '1x',
+      auditId,
     });
 
     const startTime = Date.now();
 
-    const { jobs, errors } = await this.executeScrape(keywords, location, config);
+    try {
+      // IDLE → SCANNING
+      await transitionAudit(this.prisma, auditId, ScraperStatus.SCANNING);
 
-    logger.info('🧠 Skill extraction ve salary parsing başlatılıyor...');
-    const enrichedJobs = enrichJobsWithExtractors(jobs);
+      const { jobs, errors } = await this.executeScrape(keywords, location, config);
+      await updateAuditFound(this.prisma, auditId, jobs.length);
 
-    this.writeOutput(enrichedJobs, errors, keywords, location);
-    this.printSummary(enrichedJobs, errors, config, startTime);
+      // SCANNING → EXTRACTING
+      await transitionAudit(this.prisma, auditId, ScraperStatus.EXTRACTING);
+
+      logger.info('🧠 Skill extraction ve salary parsing başlatılıyor...');
+      const enrichedJobs = enrichJobsWithExtractors(jobs);
+
+      // ADIM 4: DB'ye kaydet (upsert — varsa güncelle, yoksa oluştur)
+      const dbResult = await upsertJobs(this.prisma, enrichedJobs);
+      await updateAuditExtracted(this.prisma, auditId, dbResult.created + dbResult.updated);
+
+      // EXTRACTING → COMPLETED
+      const scrapeErrors = errors.map((e) => e.error);
+      await completeAudit(this.prisma, auditId, {
+        totalFound: jobs.length,
+        totalExtracted: dbResult.created + dbResult.updated,
+        errorCount: errors.length + dbResult.failed,
+        errorDetails: scrapeErrors as unknown as Prisma.InputJsonValue,
+      });
+
+      // ADIM 5: JSON çıktısı (debug/backup — ileride kaldırılabilir)
+      this.writeOutput(enrichedJobs, errors, keywords, location);
+      this.printSummary(enrichedJobs, errors, config, startTime, dbResult);
+    } catch (err) {
+      // Herhangi bir adımda beklenmeyen hata → FAILED
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      await failAudit(this.prisma, auditId, [
+        { code: 'NETWORK_ERROR', message },
+      ] as unknown as Prisma.InputJsonValue).catch(() => {
+        // failAudit kendisi de hata verirse (DB bağlantısı kopmuş olabilir) sessizce geç
+        logger.error('[AUDIT] failAudit yazılamadı — DB bağlantısı kopmuş olabilir');
+      });
+      throw err; // Hatayı yukarıya fırlat — CLI'da yakalanır
+    }
   }
 
   /** Scraping işlemini gerçekleştirir — browser aç, tara, kapat */
@@ -86,60 +144,76 @@ export class ScraperService {
     errors: Array<{ keyword: string; error: ScraperErrorLegacy }>;
   }> {
     const context = await this.browserService.launch(config);
-    const allJobs: JobListing[] = [];
-    const errors: Array<{ keyword: string; error: ScraperErrorLegacy }> = [];
     const seenIds = new Set<string>();
     const seenLinks = new Set<string>();
 
     try {
-      // ADIM 1: Search sayfalarını tara
-      logger.info('\n🔍 ADIM 1: Search sayfaları taranıyor...');
-      const searchPage = await this.browserService.createPage(context);
-      await enableResourceBlocking(searchPage);
+      // ADIM 1: Search sayfalarını concurrent tara
+      logger.info('ADIM 1: Search sayfaları taranıyor...', {
+        keywords: keywords.length,
+        concurrency: config.searchConcurrency,
+      });
 
-      for (const keyword of keywords) {
-        if (keywords.indexOf(keyword) > 0) {
-          const delay = randomBetween(config.requestDelayMin, config.requestDelayMax);
-          logger.info(`Sonraki arama öncesi ${delay}ms bekleniyor...`);
-          await sleep(delay);
-        }
+      // Her concurrent slot için ayrı bir search page oluştur
+      const searchPool = await createPagePool(
+        this.browserService,
+        context,
+        config.searchConcurrency,
+      );
 
-        try {
-          const jobs = await fastParseSearchPage(searchPage, keyword, location);
-          const newJobs = deduplicateJobs(jobs, config.maxJobsPerKeyword, seenIds, seenLinks);
-          allJobs.push(...newJobs);
-          logger.info(`Toplam unique: ${allJobs.length}`);
-        } catch (err) {
-          const message = err instanceof Error ? err.message : 'Unknown';
-          errors.push({
-            keyword,
-            error: { code: 'PARSING_FAILED', selector: 'search', html: message },
-          });
-          logger.error(`"${keyword}" araması başarısız: ${message}`);
-        }
+      const searchResults = await runConcurrent(
+        keywords,
+        async (keyword, _itemIndex, slotIndex) => {
+          const page = searchPool.pages[slotIndex]!;
+          const jobs = await fastParseSearchPage(page, keyword, location);
+          return jobs;
+        },
+        {
+          concurrency: config.searchConcurrency,
+          delayBetweenMs: randomBetween(config.requestDelayMin, config.requestDelayMax),
+          label: 'keyword-search',
+        },
+      );
+
+      await searchPool.close();
+
+      // Sonuçları topla — fulfilled olanlardan job'ları, rejected olanlardan error'ları çıkar
+      const allJobs: JobListing[] = [];
+      const errors: Array<{ keyword: string; error: ScraperErrorLegacy }> = [];
+
+      for (const result of extractFulfilled(searchResults)) {
+        const newJobs = deduplicateJobs(result.data, config.maxJobsPerKeyword, seenIds, seenLinks);
+        allJobs.push(...newJobs);
       }
 
-      await searchPage.close();
+      for (const result of extractRejected(searchResults)) {
+        errors.push({
+          keyword: result.item,
+          error: { code: 'PARSING_FAILED', selector: 'search', html: result.error },
+        });
+      }
+
+      logger.info(`Search tamamlandı — ${allJobs.length} unique job bulundu`);
 
       // ADIM 2: Detail sayfalarını paralel çek
       if (config.fetchDetails && allJobs.length > 0) {
         const jobsToEnrich = allJobs.slice(0, config.maxDetailFetch);
-        logger.info(`\n📝 ADIM 2: ${jobsToEnrich.length} ilanın detayı ${config.parallelTabs} paralel tab ile çekilecek...`);
+        logger.info(`ADIM 2: ${jobsToEnrich.length} ilanın detayı ${config.parallelTabs} paralel tab ile çekilecek...`);
 
-        const pool = await createPagePool(this.browserService, context, config.parallelTabs);
-        const enriched = await parallelFetchDetails(pool, jobsToEnrich, config.requestDelayMin, config.requestDelayMax);
+        const detailPool = await createPagePool(this.browserService, context, config.parallelTabs);
+        const enriched = await parallelFetchDetails(detailPool, jobsToEnrich, config.requestDelayMin, config.requestDelayMax);
 
         for (let i = 0; i < enriched.length; i++) {
           if (enriched[i]) allJobs[i] = enriched[i]!;
         }
 
-        await pool.close();
+        await detailPool.close();
       }
+
+      return { jobs: allJobs, errors };
     } finally {
       await this.browserService.close();
     }
-
-    return { jobs: allJobs, errors };
   }
 
   /** Sonuçları JSON dosyasına yazar */
@@ -173,6 +247,7 @@ export class ScraperService {
     errors: Array<{ keyword: string; error: ScraperErrorLegacy }>,
     config: FastScraperConfig,
     startTime: number,
+    dbResult?: { created: number; updated: number; failed: number },
   ): void {
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     const withSkills = jobs.filter((j) => j.skills.length > 0).length;
@@ -191,9 +266,12 @@ export class ScraperService {
     logger.success(`Requirements çekilen: ${withReqs}`);
     logger.success(`Skills çıkarılan: ${withSkills} ilan (${totalSkills} toplam, ${mainSkillCount} main)`);
     logger.success(`Salary parse edilen: ${withSalary}`);
+    if (dbResult) {
+      logger.success(`DB: ${dbResult.created} yeni, ${dbResult.updated} güncellenen, ${dbResult.failed} hatalı`);
+    }
     logger.success(`Hatalar: ${errors.length}`);
     logger.success(`Paralel tab: ${config.parallelTabs}`);
-    logger.success(`${'═'.repeat(55)}`);
+    logger.success(`${'═'.repeat(55)}`);  
 
     this.printTopResults(jobs);
   }
@@ -202,25 +280,24 @@ export class ScraperService {
   private printTopResults(jobs: JobListing[]): void {
     if (jobs.length === 0) return;
 
-    logger.info('\n📋 İlk 5 sonuç:');
+    logger.info('İlk 5 sonuç:');
     jobs.slice(0, 5).forEach((job, i) => {
-      console.log(`  ${i + 1}. ${job.title} @ ${job.company} (${job.location})`);
-      if (job.seniorityLevel) console.log(`     📊 Seviye: ${job.seniorityLevel}`);
-      if (job.employmentType) console.log(`     💼 Tip: ${job.employmentType}`);
-      if (job.skills.length > 0) {
-        const mainSkillNames = job.skills.filter((s: ExtractedSkill) => s.isMain).map((s: ExtractedSkill) => s.name);
-        const sideSkillNames = job.skills.filter((s: ExtractedSkill) => !s.isMain).map((s: ExtractedSkill) => s.name);
-        if (mainSkillNames.length > 0) console.log(`     🎯 Ana: ${mainSkillNames.join(', ')}`);
-        if (sideSkillNames.length > 0) console.log(`     📌 Yan: ${sideSkillNames.join(', ')}`);
-      }
-      if (job.salaryParsed) {
-        const { min, max, currency, period } = job.salaryParsed;
-        const range = max ? `${min?.toLocaleString('tr-TR')}-${max.toLocaleString('tr-TR')}` : `${min?.toLocaleString('tr-TR')}+`;
-        console.log(`     💰 ${range} TRY/ay (${currency} ${period})`);
-      }
-      if (job.description) console.log(`     📝 ${job.description.substring(0, 150)}...`);
-      if (job.requirements.length > 0) console.log(`     ✅ Gereksinimler (${job.requirements.length} madde)`);
-      console.log(`     🔗 ${job.link}\n`);
+      const mainSkillNames = job.skills.filter((s: ExtractedSkill) => s.isMain).map((s: ExtractedSkill) => s.name);
+      const sideSkillNames = job.skills.filter((s: ExtractedSkill) => !s.isMain).map((s: ExtractedSkill) => s.name);
+
+      logger.info(`#${i + 1} ${job.title} @ ${job.company}`, {
+        location: job.location,
+        seniorityLevel: job.seniorityLevel ?? undefined,
+        employmentType: job.employmentType ?? undefined,
+        mainSkills: mainSkillNames.length > 0 ? mainSkillNames : undefined,
+        sideSkills: sideSkillNames.length > 0 ? sideSkillNames : undefined,
+        salary: job.salaryParsed
+          ? `${job.salaryParsed.min?.toLocaleString('tr-TR')}-${job.salaryParsed.max?.toLocaleString('tr-TR')} ${job.salaryParsed.currency}/${job.salaryParsed.period}`
+          : undefined,
+        description: job.description ? `${job.description.substring(0, 100)}...` : undefined,
+        requirements: job.requirements.length > 0 ? job.requirements.length : undefined,
+        url: job.link,
+      });
     });
   }
 }

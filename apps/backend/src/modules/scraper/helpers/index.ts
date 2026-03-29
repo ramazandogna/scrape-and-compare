@@ -43,3 +43,17 @@ export { mapJobToCreateInput, mapJobToUpdateInput } from './job.mapper';
 // Job persistence — Prisma upsert
 export { upsertJobs } from './job.persistence';
 export type { JobPersistResult, UpsertSummary } from './job.persistence';
+
+// Audit logging — State Machine
+export {
+  createAudit,
+  transitionAudit,
+  updateAuditFound,
+  updateAuditExtracted,
+  completeAudit,
+  failAudit,
+} from './audit';
+
+// Concurrency queue — kontrollü paralel task yürütücü
+export { runConcurrent, extractFulfilled, extractRejected } from './concurrency';
+export type { ConcurrentResult, ConcurrencyOptions } from './concurrency';

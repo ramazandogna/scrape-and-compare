@@ -3,7 +3,13 @@
  *
  * Neden ayrı dosya? Single Responsibility: her dosyanın tek görevi olmalı.
  * Bu dosya sadece genel amaçlı utility'ler içerir.
+ *
+ * Logger: Pino tabanlı structured logger — `@/utils/logger` dosyasında yaşar.
+ * Geriye uyumluluk için buradan re-export edilir.
  */
+
+// Re-export logger — mevcut `import { logger } from '@/utils/helpers'` çağrıları bozulmasın
+export { logger } from '@/utils/logger';
 
 /**
  * Belirli bir süre bekler (ms).
@@ -25,29 +31,3 @@ export const sleep = (ms: number): Promise<void> =>
  */
 export const randomBetween = (min: number, max: number): number =>
   Math.floor(Math.random() * (max - min + 1)) + min;
-
-/**
- * Basit console logger — ileride winston/pino ile değiştirilebilir.
- * Her log'a timestamp ekler.
- */
-export const logger = {
-  info: (message: string, data?: Record<string, unknown>) => {
-    const timestamp = new Date().toISOString();
-    console.log(`[${timestamp}] ℹ️  ${message}`, data ? JSON.stringify(data, null, 2) : '');
-  },
-
-  warn: (message: string, data?: Record<string, unknown>) => {
-    const timestamp = new Date().toISOString();
-    console.warn(`[${timestamp}] ⚠️  ${message}`, data ? JSON.stringify(data, null, 2) : '');
-  },
-
-  error: (message: string, data?: Record<string, unknown>) => {
-    const timestamp = new Date().toISOString();
-    console.error(`[${timestamp}] ❌ ${message}`, data ? JSON.stringify(data, null, 2) : '');
-  },
-
-  success: (message: string, data?: Record<string, unknown>) => {
-    const timestamp = new Date().toISOString();
-    console.log(`[${timestamp}] ✅ ${message}`, data ? JSON.stringify(data, null, 2) : '');
-  },
-};

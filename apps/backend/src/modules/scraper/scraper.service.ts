@@ -8,7 +8,7 @@
  *   - config.ts   → .env config, enrichment, deduplication
  *
  * Akış:
- *   1. Config yükle (.env)
+ *   1. Config yükle (parametre veya .env fallback)
  *   2. Browser aç (stealth)
  *   3. Search sayfalarını tara (keyword başına)
  *   4. Detail sayfalarını paralel çek (N tab)
@@ -25,6 +25,8 @@ import type {
   JobListing,
   ScrapeOutput,
   ScraperErrorLegacy,
+  ScrapeJobData,
+  ScrapeJobCompleted,
 } from '@scrape/shared';
 import { BrowserService } from './browser.service';
 import { PrismaService } from '@/database/prisma.service';
@@ -33,8 +35,6 @@ import {
   createPagePool,
   fastParseSearchPage,
   parallelFetchDetails,
-  loadKeywords,
-  loadLocation,
   loadFastConfig,
   generateOutputFilename,
   enrichJobsWithExtractors,
@@ -66,16 +66,18 @@ export class ScraperService {
   ) {}
 
   /**
-   * Fast scrape çalıştırır — CLI entry point'ten çağrılır.
+   * Fast scrape çalıştırır — CLI veya BullMQ Worker tarafından çağrılır.
+   *
+   * @param jobData Queue payload'ı — keywords, location ve opsiyonel config override
+   * @returns ScrapeJobCompleted — Worker bu sonucu Redis'e yazar
    *
    * Audit lifecycle:
    *   createAudit (IDLE) → SCANNING → EXTRACTING → COMPLETED
    *   Herhangi bir adımda hata → FAILED
    */
-  async runFastScrape(): Promise<void> {
-    const keywords = loadKeywords();
-    const location = loadLocation();
-    const config = loadFastConfig(keywords.length);
+  async runFastScrape(jobData: ScrapeJobData): Promise<ScrapeJobCompleted> {
+    const { keywords, location } = jobData;
+    const config = loadFastConfig(keywords.length, jobData.config);
 
     // Audit kaydı oluştur (keyword'leri virgülle birleştir — schema tek string)
     const auditId = await createAudit(this.prisma, keywords.join(', '), location);
@@ -120,7 +122,19 @@ export class ScraperService {
 
       // ADIM 5: JSON çıktısı (debug/backup — ileride kaldırılabilir)
       this.writeOutput(enrichedJobs, errors, keywords, location);
+
+      const durationMs = Date.now() - startTime;
       this.printSummary(enrichedJobs, errors, config, startTime, dbResult);
+
+      return {
+        status: 'completed' as const,
+        totalJobs: jobs.length,
+        created: dbResult.created,
+        updated: dbResult.updated,
+        failed: dbResult.failed,
+        durationMs,
+        auditId,
+      };
     } catch (err) {
       // Herhangi bir adımda beklenmeyen hata → FAILED
       const message = err instanceof Error ? err.message : 'Unknown error';

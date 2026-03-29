@@ -22,6 +22,7 @@ import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '@/app.module';
 import { ScraperService } from '@/modules/scraper/scraper.service';
+import { loadKeywords, loadLocation } from '@/modules/scraper/helpers';
 import { logger } from '@/utils/helpers';
 
 const run = async (): Promise<void> => {
@@ -32,7 +33,11 @@ const run = async (): Promise<void> => {
 
   try {
     const scraperService = app.get(ScraperService);
-    await scraperService.runFastScrape();
+
+    // CLI hâlâ .env'den okur — ama artık parametre olarak geçer
+    const keywords = loadKeywords();
+    const location = loadLocation();
+    await scraperService.runFastScrape({ keywords, location });
   } finally {
     // Temizlik — browser kapat, connection'ları temizle
     await app.close();

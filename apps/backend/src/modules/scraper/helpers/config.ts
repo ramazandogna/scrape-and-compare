@@ -44,20 +44,29 @@ export const loadLocation = (): string => process.env['LOCATION']?.trim() || 'Tu
  * Adaptive delay mantığı:
  * - 1-2 keyword → normal gecikme
  * - 3+ keyword → 1.5x gecikme (LinkedIn rate limiting koruması)
+ *
+ * @param keywordCount Keyword sayısı (adaptive delay hesabı için)
+ * @param overrides Opsiyonel config override'ları (queue payload'dan gelir)
+ *
+ * Öncelik sırası: override > .env > hardcoded default
+ * Böylece CLI .env'den okur, Worker queue payload'dan alır.
  */
-export const loadFastConfig = (keywordCount: number): FastScraperConfig => {
-  const baseDelayMin = Number(process.env['REQUEST_DELAY_MIN'] ?? 500);
-  const baseDelayMax = Number(process.env['REQUEST_DELAY_MAX'] ?? 1500);
+export const loadFastConfig = (
+  keywordCount: number,
+  overrides?: Partial<ScraperConfig>,
+): FastScraperConfig => {
+  const baseDelayMin = overrides?.requestDelayMin ?? Number(process.env['REQUEST_DELAY_MIN'] ?? 500);
+  const baseDelayMax = overrides?.requestDelayMax ?? Number(process.env['REQUEST_DELAY_MAX'] ?? 1500);
   const delayMultiplier = keywordCount > 2 ? 1.5 : 1;
 
   return {
-    headless: process.env['HEADLESS'] !== 'false',
-    slowMo: Number(process.env['SLOW_MO'] ?? 0),
-    maxJobsPerKeyword: Number(process.env['MAX_JOBS_PER_KEYWORD'] ?? 25),
+    headless: overrides?.headless ?? process.env['HEADLESS'] !== 'false',
+    slowMo: overrides?.slowMo ?? Number(process.env['SLOW_MO'] ?? 0),
+    maxJobsPerKeyword: overrides?.maxJobsPerKeyword ?? Number(process.env['MAX_JOBS_PER_KEYWORD'] ?? 25),
     requestDelayMin: Math.round(baseDelayMin * delayMultiplier),
     requestDelayMax: Math.round(baseDelayMax * delayMultiplier),
-    fetchDetails: process.env['FETCH_DETAILS'] !== 'false',
-    maxDetailFetch: Number(process.env['MAX_DETAIL_FETCH'] ?? 25),
+    fetchDetails: overrides?.fetchDetails ?? process.env['FETCH_DETAILS'] !== 'false',
+    maxDetailFetch: overrides?.maxDetailFetch ?? Number(process.env['MAX_DETAIL_FETCH'] ?? 25),
     parallelTabs: Number(process.env['PARALLEL_TABS'] ?? 5),
     searchConcurrency: Number(process.env['SEARCH_CONCURRENCY'] ?? 2),
   };

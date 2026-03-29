@@ -9,6 +9,7 @@
 #
 # Servisler:
 #   postgres  → PostgreSQL 15 (port 5432)
+#   redis     → Redis 7 (port 6379) — BullMQ kuyruk motoru
 #   pgadmin   → Web UI (port 5050) — DB'yi görsel yönet
 #
 # ⚠️ .env dosyasındaki DATABASE_URL bu servise bağlanır:
@@ -31,6 +32,30 @@ services:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-scrape}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────
+  # Redis 7 — BullMQ Kuyruk Motoru
+  # ─────────────────────────────────────────
+  # BullMQ, job queue state'ini Redis'te tutar:
+  #   - WAITING, ACTIVE, COMPLETED, FAILED listeleri
+  #   - Event pub/sub (job tamamlandı, hata oluştu)
+  #   - Delayed jobs (zamanlı çalıştırma)
+  #
+  # Redis verisi geçicidir — container restart'ta kaybolabilir.
+  # Queue job'ları zaten kısa ömürlü, kalıcı veri PostgreSQL'de.
+  # ─────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: scrape-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5

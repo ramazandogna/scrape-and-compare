@@ -19,7 +19,13 @@
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down"
   },
-  "keywords": ["scraper", "linkedin", "job-matching", "ai", "monorepo"],
+  "keywords": [
+    "scraper",
+    "linkedin",
+    "job-matching",
+    "ai",
+    "monorepo"
+  ],
   "author": "",
   "license": "ISC",
   "packageManager": "pnpm@10.13.1",
@@ -30,6 +36,9 @@
       "@prisma/engines",
       "esbuild",
       "prisma"
+    ],
+    "ignoredBuiltDependencies": [
+      "@swc/core"
     ]
   }
 }

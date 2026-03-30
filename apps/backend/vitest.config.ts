@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitest/config';
 import { resolve } from 'node:path';
+import swc from 'unplugin-swc';
 
 export default defineConfig({
   test: {
@@ -9,11 +10,15 @@ export default defineConfig({
     // Test timeout — DB testleri biraz yavaş olabilir
     testTimeout: 10_000,
   },
+  plugins: [
+    swc.vite({
+      module: { type: 'es6' },
+    }),
+  ],
   resolve: {
     alias: {
       '@': resolve(__dirname, './src'),
-      // Workspace paketleri tsx ile doğal çözülür,
-      // vitest için de erişilebilir olması lazım
+      // Workspace paketleri vitest için de erişilebilir olması lazım
     },
   },
 });

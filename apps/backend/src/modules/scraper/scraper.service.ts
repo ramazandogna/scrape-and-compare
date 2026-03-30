@@ -17,7 +17,7 @@
  *   7. JSON dosyasına yaz (debug/backup)
  */
 
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type {
@@ -61,7 +61,9 @@ import { ScraperStatus } from '@scrape/database';
 @Injectable()
 export class ScraperService {
   constructor(
+    @Inject(BrowserService)
     private readonly browserService: BrowserService,
+    @Inject(PrismaService)
     private readonly prisma: PrismaService,
   ) {}
 

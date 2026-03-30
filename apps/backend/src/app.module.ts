@@ -4,17 +4,37 @@
  * Bu modül diğer tüm modülleri import eder ve uygulamayı bir araya getirir.
  * NestJS'te her uygulama tam olarak bir root module'e sahiptir.
  *
- * Şu an sadece ScraperModule aktif. İleride eklenecekler:
- * - DatabaseModule (Prisma entegrasyonu — Todo 9)
- * - ParserModule (Module B — CV/LLM parsing)
- * - MatcherModule (Module C — Job-User matching)
+ * BullModule.forRoot() → Tüm BullMQ queue'ları için tek Redis bağlantısı.
+ * forRoot() pattern'ı: "Bu config uygulama genelinde geçerli, bir kez tanımla."
+ * Tıpkı DatabaseModule'ün @Global() olması gibi — her modül ayrı bağlantı açmaz.
+ *
+ * REDIS_HOST/REDIS_PORT .env'den okunur, yoksa localhost:6379 default kullanılır.
  */
 
 import { Module } from '@nestjs/common';
+import { BullModule } from '@nestjs/bullmq';
 import { DatabaseModule } from '@/database/database.module';
 import { ScraperModule } from '@/modules/scraper/scraper.module';
 
 @Module({
-  imports: [DatabaseModule, ScraperModule],
+  imports: [
+    DatabaseModule,
+
+    /**
+     * BullModule.forRoot() — Redis bağlantı konfigürasyonu.
+     *
+     * Bu çağrı TÜM queue'lar için ortak Redis bağlantısını tanımlar.
+     * Her BullModule.registerQueue() bu bağlantıyı paylaşır.
+     * Ayrı bir ioredis instance yaratmana gerek yok — @nestjs/bullmq halleder.
+     */
+    BullModule.forRoot({
+      connection: {
+        host: process.env['REDIS_HOST'] ?? 'localhost',
+        port: Number(process.env['REDIS_PORT'] ?? 6379),
+      },
+    }),
+
+    ScraperModule,
+  ],
 })
 export class AppModule {}

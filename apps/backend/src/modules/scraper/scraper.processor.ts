@@ -27,6 +27,7 @@
  */
 
 import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { Inject, Injectable } from '@nestjs/common';
 import type { Job } from 'bullmq';
 import type { ScrapeJobData, ScrapeJobResult, ScrapeJobProgress } from '@scrape/shared';
 import { QUEUE_NAMES } from '@scrape/shared';
@@ -48,9 +49,13 @@ import { logger } from '@/utils/helpers';
  *   "Bu class 'scraper' isimli kuyruğu dinle" demek.
  *   QUEUE_NAMES.SCRAPER = 'scraper' — magic string yerine sabit kullanıyoruz.
  */
+@Injectable()
 @Processor(QUEUE_NAMES.SCRAPER)
 export class ScraperProcessor extends WorkerHost {
-  constructor(private readonly scraperService: ScraperService) {
+  constructor(
+    @Inject(ScraperService)
+    private readonly scraperService: ScraperService,
+  ) {
     super();
   }
 

@@ -62,3 +62,44 @@ export const llmSkillExtractionSchema = z.object({
 
 /** Zod'dan TypeScript tipi üretme — schema ile tip her zaman senkron */
 export type LlmSkillExtraction = z.infer<typeof llmSkillExtractionSchema>;
+
+// ═══════════════════════════════════════════
+// API INPUT SCHEMAS
+// ═══════════════════════════════════════════
+
+/**
+ * ScraperConfig Zod şeması — opsiyonel config override'ları doğrulama.
+ * Tüm alanlar optional çünkü Partial<ScraperConfig> bekleniyor.
+ */
+export const scraperConfigSchema = z.object({
+  headless: z.boolean(),
+  slowMo: z.number().int().min(0),
+  maxJobsPerKeyword: z.number().int().min(1).max(200),
+  requestDelayMin: z.number().int().min(0),
+  requestDelayMax: z.number().int().min(0),
+  fetchDetails: z.boolean(),
+  maxDetailFetch: z.number().int().min(1).max(100),
+}).partial();
+
+/**
+ * ScrapeJobData Zod şeması — POST /scrape/trigger body doğrulama.
+ *
+ * Kurallar:
+ *   - keywords: en az 1 string, her biri 1-100 karakter, max 10 keyword
+ *   - location: 1-100 karakter
+ *   - config: opsiyonel scraper ayarları
+ */
+export const scrapeJobDataSchema = z.object({
+  keywords: z
+    .array(z.string().trim().min(1, 'Keyword boş olamaz').max(100))
+    .min(1, 'En az 1 keyword gerekli')
+    .max(10, 'En fazla 10 keyword destekleniyor'),
+  location: z
+    .string()
+    .trim()
+    .min(1, 'Location boş olamaz')
+    .max(100),
+  config: scraperConfigSchema.optional(),
+});
+
+export type ScrapeJobDataInput = z.infer<typeof scrapeJobDataSchema>;

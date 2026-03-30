@@ -32,11 +32,13 @@ import {
   HttpCode,
   HttpStatus,
   NotFoundException,
+  UsePipes,
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
 import type { ScrapeJobData, ScrapeJobResult, ScrapeJobProgress } from '@scrape/shared';
-import { QUEUE_NAMES } from '@scrape/shared';
+import { QUEUE_NAMES, scrapeJobDataSchema } from '@scrape/shared';
+import { ZodValidationPipe } from '@/pipes/zod-validation.pipe';
 import { logger } from '@/utils/helpers';
 
 // ═══════════════════════════════════════════
@@ -102,6 +104,7 @@ export class ScraperController {
    */
   @Post('trigger')
   @HttpCode(HttpStatus.ACCEPTED)
+  @UsePipes(new ZodValidationPipe(scrapeJobDataSchema))
   async trigger(@Body() body: ScrapeJobData): Promise<TriggerResponse> {
     const job = await this.scrapeQueue.add('scrape', body, {
       /**

@@ -40,7 +40,10 @@ export {
   salaryParsedSchema,
   jobListingSchema,
   llmSkillExtractionSchema,
+  scrapeJobDataSchema,
+  scraperConfigSchema,
   type LlmSkillExtraction,
+  type ScrapeJobDataInput,
 } from './schemas/index';
 
 // Constants

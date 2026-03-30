@@ -2,8 +2,9 @@
  * Main Entry Point — NestJS HTTP sunucusu.
  *
  * Bu dosya REST API endpoint'lerini sunar:
- * - POST /scrape/trigger — yeni scrape job'ı kuyruğa ekle
- * - GET /scrape/status/:jobId — job durumunu sorgula
+ * - POST /api/scrape/trigger — yeni scrape job'ı kuyruğa ekle
+ * - GET  /api/scrape/status/:jobId — job durumunu sorgula
+ * - GET  /api/jobs — iş ilanlarını listele
  *
  * BullMQ Worker da bu process içinde çalışır:
  * - ScraperProcessor otomatik olarak Redis kuyruğunu dinlemeye başlar
@@ -20,6 +21,7 @@ import 'reflect-metadata';
 import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '@/app.module';
+import { GlobalExceptionFilter } from '@/filters/global-exception.filter';
 import { logger } from '@/utils/helpers';
 
 const bootstrap = async (): Promise<void> => {
@@ -27,10 +29,23 @@ const bootstrap = async (): Promise<void> => {
     logger: false,
   });
 
+  // Global prefix — tüm route'lar /api altında
+  app.setGlobalPrefix('api');
+
+  // CORS — Next.js frontend'in API'ye erişimi için
+  app.enableCors({
+    origin: process.env['CORS_ORIGIN'] ?? 'http://localhost:3001',
+    methods: ['GET', 'POST'],
+    credentials: true,
+  });
+
+  // Global exception filter — tutarlı hata formatı
+  app.useGlobalFilters(new GlobalExceptionFilter());
+
   const port = process.env['PORT'] ?? 3000;
   await app.listen(port);
 
-  logger.success(`Backend çalışıyor: http://localhost:${String(port)}`);
+  logger.success(`Backend çalışıyor: http://localhost:${String(port)}/api`);
   logger.info('BullMQ Worker aktif — Redis kuyruğu dinleniyor');
 };
 

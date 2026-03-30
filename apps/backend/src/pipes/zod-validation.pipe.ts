@@ -17,7 +17,7 @@
  */
 
 import { PipeTransform, BadRequestException } from '@nestjs/common';
-import type { ZodSchema, ZodError } from 'zod';
+import type { ZodSchema, ZodError, ZodIssue } from 'zod';
 
 /**
  * Zod hata mesajlarını okunabilir formata dönüştürür.
@@ -26,7 +26,7 @@ import type { ZodSchema, ZodError } from 'zod';
  * her hatayı "path: message" formatında düzleştirir.
  */
 const formatZodErrors = (error: ZodError): string[] =>
-  error.errors.map((e) =>
+  error.errors.map((e: ZodIssue) =>
     e.path.length > 0 ? `${e.path.join('.')}: ${e.message}` : e.message,
   );
 

@@ -103,3 +103,27 @@ export const scrapeJobDataSchema = z.object({
 });
 
 export type ScrapeJobDataInput = z.infer<typeof scrapeJobDataSchema>;
+
+// ═══════════════════════════════════════════
+// JOBS QUERY SCHEMA
+// ═══════════════════════════════════════════
+
+/**
+ * GET /api/jobs query parametreleri — pagination, filtreleme, sıralama.
+ *
+ * Query string'ler her zaman string olarak gelir, bu yüzden:
+ *   - z.coerce.number() → "2" string'ini 2 number'ına çevirir
+ *   - .default() → parametre gönderilmezse varsayılan değer kullanılır
+ *   - .max(100) → DoS koruması — tek seferde 100'den fazla kayıt dönemez
+ *
+ * Kullanım: GET /api/jobs?page=2&limit=15&search=React&location=Istanbul&sort=newest
+ */
+export const jobsQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  search: z.string().trim().max(200).optional(),
+  location: z.string().trim().max(100).optional(),
+  sort: z.enum(['newest', 'oldest']).default('newest'),
+});
+
+export type JobsQueryInput = z.infer<typeof jobsQuerySchema>;

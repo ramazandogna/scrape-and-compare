@@ -15,6 +15,7 @@ import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { DatabaseModule } from '@/database/database.module';
 import { ScraperModule } from '@/modules/scraper/scraper.module';
+import { JobsModule } from '@/modules/jobs/jobs.module';
 
 @Module({
   imports: [
@@ -35,6 +36,8 @@ import { ScraperModule } from '@/modules/scraper/scraper.module';
     }),
 
     ScraperModule,
+
+    JobsModule,
   ],
 })
 export class AppModule {}

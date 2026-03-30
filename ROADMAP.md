@@ -25,23 +25,27 @@ scrape-and-compare/
 ├── apps/
 │   └── backend/                 # NestJS — scraper, API, iş mantığı
 │       └── src/
-│           ├── main.ts          # HTTP server giriş noktası
+│           ├── main.ts          # HTTP server + BullMQ Worker (aynı process)
 │           ├── cli.ts           # CLI scraper giriş noktası
-│           ├── app.module.ts    # Root module (Database + Scraper)
-│           ├── scraper/         # LinkedIn fast scraper (Playwright stealth)
+│           ├── app.module.ts    # Root module (Database + BullMQ + Scraper + Jobs)
+│           ├── modules/
+│           │   ├── scraper/     # LinkedIn fast scraper (Playwright stealth + BullMQ)
+│           │   └── jobs/        # Jobs API (GET /api/jobs — pagination, filtre)
 │           ├── database/        # PrismaService (@Global, lifecycle hooks)
 │           ├── extractors/      # Skill extraction + Salary parsing
+│           ├── pipes/           # ZodValidationPipe (Zod ↔ NestJS köprüsü)
+│           ├── filters/         # GlobalExceptionFilter (tutarlı hata formatı)
 │           └── utils/           # Logger, sleep, helpers
 ├── packages/
 │   ├── shared/                  # Paylaşılan tipler, Zod şemaları, sabitler
 │   │   └── src/
 │   │       ├── types/           # JobListing, ScraperError (discriminated union)
-│   │       ├── schemas/         # Zod validasyonları
+│   │       ├── schemas/         # Zod validasyonları (scrape, jobs query)
 │   │       └── constants/       # EXCHANGE_RATES, SCRAPER_DEFAULTS
 │   └── database/                # Prisma schema + client re-export
 │       ├── prisma/schema.prisma # 4 tablo, 4 enum
 │       └── src/index.ts         # PrismaClient + tip re-export
-├── docker-compose.yml           # PostgreSQL 15 + pgAdmin
+├── docker-compose.yml           # PostgreSQL 15 + Redis 7 + pgAdmin
 ├── tsconfig.base.json           # Shared strict TS config
 └── pnpm-workspace.yaml          # Workspace tanımları
 ```
@@ -103,11 +107,18 @@ scrape-and-compare/
 - [x] TypeScript project references (strict, zero errors)
 - [x] Eski flat `src/` yapısından tam migration + temizlik
 
-### Phase 2: Database Integration 🔜
-- [ ] PostgreSQL bağlantı testi + Prisma migration
-- [ ] Scraper çıktılarını JobListing tablosuna kaydet
-- [ ] ScraperAudit state machine (IDLE → SCANNING → EXTRACTING → COMPLETED/FAILED)
-- [ ] Deduplication (externalId + url unique constraint)
+### Phase 2: Database Integration & Stabilization ✅
+- [x] PostgreSQL bağlantı testi + Prisma migration
+- [x] Scraper çıktılarını JobListing tablosuna kaydet
+- [x] ScraperAudit state machine (IDLE → SCANNING → EXTRACTING → COMPLETED/FAILED)
+- [x] Deduplication (externalId + url unique constraint)
+- [x] BullMQ + Redis kuyruk sistemi (scrape job'ları async işleme)
+- [x] SWC Runtime migration (tsx → @swc/core + custom ESM hooks)
+- [x] Zod validation pipe (POST /scrape/trigger body doğrulama)
+- [x] Global exception filter (tutarlı hata formatı)
+- [x] CORS yapılandırması + /api global prefix
+- [x] Jobs API endpoint (GET /api/jobs — pagination, filtreleme, sıralama)
+- [x] .env.example güncellemesi (PORT, CORS_ORIGIN, SEARCH_CONCURRENCY)
 
 ### Phase 3: Intelligence (LLM Scoring)
 - [ ] CV/Profil parse servisi (GPT-4o mini)

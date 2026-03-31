@@ -22,44 +22,12 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@/database/prisma.service';
 import { GeminiService } from './gemini.service';
 import { batchScoringResultSchema, MATCHER_DEFAULTS } from '@scrape/shared';
-import type { BatchScoringResult, SingleScoringResult } from '@scrape/shared';
+import type { BatchScoringResult, SingleScoringResult, MatcherUserProfile, MatcherJobSummary } from '@scrape/shared';
 import { logger } from '@/utils/helpers';
 
 // ═══════════════════════════════════════════
-// TYPES — Prompt'a gönderilecek hafif veri yapıları
+// TYPES
 // ═══════════════════════════════════════════
-
-/**
- * Prompt'a gönderilecek kullanıcı profili.
- *
- * DB'deki User modelinin tamamını değil, sadece scoring için
- * gereken alanları gönderiyoruz. Token tasarrufu + privacy.
- */
-interface UserProfile {
-  id: string;
-  techStack: string[];
-  experienceYears: number;
-  preferredRoles: string[];
-  preferredLocations: string[];
-}
-
-/**
- * Prompt'a gönderilecek iş ilanı özeti.
- *
- * description tam metni çok uzun olabilir (2000+ token).
- * Sadece scoring için gerekli alanları gönderiyoruz.
- * skills zaten description'dan extract edilmiş hali.
- */
-interface JobSummary {
-  id: string;
-  title: string;
-  company: string;
-  location: string;
-  skills: string[];
-  requirements: string[];
-  seniorityLevel: string | null;
-  employmentType: string | null;
-}
 
 /**
  * scoreBatch'in dönüş tipi — her ilan için skor + meta bilgi.
@@ -94,7 +62,7 @@ export class MatcherService {
    *   3. Sonuçları DB'ye yaz (score >= minScore olanlar)
    *   4. Başarılı/başarısız ilanları raporla
    */
-  async scoreBatch(user: UserProfile, jobs: JobSummary[]): Promise<BatchScoreResult> {
+  async scoreBatch(user: MatcherUserProfile, jobs: MatcherJobSummary[]): Promise<BatchScoreResult> {
     if (jobs.length === 0) {
       return { scored: [], failed: [], totalJobs: 0 };
     }
@@ -148,7 +116,7 @@ export class MatcherService {
    *
    * Prisma bunu `none` filtresi ile yapar — raw SQL'e gerek yok.
    */
-  async getUnscoredJobs(userId: string): Promise<JobSummary[]> {
+  async getUnscoredJobs(userId: string): Promise<MatcherJobSummary[]> {
     const jobs = await this.prisma.jobListing.findMany({
       where: {
         matchResults: {
@@ -183,7 +151,7 @@ export class MatcherService {
    *   - JSON format belirt → Zod validation şansını artır
    *   - Türkçe explanation iste → kullanıcı doğrudan okuyabilsin
    */
-  private buildPrompt(user: UserProfile, jobs: JobSummary[]): string {
+  private buildPrompt(user: MatcherUserProfile, jobs: MatcherJobSummary[]): string {
     const jobDescriptions = jobs
       .map(
         (job, i) =>

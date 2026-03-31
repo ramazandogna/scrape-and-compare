@@ -32,6 +32,13 @@ export type {
   ScrapeJobFailed,
   ScrapeJobResult,
   ScrapeJobProgress,
+  MatcherUserProfile,
+  MatcherJobSummary,
+  MatcherJobData,
+  MatcherJobCompleted,
+  MatcherJobFailed,
+  MatcherJobResult,
+  MatcherJobProgress,
 } from './types/index';
 
 // Schemas

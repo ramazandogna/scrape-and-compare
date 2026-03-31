@@ -114,3 +114,94 @@ export interface ScrapeJobProgress {
   /** Yüzde ilerleme (0-100) */
   percentage: number;
 }
+
+// ═══════════════════════════════════════════
+// MATCHER QUEUE TYPES
+// ═══════════════════════════════════════════
+
+/**
+ * Matcher kuyruğuna gönderilen kullanıcı profili.
+ *
+ * DB User'ın tamamı değil — sadece scoring için gereken alanlar.
+ * Token tasarrufu + privacy: email, name gibi alanlar gönderilmez.
+ */
+export interface MatcherUserProfile {
+  id: string;
+  techStack: string[];
+  experienceYears: number;
+  preferredRoles: string[];
+  preferredLocations: string[];
+}
+
+/**
+ * Matcher kuyruğuna gönderilen iş ilanı özeti.
+ *
+ * description tam metni göndermiyoruz — skills ve requirements yeterli.
+ * Bu tipi Controller (producer) ve Processor (consumer) paylaşır.
+ */
+export interface MatcherJobSummary {
+  id: string;
+  title: string;
+  company: string;
+  location: string;
+  skills: string[];
+  requirements: string[];
+  seniorityLevel: string | null;
+  employmentType: string | null;
+}
+
+/**
+ * Matcher job verisi — kuyruğa atılan payload.
+ *
+ * Controller bunu oluşturur, Processor bunu okur.
+ * batchIndex/totalBatches ilerleme bildirimi için kullanılır.
+ */
+export interface MatcherJobData {
+  user: MatcherUserProfile;
+  jobs: MatcherJobSummary[];
+  batchIndex: number;
+  totalBatches: number;
+}
+
+/**
+ * Matcher başarılı sonuç — Worker batch'i tamamladığında döner.
+ */
+export interface MatcherJobCompleted {
+  status: 'completed';
+  /** Puanlanan ilan sayısı */
+  scored: number;
+  /** Başarısız ilan sayısı */
+  failed: number;
+  /** Batch'teki toplam ilan sayısı */
+  totalJobs: number;
+  /** Ortalama skor (0-100) */
+  avgScore: number;
+  /** Batch index (0-based) */
+  batchIndex: number;
+}
+
+/**
+ * Matcher başarısız sonuç — Worker batch'i işleyemediğinde döner.
+ */
+export interface MatcherJobFailed {
+  status: 'failed';
+  errorCode: string;
+  message: string;
+  batchIndex: number;
+}
+
+/**
+ * Matcher job sonucu — Discriminated Union.
+ */
+export type MatcherJobResult = MatcherJobCompleted | MatcherJobFailed;
+
+/**
+ * Matcher ilerleme durumu.
+ */
+export interface MatcherJobProgress {
+  phase: 'SCORING' | 'SAVING';
+  message: string;
+  batchIndex: number;
+  totalBatches: number;
+  percentage: number;
+}

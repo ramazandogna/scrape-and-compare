@@ -1,5 +1,15 @@
-# name: Deploy Accessibility Panel Backend
+# [DISABLED] İleride kullanılacak — şu an sadece manual trigger
+name: Deploy (disabled)
+on:
+  workflow_dispatch:
 
+jobs:
+  disabled:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "This workflow is currently disabled"
+
+# ORIGINAL CONFIG (disabled):
 # env:
 #   REGISTRY: ghcr.io
 #   IMAGE_NAME: efilli/accessibility-panel-backend

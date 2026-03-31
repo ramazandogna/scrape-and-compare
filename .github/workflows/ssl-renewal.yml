@@ -1,6 +1,15 @@
+# [DISABLED] İleride kullanılacak — şu an sadece manual trigger
+name: SSL Renewal (disabled)
+on:
+  workflow_dispatch:
 
-# name: SSL Certificate Renewal
+jobs:
+  disabled:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "This workflow is currently disabled"
 
+# ORIGINAL CONFIG (disabled):
 # on:
 #   schedule:
 #     # Her 2 haftada bir Pazar saat 00:00'da (UTC 21:00 Türkiye 00:00)

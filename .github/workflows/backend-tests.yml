@@ -1,5 +1,15 @@
-# name: Backend Quality Gates
+# [DISABLED] İleride kullanılacak — şu an sadece manual trigger
+name: Backend Quality Gates (disabled)
+on:
+  workflow_dispatch:
 
+jobs:
+  disabled:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "This workflow is currently disabled"
+
+# ORIGINAL CONFIG (disabled):
 # on:
 #   # pull_request:
 #   #   branches: [ main, beta ]

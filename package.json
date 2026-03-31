@@ -10,6 +10,8 @@
   },
   "scripts": {
     "dev": "pnpm --filter @scrape/backend dev",
+    "dev:web": "pnpm --filter @scrape/web dev",
+    "dev:all": "pnpm --filter @scrape/backend dev & pnpm --filter @scrape/web dev",
     "scrape": "pnpm --filter @scrape/backend scrape",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",

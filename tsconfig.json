@@ -9,6 +9,7 @@
   "references": [
     { "path": "packages/shared" },
     { "path": "packages/database" },
-    { "path": "apps/backend" }
+    { "path": "apps/backend" },
+    { "path": "apps/web" }
   ]
 }

@@ -43,15 +43,22 @@ export {
   scrapeJobDataSchema,
   scraperConfigSchema,
   jobsQuerySchema,
+  singleScoringResultSchema,
+  batchScoringResultSchema,
+  matcherScoreInputSchema,
   type LlmSkillExtraction,
   type ScrapeJobDataInput,
   type JobsQueryInput,
+  type SingleScoringResult,
+  type BatchScoringResult,
+  type MatcherScoreInput,
 } from './schemas/index';
 
 // Constants
 export {
   EXCHANGE_RATES,
   SCRAPER_DEFAULTS,
+  MATCHER_DEFAULTS,
   VALID_SCRAPER_TRANSITIONS,
   QUEUE_NAMES,
 } from './constants/index';

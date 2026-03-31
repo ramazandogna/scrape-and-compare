@@ -127,3 +127,49 @@ export const jobsQuerySchema = z.object({
 });
 
 export type JobsQueryInput = z.infer<typeof jobsQuerySchema>;
+
+// ═══════════════════════════════════════════
+// MATCHER SCORING SCHEMAS
+// ═══════════════════════════════════════════
+
+/**
+ * Tek bir ilanın puanlama sonucu — Gemini'den dönen her ilan için.
+ *
+ * jobId: Hangi ilanın puanlandığını bilmek için (batch'te 8 ilan var, hangisi hangisi?)
+ * score: 0-100 arası match yüzdesi
+ * explanation: AI'ın "neden bu puanı verdim" açıklaması
+ * matchedSkills: Kullanıcıda olan VE ilanda istenen skill'ler
+ * missingSkills: İlanda istenen ama kullanıcıda olmayan skill'ler
+ */
+export const singleScoringResultSchema = z.object({
+  jobId: z.string().min(1),
+  score: z.number().min(0).max(100),
+  explanation: z.string().min(10),
+  matchedSkills: z.array(z.string()),
+  missingSkills: z.array(z.string()),
+});
+
+export type SingleScoringResult = z.infer<typeof singleScoringResultSchema>;
+
+/**
+ * Batch puanlama sonucu — Gemini'den dönen tüm yanıt.
+ *
+ * Neden array wrapper? Gemini'ye "8 ilan gönder, 8 sonuç al" diyoruz.
+ * results array'i her ilanın ayrı puanını taşır.
+ * Zod burada array uzunluğunu kontrol etmez — çünkü son batch 8'den az olabilir.
+ * Eksik/fazla ilan kontrolü MatcherService'de yapılır (4.3).
+ */
+export const batchScoringResultSchema = z.object({
+  results: z.array(singleScoringResultSchema).min(1),
+});
+
+export type BatchScoringResult = z.infer<typeof batchScoringResultSchema>;
+
+/**
+ * POST /api/matcher/score body — hangi kullanıcı için puanlama yapılacak.
+ */
+export const matcherScoreInputSchema = z.object({
+  userId: z.string().uuid('Geçerli bir UUID olmalı'),
+});
+
+export type MatcherScoreInput = z.infer<typeof matcherScoreInputSchema>;

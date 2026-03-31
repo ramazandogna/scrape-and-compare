@@ -48,4 +48,12 @@ export const VALID_SCRAPER_TRANSITIONS: Record<string, readonly string[]> = {
  */
 export const QUEUE_NAMES = {
   SCRAPER: 'scraper',
+  MATCHER: 'matcher',
+} as const;
+
+/** Matcher varsayılan ayarları */
+export const MATCHER_DEFAULTS = {
+  BATCH_SIZE: 8,
+  RATE_LIMIT_RPM: 10,
+  MIN_SCORE: 50,
 } as const;

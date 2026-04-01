@@ -48,6 +48,13 @@ type GeminiError =
 /** Zod hatasında kaç kez yeniden denenecek */
 const MAX_RETRIES = 2;
 
+/** Retry öncesi bekleme süresi (ms) — Gemini rate limit headroom */
+const RETRY_DELAY_MS = 15_000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 // ═══════════════════════════════════════════
 // SERVICE
 // ═══════════════════════════════════════════
@@ -99,12 +106,15 @@ export class GeminiService {
         return result;
       }
 
-      // Son deneme değilse devam et (retry)
+      // Son deneme değilse bekle ve tekrar dene
       if (attempt < MAX_RETRIES) {
+        const isRateLimit = result.error.code === 'API_ERROR' && result.error.message.includes('429');
+        const delay = isRateLimit ? RETRY_DELAY_MS * 2 : RETRY_DELAY_MS;
         logger.warn(
-          { attempt, maxRetries: MAX_RETRIES, error: result.error.code },
-          '[GEMINI] Yanıt doğrulanamadı, yeniden deneniyor',
+          { attempt, maxRetries: MAX_RETRIES, error: result.error.code, delayMs: delay },
+          `[GEMINI] Yanıt doğrulanamadı, ${String(delay / 1000)}s sonra yeniden deneniyor`,
         );
+        await sleep(delay);
       }
     }
 

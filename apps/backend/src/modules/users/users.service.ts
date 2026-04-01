@@ -85,6 +85,16 @@ export class UsersService {
   }
 
   /**
+   * Tüm kullanıcıları listele (son oluşturulan önce).
+   */
+  async findAll(): Promise<UserDto[]> {
+    return this.prisma.user.findMany({
+      select: USER_SELECT,
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
    * Kullanıcı bilgisini ID ile getir.
    *
    * findUnique → primary key ile arar, en hızlı Prisma sorgusu.

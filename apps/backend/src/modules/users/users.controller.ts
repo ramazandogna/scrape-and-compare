@@ -56,6 +56,14 @@ export class UsersController {
   }
 
   /**
+   * GET /api/users — Tüm kullanıcıları listele.
+   */
+  @Get()
+  async findAll(): Promise<UserDto[]> {
+    return this.usersService.findAll();
+  }
+
+  /**
    * GET /api/users/:id — Kullanıcı bilgisi getir.
    *
    * ParseUUIDPipe: URL'deki :id parametresinin gerçek UUID formatında

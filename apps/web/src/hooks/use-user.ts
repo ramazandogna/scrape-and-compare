@@ -32,10 +32,12 @@ export type UpdateUserInput = Partial<CreateUserInput>;
 
 interface UseUserReturn {
   user: UserDto | null;
+  users: UserDto[];
   isLoading: boolean;
   error: string | null;
   createUser: (input: CreateUserInput) => Promise<UserDto | null>;
   updateUser: (input: UpdateUserInput) => Promise<UserDto | null>;
+  selectUser: (userId: string) => void;
 }
 
 const STORAGE_KEY = "scrape_user_id";
@@ -44,25 +46,26 @@ const STORAGE_KEY = "scrape_user_id";
 // HELPERS — extracted to avoid setState-in-effect lint rule
 // ═══════════════════════════════════════════
 
-/**
- * localStorage'dan kaydedilmiş kullanıcı ID varsa profili yükler.
- * Async function olduğu için useEffect body'sinden çağrıldığında
- * setState çağrıları "synchronous in effect" sayılmaz.
- */
-async function loadSavedUser(
+async function loadInitialData(
   setUser: (u: UserDto | null) => void,
+  setUsers: (u: UserDto[]) => void,
   setIsLoading: (l: boolean) => void
 ): Promise<void> {
-  const savedId = localStorage.getItem(STORAGE_KEY);
-  if (!savedId) {
-    setIsLoading(false);
-    return;
-  }
   try {
-    const data = await apiFetch<UserDto>(`/users/${savedId}`);
-    setUser(data);
+    const allUsers = await apiFetch<UserDto[]>("/users");
+    setUsers(allUsers);
+
+    const savedId = localStorage.getItem(STORAGE_KEY);
+    if (savedId) {
+      const found = allUsers.find((u) => u.id === savedId);
+      if (found) {
+        setUser(found);
+      } else {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    }
   } catch {
-    localStorage.removeItem(STORAGE_KEY);
+    // Backend'e erişilemezse sessizce devam et
   } finally {
     setIsLoading(false);
   }
@@ -74,12 +77,24 @@ async function loadSavedUser(
 
 export function useUser(): UseUserReturn {
   const [user, setUser] = useState<UserDto | null>(null);
+  const [users, setUsers] = useState<UserDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadSavedUser(setUser, setIsLoading);
+    loadInitialData(setUser, setUsers, setIsLoading);
   }, []);
+
+  const selectUser = useCallback(
+    (userId: string) => {
+      const found = users.find((u) => u.id === userId);
+      if (found) {
+        setUser(found);
+        localStorage.setItem(STORAGE_KEY, found.id);
+      }
+    },
+    [users]
+  );
 
   const createUser = useCallback(
     async (input: CreateUserInput): Promise<UserDto | null> => {
@@ -90,11 +105,11 @@ export function useUser(): UseUserReturn {
           body: JSON.stringify(input),
         });
         setUser(created);
+        setUsers((prev) => [created, ...prev]);
         localStorage.setItem(STORAGE_KEY, created.id);
         return created;
       } catch (err) {
-        const message = extractErrorMessage(err);
-        setError(message);
+        setError(extractErrorMessage(err));
         return null;
       }
     },
@@ -114,17 +129,19 @@ export function useUser(): UseUserReturn {
           body: JSON.stringify(input),
         });
         setUser(updated);
+        setUsers((prev) =>
+          prev.map((u) => (u.id === updated.id ? updated : u))
+        );
         return updated;
       } catch (err) {
-        const message = extractErrorMessage(err);
-        setError(message);
+        setError(extractErrorMessage(err));
         return null;
       }
     },
     [user]
   );
 
-  return { user, isLoading, error, createUser, updateUser };
+  return { user, users, isLoading, error, createUser, updateUser, selectUser };
 }
 
 // ═══════════════════════════════════════════

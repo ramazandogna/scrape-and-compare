@@ -191,10 +191,9 @@ export class MatcherController {
    * Her sonuçla birlikte ilanın temel bilgilerini de döner (join).
    */
   @Get('results/:userId')
-  @UsePipes(new ZodValidationPipe(jobsQuerySchema))
   async getResults(
     @Param('userId') userId: string,
-    @Query() query: JobsQueryInput,
+    @Query(new ZodValidationPipe(jobsQuerySchema)) query: JobsQueryInput,
   ): Promise<MatchResultsResponse> {
     const { page, limit } = query;
 

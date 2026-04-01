@@ -12,8 +12,8 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createUserSchema, updateUserSchema } from '@scrape/shared';
-import { UsersService } from '@/modules/users/users.service';
-import type { UserDto } from '@/modules/users/users.service';
+import { UsersService } from '../modules/users/users.service';
+import type { UserDto } from '../modules/users/users.service';
 
 // ═══════════════════════════════════════════
 // MOCK DATA
@@ -38,6 +38,15 @@ const VALID_CREATE_INPUT = {
   experienceYears: 5,
   preferredRoles: ['Frontend Developer'],
   preferredLocations: ['Istanbul'],
+};
+
+const NORMALIZED_CREATE_INPUT = {
+  email: 'dev@example.com',
+  name: 'Test User',
+  techStack: ['react', 'typescript'],
+  experienceYears: 5,
+  preferredRoles: ['frontend developer'],
+  preferredLocations: ['istanbul'],
 };
 
 // ═══════════════════════════════════════════
@@ -204,7 +213,7 @@ describe('UsersService', () => {
 
       expect(result).toEqual(MOCK_USER);
       expect(mockPrisma.user.create).toHaveBeenCalledWith({
-        data: VALID_CREATE_INPUT,
+        data: NORMALIZED_CREATE_INPUT,
         select: expect.objectContaining({ id: true, email: true }),
       });
     });
@@ -277,6 +286,28 @@ describe('UsersService', () => {
       await expect(
         service.update(MOCK_USER.id, { email: 'taken@test.com' }),
       ).rejects.toThrow('Bu email adresi zaten kayıtlı');
+    });
+
+    it('update payload normalize edilerek Prisma ya gider', async () => {
+      mockPrisma.user.count.mockResolvedValue(1);
+      mockPrisma.user.update.mockResolvedValue(MOCK_USER);
+
+      await service.update(MOCK_USER.id, {
+        techStack: ['React', 'Node.js', 'react'],
+        preferredRoles: ['Frontend Developer'],
+        preferredLocations: ['Istanbul'],
+      });
+
+      expect(mockPrisma.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: MOCK_USER.id },
+          data: {
+            techStack: ['react', 'nodejs'],
+            preferredRoles: ['frontend developer'],
+            preferredLocations: ['istanbul'],
+          },
+        }),
+      );
     });
   });
 });

@@ -67,13 +67,23 @@ export class UsersService {
   /**
    * Yeni kullanıcı oluştur.
    *
+   * Normalizasyon Stratejisi (Defense-in-Depth):
+   *   - Frontend: UX iyileştirmesi (immediate feedback)
+   *   - Backend: Database truth — single source of truth
+   *
+   * Neden backend'de de? Eğer birisi API'ye doğrudan "React", "REACT" gönderirse,
+   * backend normalizasyonu olmadan aynı skill 2 farklı şekilde kaydedilirdi.
+   * Bu LLM matching accuracy'sini düşürürdü.
+   *
    * Prisma unique constraint (email) ihlal edilirse P2002 kodu döner.
    * Bunu yakalayıp anlamlı bir ConflictException fırlatıyoruz.
    */
   async create(input: CreateUserInput): Promise<UserDto> {
+    const normalizedInput = this.normalizeCreateUserInput(input);
+
     try {
       return await this.prisma.user.create({
-        data: input,
+        data: normalizedInput,
         select: USER_SELECT,
       });
     } catch (error: unknown) {
@@ -119,14 +129,18 @@ export class UsersService {
    * Prisma update: undefined olan alanlar güncellenmez (PATCH semantiği).
    * Yani frontend sadece { techStack: ["React", "TS"] } gönderirse
    * sadece techStack güncellenir, diğer alanlar aynen kalır.
+   *
+   * Normalizasyon: input → normalizasyon → DB update (defense-in-depth).
    */
   async update(id: string, input: UpdateUserInput): Promise<UserDto> {
     await this.ensureUserExists(id);
 
+    const normalizedInput = this.normalizeUpdateUserInput(input);
+
     try {
       return await this.prisma.user.update({
         where: { id },
-        data: input,
+        data: normalizedInput,
         select: USER_SELECT,
       });
     } catch (error: unknown) {
@@ -149,6 +163,89 @@ export class UsersService {
     if (count === 0) {
       throw new NotFoundException(`Kullanıcı bulunamadı: ${id}`);
     }
+  }
+
+  /**
+   * Normalizasyon Helper — techStack, preferredRoles, preferredLocations'ı normalize et.
+   *
+   * Normalizasyon Kuralları:
+   *   - Lowercase: "React" → "react"
+   *   - Dot removal: "Node.js" → "nodejs"
+   *   - Dedup: ["react", "REACT"] → ["react"]  (lowercase'ten sonra)
+   *   - Empty removal: [] ve whitespace-only array'ler ignored
+   *
+   * Neden?
+   *   1. LLM matching accuracy: "React" ve "REACT" aynı skill olarak görülecek
+   *   2. Database consistency: single source of truth
+   *   3. API contract: consumers reliable data alacak
+   *
+   * Immutable pattern: gelen input'u değiştirmeyiz, copy döneriz.
+   */
+  private normalizeCreateUserInput(input: CreateUserInput): CreateUserInput {
+    const normalized: CreateUserInput = { ...input };
+
+    if (normalized.techStack?.length) {
+      normalized.techStack = this.normalizeStringArray(normalized.techStack);
+    }
+
+    if (normalized.preferredRoles?.length) {
+      normalized.preferredRoles = this.normalizeStringArray(normalized.preferredRoles);
+    }
+
+    if (normalized.preferredLocations?.length) {
+      normalized.preferredLocations = this.normalizeStringArray(
+        normalized.preferredLocations,
+      );
+    }
+
+    return normalized;
+  }
+
+  private normalizeUpdateUserInput(input: UpdateUserInput): UpdateUserInput {
+    const normalized: UpdateUserInput = { ...input };
+
+    if (normalized.techStack?.length) {
+      normalized.techStack = this.normalizeStringArray(normalized.techStack);
+    }
+
+    if (normalized.preferredRoles?.length) {
+      normalized.preferredRoles = this.normalizeStringArray(normalized.preferredRoles);
+    }
+
+    if (normalized.preferredLocations?.length) {
+      normalized.preferredLocations = this.normalizeStringArray(
+        normalized.preferredLocations,
+      );
+    }
+
+    return normalized;
+  }
+
+  /**
+   * String array normalizasyon helper.
+   *
+   * Adımlar:
+   *   1. Her string'i normalize et: trim() → lowercase() → dot removal
+   *   2. Boş string'leri filtrele
+   *   3. Tekrarlı olanları kaldır (Set dedup)
+   *   4. Array'e çevir ve dön
+   *
+   * @param items Raw string array
+   * @returns Normalized deduplicated string array
+   */
+  private normalizeStringArray(items: string[]): string[] {
+    if (!items.length) return [];
+
+    const normalized = items
+      .map((item) =>
+        item
+          .trim()                    // Whitespace
+          .toLowerCase()             // Büyük harf → küçük
+          .replaceAll('.', ''),      // Nokta removal (Node.js → nodejs)
+      )
+      .filter(Boolean);              // Empty string'ler kaldır
+
+    return Array.from(new Set(normalized)); // Dedup via Set
   }
 }
 

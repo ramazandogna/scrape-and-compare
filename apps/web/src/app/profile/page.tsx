@@ -3,6 +3,7 @@
 import { useUser } from "@/hooks/use-user";
 import { ProfileForm } from "@/components/profile/profile-form";
 import { ProfileSummary } from "@/components/profile/profile-summary";
+import { ScoringButton } from "@/components/scoring/scoring-button";
 
 export default function ProfilePage() {
   const { user, isLoading, error, createUser, updateUser } = useUser();
@@ -31,6 +32,9 @@ export default function ProfilePage() {
       />
 
       {user && <ProfileSummary user={user} />}
+
+      {/* AI Puanlama — profil oluşturulduysa aktif */}
+      <ScoringButton userId={user?.id ?? null} />
     </div>
   );
 }

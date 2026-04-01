@@ -8,6 +8,7 @@ import { HeroSearch } from "@/components/dashboard/hero-search";
 import { FilterSidebar } from "@/components/dashboard/filter-sidebar";
 import { JobCardList } from "@/components/dashboard/job-card-list";
 import { RightSidebar } from "@/components/dashboard/right-sidebar";
+import { ScoringButton } from "@/components/scoring/scoring-button";
 import {
   enrichJobsWithMatches,
   applyFilters,
@@ -74,6 +75,13 @@ export default function DashboardPage() {
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
       {/* Hero Search */}
       <HeroSearch onSearch={handleSearch} total={total} isLoading={isLoading} />
+
+      {/* Scoring — profil oluşturulduysa göster */}
+      {user && (
+        <div className="mt-4">
+          <ScoringButton userId={user.id} />
+        </div>
+      )}
 
       {/* 3-Column Grid */}
       <div className="mt-6 grid gap-6 lg:grid-cols-[240px_1fr_280px]">

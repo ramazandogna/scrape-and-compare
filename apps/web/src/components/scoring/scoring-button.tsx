@@ -1,0 +1,186 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { toast } from "sonner";
+import { Loader2, Zap, CheckCircle2, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { useScoring } from "@/hooks/use-scoring";
+import type { ScoringProgress } from "@/hooks/use-scoring";
+
+// ═══════════════════════════════════════════
+// ScoringButton — AI puanlama tetikleme bileşeni
+// ═══════════════════════════════════════════
+// 4 state: idle → scoring (progress) → completed → (reset) idle
+// Profil sayfası ve/veya dashboard'a konulabilir.
+
+interface ScoringButtonProps {
+  userId: string | null;
+}
+
+export function ScoringButton({ userId }: ScoringButtonProps) {
+  const router = useRouter();
+  const { status, progress, error, triggerScoring, reset } = useScoring();
+
+  // Tamamlanınca toast + yönlendirme
+  useEffect(() => {
+    if (status !== "completed") return;
+
+    toast.success("Puanlama tamamlandı! Sonuçlara yönlendiriliyorsunuz...");
+    const timer = setTimeout(() => {
+      router.push("/matches");
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [status, router]);
+
+  // Error toast
+  useEffect(() => {
+    if (error) toast.error(error);
+  }, [error]);
+
+  // Profil yoksa → disabled CTA
+  if (!userId) {
+    return (
+      <Card>
+        <CardContent className="flex items-center gap-3 py-4">
+          <Zap className="size-5 text-muted-foreground" />
+          <div className="flex-1">
+            <p className="text-sm font-medium">AI Puanlama</p>
+            <p className="text-xs text-muted-foreground">
+              Profil oluşturup ilanları puanlayın
+            </p>
+          </div>
+          <Button disabled size="sm">
+            🎯 İlanları Puanla
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardContent className="space-y-3 py-4">
+        <div className="flex items-center gap-3">
+          <StatusIcon status={status} />
+          <div className="flex-1">
+            <p className="text-sm font-medium">AI Puanlama</p>
+            <StatusMessage status={status} progress={progress} error={error} />
+          </div>
+
+          {/* Idle → Puanla butonu */}
+          {status === "idle" && (
+            <Button size="sm" onClick={() => triggerScoring(userId)}>
+              🎯 İlanları Puanla
+            </Button>
+          )}
+
+          {/* Scoring → Loading spinner */}
+          {status === "scoring" && (
+            <Button size="sm" disabled>
+              <Loader2 className="size-4 animate-spin" />
+              Puanlanıyor...
+            </Button>
+          )}
+
+          {/* Completed → Sonuçları gör */}
+          {status === "completed" && (
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => router.push("/matches")}
+            >
+              Sonuçları Gör →
+            </Button>
+          )}
+
+          {/* Error → Tekrar dene */}
+          {status === "error" && (
+            <Button size="sm" variant="destructive" onClick={reset}>
+              Tekrar Dene
+            </Button>
+          )}
+        </div>
+
+        {/* Progress bar — sadece scoring sırasında */}
+        {status === "scoring" && progress && (
+          <ProgressBar progress={progress} />
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ═══════════════════════════════════════════
+// Sub-components
+// ═══════════════════════════════════════════
+
+function StatusIcon({ status }: { status: string }) {
+  switch (status) {
+    case "scoring":
+      return <Loader2 className="size-5 animate-spin text-primary" />;
+    case "completed":
+      return <CheckCircle2 className="size-5 text-green-600" />;
+    case "error":
+      return <AlertCircle className="size-5 text-destructive" />;
+    default:
+      return <Zap className="size-5 text-primary" />;
+  }
+}
+
+function StatusMessage({
+  status,
+  progress,
+  error,
+}: {
+  status: string;
+  progress: ScoringProgress | null;
+  error: string | null;
+}) {
+  switch (status) {
+    case "scoring":
+      if (progress) {
+        return (
+          <p className="text-xs text-muted-foreground">
+            {progress.scoredJobs}/{progress.totalJobs} ilan puanlandı (
+            {progress.totalBatches} batch)
+          </p>
+        );
+      }
+      return (
+        <p className="text-xs text-muted-foreground">Kuyruğa ekleniyor...</p>
+      );
+    case "completed":
+      return (
+        <p className="text-xs text-green-600">
+          Tüm ilanlar puanlandı! Sonuçlara yönlendiriliyorsunuz...
+        </p>
+      );
+    case "error":
+      return <p className="text-xs text-destructive">{error}</p>;
+    default:
+      return (
+        <p className="text-xs text-muted-foreground">
+          Gemini AI ile ilanları profilinize göre puanlayın
+        </p>
+      );
+  }
+}
+
+function ProgressBar({ progress }: { progress: ScoringProgress }) {
+  return (
+    <div className="space-y-1">
+      <div className="h-2 overflow-hidden rounded-full bg-muted">
+        <div
+          className="h-full rounded-full bg-primary transition-all duration-500"
+          style={{ width: `${progress.percentage}%` }}
+        />
+      </div>
+      <p className="text-right text-[11px] text-muted-foreground">
+        %{progress.percentage}
+      </p>
+    </div>
+  );
+}

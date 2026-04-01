@@ -27,6 +27,13 @@ interface HeroSearchProps {
 const MAX_KEYWORDS = 3;
 const MAX_LOCATION_SUGGESTIONS = 8;
 type FormSubmitEvent = Parameters<NonNullable<ComponentProps<"form">["onSubmit"]>>[0];
+const LOCATION_ALIASES: Record<string, string> = {
+  turkiye: "Turkey",
+  "turkiye cumhuriyeti": "Turkey",
+  "t\u00fcrkiye": "Turkey",
+  "t\u00fcrkiye cumhuriyeti": "Turkey",
+  japonya: "Japan",
+};
 const POPULAR_LOCATIONS: string[] = [
   "Istanbul, Turkey",
   "Ankara, Turkey",
@@ -50,8 +57,13 @@ export function HeroSearch({ onSearch, scrapeState, onScrapeReset, total }: Hero
     if (isScraping) return [];
 
     const query = normalizeLocation(location);
+    const aliasEntries = Object.entries(LOCATION_ALIASES).map(([alias, canonical]) => ({
+      alias,
+      canonical,
+    }));
+
     if (!query) {
-      return POPULAR_LOCATIONS.slice(0, MAX_LOCATION_SUGGESTIONS);
+      return [...POPULAR_LOCATIONS, "Turkey", "Japan"].slice(0, MAX_LOCATION_SUGGESTIONS);
     }
 
     const startsWithMatches = LINKEDIN_LOCATIONS.filter((candidate) =>
@@ -63,7 +75,14 @@ export function HeroSearch({ onSearch, scrapeState, onScrapeReset, total }: Hero
       return !normalizedCandidate.startsWith(query) && normalizedCandidate.includes(query);
     });
 
-    return [...startsWithMatches, ...containsMatches].slice(0, MAX_LOCATION_SUGGESTIONS);
+    const aliasMatches = aliasEntries
+      .filter((entry) => entry.alias.startsWith(query) || entry.alias.includes(query))
+      .map((entry) => entry.canonical);
+
+    return Array.from(new Set([...startsWithMatches, ...containsMatches, ...aliasMatches])).slice(
+      0,
+      MAX_LOCATION_SUGGESTIONS,
+    );
   }, [isScraping, location]);
 
   function handleSubmit(e: FormSubmitEvent) {
@@ -71,7 +90,7 @@ export function HeroSearch({ onSearch, scrapeState, onScrapeReset, total }: Hero
     const nextKeywords = addKeywordsFromInput();
     if (!nextKeywords.length) return;
 
-    onSearch(nextKeywords, location.trim());
+    onSearch(nextKeywords, canonicalizeLocation(location));
   }
 
   function handleFormKeyDown(e: KeyboardEvent<HTMLFormElement>): void {
@@ -85,7 +104,20 @@ export function HeroSearch({ onSearch, scrapeState, onScrapeReset, total }: Hero
   }
 
   function normalizeLocation(raw: string): string {
-    return raw.trim().toLowerCase().replaceAll(".", "");
+    return raw
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/\p{M}/gu, "")
+      .replaceAll(".", "");
+  }
+
+  function canonicalizeLocation(raw: string): string {
+    const trimmed = raw.trim();
+    if (!trimmed) return "";
+
+    const normalized = normalizeLocation(trimmed);
+    return LOCATION_ALIASES[normalized] ?? trimmed;
   }
 
   function addKeywordsFromInput(): string[] {

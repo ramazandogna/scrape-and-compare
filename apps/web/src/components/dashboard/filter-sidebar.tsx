@@ -99,8 +99,8 @@ export function FilterSidebar({ filters, onFilterChange }: FilterSidebarProps) {
           <RadioOption
             key={opt.label}
             label={opt.label}
-            active={filters.minScore === opt.value}
-            onClick={() => updateFilter("minScore", opt.value)}
+            active={filters.scoreStatus === opt.value}
+            onClick={() => updateFilter("scoreStatus", opt.value)}
           />
         ))}
       </FilterSection>

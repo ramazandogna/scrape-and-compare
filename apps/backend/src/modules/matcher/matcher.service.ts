@@ -21,7 +21,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@/database/prisma.service';
 import { GeminiService } from './gemini.service';
-import { batchScoringResultSchema, MATCHER_DEFAULTS } from '@scrape/shared';
+import { batchScoringResultSchema } from '@scrape/shared';
 import type { BatchScoringResult, SingleScoringResult, MatcherUserProfile, MatcherJobSummary } from '@scrape/shared';
 import { logger } from '@/utils/helpers';
 
@@ -44,14 +44,10 @@ export interface BatchScoreResult {
 
 @Injectable()
 export class MatcherService {
-  private readonly minScore: number;
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly gemini: GeminiService,
-  ) {
-    this.minScore = Number(process.env['MATCHER_MIN_SCORE'] ?? MATCHER_DEFAULTS.MIN_SCORE);
-  }
+  ) {}
 
   /**
    * Bir batch (max 8) ilanı kullanıcı profiliyle puanla.
@@ -85,11 +81,19 @@ export class MatcherService {
         { error: result.error.code, jobIds },
         '[MATCHER] Gemini batch scoring başarısız',
       );
-      return { scored: [], failed: jobIds, totalJobs: jobs.length };
+      const fallbackResults = this.createFallbackResults(jobs);
+      await this.saveResults(user.id, fallbackResults);
+      return { scored: fallbackResults, failed: jobIds, totalJobs: jobs.length };
     }
 
     const validResults = this.validateBatchResults(result.data, jobIds);
-    await this.saveResults(user.id, validResults);
+
+    const missingResults = this.createFallbackResults(
+      jobs.filter((job) => !validResults.some((resultItem) => resultItem.jobId === job.id)),
+    );
+
+    const allResults = [...validResults, ...missingResults];
+    await this.saveResults(user.id, allResults);
 
     const scoredIds = validResults.map((r) => r.jobId);
     const failedIds = jobIds.filter((id) => !scoredIds.includes(id));
@@ -97,14 +101,14 @@ export class MatcherService {
     logger.info(
       {
         userId: user.id,
-        scored: validResults.length,
+        scored: allResults.length,
         failed: failedIds.length,
-        avgScore: this.calculateAvgScore(validResults),
+        avgScore: this.calculateAvgScore(allResults),
       },
       '[MATCHER] Batch scoring tamamlandı',
     );
 
-    return { scored: validResults, failed: failedIds, totalJobs: jobs.length };
+    return { scored: allResults, failed: failedIds, totalJobs: jobs.length };
   }
 
   /**
@@ -119,6 +123,9 @@ export class MatcherService {
   async getUnscoredJobs(userId: string): Promise<MatcherJobSummary[]> {
     const jobs = await this.prisma.jobListing.findMany({
       where: {
+        userJobs: {
+          some: { userId },
+        },
         matchResults: {
           none: { userId },
         },
@@ -240,29 +247,55 @@ Her ilan için MUTLAKA bir sonuç döndür. results array'inde ${String(jobs.len
    * minScore altı sonuçlar kaydedilmez (gereksiz veri önleme).
    */
   private async saveResults(userId: string, results: SingleScoringResult[]): Promise<void> {
-    const qualifiedResults = results.filter((r) => r.score >= this.minScore);
-
-    if (qualifiedResults.length === 0) {
-      logger.info('[MATCHER] Minimum skoru geçen sonuç yok, DB\'ye yazılmadı');
+    if (results.length === 0) {
+      logger.info('[MATCHER] Kaydedilecek sonuç yok');
       return;
     }
 
-    await this.prisma.matchResult.createMany({
-      data: qualifiedResults.map((r) => ({
-        userId,
-        jobId: r.jobId,
-        score: r.score,
-        explanation: r.explanation,
-        matchedSkills: r.matchedSkills,
-        missingSkills: r.missingSkills,
-      })),
-      skipDuplicates: true,
-    });
+    await Promise.all(
+      results.map((result) =>
+        this.prisma.matchResult.upsert({
+          where: {
+            userId_jobId: {
+              userId,
+              jobId: result.jobId,
+            },
+          },
+          create: {
+            userId,
+            jobId: result.jobId,
+            score: result.score,
+            explanation: result.explanation,
+            matchedSkills: result.matchedSkills,
+            missingSkills: result.missingSkills,
+          },
+          update: {
+            score: result.score,
+            explanation: result.explanation,
+            matchedSkills: result.matchedSkills,
+            missingSkills: result.missingSkills,
+          },
+        }),
+      ),
+    );
 
     logger.info(
-      { count: qualifiedResults.length, userId },
+      { count: results.length, userId },
       '[MATCHER] Sonuçlar DB\'ye yazıldı',
     );
+  }
+
+  /**
+   * LLM sonucu eksik/başarısız döndüğünde tüm ilanlar için fallback skor üretir.
+   */
+  private createFallbackResults(jobs: MatcherJobSummary[]): SingleScoringResult[] {
+    return jobs.map((job) => ({
+      jobId: job.id,
+      score: 0,
+      explanation: 'Bu ilan için AI puanlaması tamamlanamadı. Sistem bu kaydı eşleşmedi olarak işaretledi.',
+      matchedSkills: [],
+      missingSkills: [],
+    }));
   }
 
   /**

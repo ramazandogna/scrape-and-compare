@@ -1,4 +1,4 @@
-export const LINKEDIN_LOCATIONS: string[] = [
+const BASE_LINKEDIN_LOCATIONS: string[] = [
   "Remote",
   "Hybrid",
   "On-site",
@@ -251,4 +251,33 @@ export const LINKEDIN_LOCATIONS: string[] = [
   "Auckland, New Zealand",
   "Wellington, New Zealand",
   "Christchurch, New Zealand"
+];
+
+const NON_COUNTRY_LOCATIONS = new Set(["Remote", "Hybrid", "On-site"]);
+
+function extractCountry(location: string): string | null {
+  if (NON_COUNTRY_LOCATIONS.has(location)) return null;
+
+  const parts = location.split(",");
+  const country = parts[parts.length - 1]?.trim();
+
+  if (!country) return null;
+  if (country.includes("SAR")) {
+    return country.replace(" SAR", "").trim();
+  }
+
+  return country;
+}
+
+const COUNTRY_LOCATIONS: string[] = Array.from(
+  new Set(
+    BASE_LINKEDIN_LOCATIONS
+      .map(extractCountry)
+      .filter((country): country is string => Boolean(country))
+  )
+);
+
+export const LINKEDIN_LOCATIONS: string[] = [
+  ...BASE_LINKEDIN_LOCATIONS,
+  ...COUNTRY_LOCATIONS,
 ];

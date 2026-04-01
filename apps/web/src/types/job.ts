@@ -85,7 +85,7 @@ export interface FilterState {
   seniorityLevel: string | null;
   employmentType: string | null;
   minSalary: number | null;
-  minScore: number | null;
+  scoreStatus: "all" | "matched" | "unmatched" | "unscored";
 }
 
 export type SortField = "default" | "date" | "salary" | "score";
@@ -101,7 +101,7 @@ export const INITIAL_FILTERS: FilterState = {
   seniorityLevel: null,
   employmentType: null,
   minSalary: null,
-  minScore: null,
+  scoreStatus: "all",
 };
 
 export const INITIAL_SORT: SortState = {
@@ -137,8 +137,8 @@ export const SALARY_OPTIONS = [
 ] as const;
 
 export const SCORE_OPTIONS = [
-  { label: "Hepsi", value: null },
-  { label: "> 50", value: 50 },
-  { label: "> 70", value: 70 },
-  { label: "> 80", value: 80 },
+  { label: "Hepsi", value: "all" },
+  { label: "Eşleşti (>=50)", value: "matched" },
+  { label: "Eşleşmedi (0-49)", value: "unmatched" },
+  { label: "Puanlanamadı", value: "unscored" },
 ] as const;

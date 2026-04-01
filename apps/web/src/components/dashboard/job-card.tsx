@@ -27,13 +27,11 @@ export function JobCard({ job }: JobCardProps) {
   return (
     <Card className="transition-shadow hover:shadow-md">
       <CardContent className="space-y-3">
-        {/* Score Badge — sadece puanlanmış ilanlarda */}
-        {job.match && (
-          <div className="flex items-center justify-between">
-            <ScoreBadge score={job.match.score} />
-            <span className="text-xs text-muted-foreground">{job.source}</span>
-          </div>
-        )}
+        {/* Score Badge — her ilanda eşleşti/eşleşmedi durumu */}
+        <div className="flex items-center justify-between">
+          <ScoreBadge score={job.match?.score} />
+          <span className="text-xs text-muted-foreground">{job.source}</span>
+        </div>
 
         {/* Header: Avatar + Job Info */}
         <div className="flex gap-3">

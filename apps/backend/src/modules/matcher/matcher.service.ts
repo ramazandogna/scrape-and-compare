@@ -112,22 +112,17 @@ export class MatcherService {
   }
 
   /**
-   * DB'den henüz puanlanmamış iş ilanlarını çeker.
+   * Kullanıcının sahip olduğu TÜM iş ilanlarını çeker.
    *
-   * SQL mantığı:
-   *   SELECT * FROM job_listings
-   *   WHERE id NOT IN (SELECT jobId FROM match_results WHERE userId = ?)
-   *
-   * Prisma bunu `none` filtresi ile yapar — raw SQL'e gerek yok.
+   * Neden "unscored" değil?
+   * Kullanıcı "İlanları puanla" dediğinde mevcut tüm ilanlarını tekrar puanlayabilir.
+   * Bu sayede eski kayıtlar da güncel profile göre yeniden hesaplanır.
    */
-  async getUnscoredJobs(userId: string): Promise<MatcherJobSummary[]> {
+  async getUserJobsForScoring(userId: string): Promise<MatcherJobSummary[]> {
     const jobs = await this.prisma.jobListing.findMany({
       where: {
         userJobs: {
           some: { userId },
-        },
-        matchResults: {
-          none: { userId },
         },
       },
       select: {

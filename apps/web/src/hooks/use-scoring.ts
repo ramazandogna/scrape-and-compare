@@ -96,7 +96,7 @@ export function useScoring(): UseScoringReturn {
           stopPolling();
           setStatus("idle");
           setProgress(null);
-          setMessage("Puanlanacak yeni ilan yok");
+          setMessage("Puanlanacak ilan yok");
           return;
         }
 

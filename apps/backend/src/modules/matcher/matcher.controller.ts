@@ -132,11 +132,11 @@ export class MatcherController {
       throw new NotFoundException(`User bulunamadı: ${body.userId}`);
     }
 
-    const unscoredJobs = await this.matcherService.getUnscoredJobs(body.userId);
+    const jobsToScore = await this.matcherService.getUserJobsForScoring(body.userId);
 
-    if (unscoredJobs.length === 0) {
+    if (jobsToScore.length === 0) {
       return {
-        message: 'Puanlanacak yeni ilan yok',
+        message: 'Puanlanacak ilan yok',
         userId: body.userId,
         totalJobs: 0,
         totalBatches: 0,
@@ -147,7 +147,7 @@ export class MatcherController {
     const batchSize = Number(
       process.env['MATCHER_BATCH_SIZE'] ?? MATCHER_DEFAULTS.BATCH_SIZE,
     );
-    const batches = this.chunkArray(unscoredJobs, batchSize);
+    const batches = this.chunkArray(jobsToScore, batchSize);
 
     for (const [index, batch] of batches.entries()) {
       await this.matcherQueue.add(
@@ -168,7 +168,7 @@ export class MatcherController {
     logger.info(
       {
         userId: body.userId,
-        totalJobs: unscoredJobs.length,
+        totalJobs: jobsToScore.length,
         totalBatches: batches.length,
         batchSize,
       },
@@ -176,9 +176,9 @@ export class MatcherController {
     );
 
     return {
-      message: `${String(unscoredJobs.length)} ilan ${String(batches.length)} batch halinde kuyruğa eklendi`,
+      message: `${String(jobsToScore.length)} ilan ${String(batches.length)} batch halinde kuyruğa eklendi`,
       userId: body.userId,
-      totalJobs: unscoredJobs.length,
+      totalJobs: jobsToScore.length,
       totalBatches: batches.length,
       batchSize,
     };

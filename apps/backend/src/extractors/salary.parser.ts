@@ -31,7 +31,7 @@ const detectCurrency = (text: string): SalaryCurrency => {
 };
 
 /** Yıllık mı aylık mı tespit eder */
-const detectPeriod = (text: string): SalaryPeriod => {
+const detectPeriod = (text: string): SalaryPeriod | 'unknown' => {
   const lower = text.toLowerCase();
   if (
     lower.includes('yıllık') || lower.includes('yillik') ||
@@ -41,7 +41,30 @@ const detectPeriod = (text: string): SalaryPeriod => {
   ) {
     return 'yearly';
   }
-  return 'monthly';
+  if (
+    lower.includes('aylık') || lower.includes('aylik') ||
+    lower.includes('monthly') || lower.includes('/mo') ||
+    lower.includes('per month')
+  ) {
+    return 'monthly';
+  }
+  // Açık belirtilmemişse → "unknown" olarak döner, heuristic ile belirlenir
+  return 'unknown';
+};
+
+/**
+ * Maaş miktarına göre yıllık/aylık tahmini yapar.
+ * Açıkça belirtilmemişse (unknown), büyük değerler yıllık kabul edilir.
+ * TRY: 100.000+ → yıllık, USD/EUR: 10.000+ → yıllık
+ */
+const inferPeriod = (
+  value: number,
+  currency: SalaryCurrency,
+  detected: SalaryPeriod | 'unknown',
+): SalaryPeriod => {
+  if (detected !== 'unknown') return detected;
+  const threshold = currency === 'TRY' ? 100_000 : 10_000;
+  return value >= threshold ? 'yearly' : 'monthly';
 };
 
 /**
@@ -105,7 +128,7 @@ export const parseSalary = (rawSalary: string | null): SalaryParsed | null => {
 
   const text = rawSalary.trim();
   const currency = detectCurrency(text);
-  const period = detectPeriod(text);
+  const detectedPeriod = detectPeriod(text);
 
   for (const pattern of SALARY_PATTERNS) {
     const match = text.match(pattern);
@@ -119,6 +142,12 @@ export const parseSalary = (rawSalary: string | null): SalaryParsed | null => {
     const maxRaw = second ? parseNumber(second) : null;
 
     if (minRaw !== null && minRaw < 100) continue;
+
+    // Heuristic: açık period yoksa, miktara göre yıllık/aylık tahmin et
+    const referenceValue = maxRaw ?? minRaw;
+    const period = referenceValue !== null
+      ? inferPeriod(referenceValue, currency, detectedPeriod)
+      : (detectedPeriod === 'unknown' ? 'monthly' : detectedPeriod);
 
     const min = minRaw !== null ? normalizeToMonthlyTRY(minRaw, currency, period) : null;
     const max = maxRaw !== null ? normalizeToMonthlyTRY(maxRaw, currency, period) : null;

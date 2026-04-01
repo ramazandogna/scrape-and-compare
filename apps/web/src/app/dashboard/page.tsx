@@ -11,6 +11,7 @@ import { FilterSidebar } from "@/components/dashboard/filter-sidebar";
 import { JobCardList } from "@/components/dashboard/job-card-list";
 import { RightSidebar } from "@/components/dashboard/right-sidebar";
 import { ScoringButton } from "@/components/scoring/scoring-button";
+import { ScrollToTop } from "@/components/dashboard/scroll-to-top";
 import {
   enrichJobsWithMatches,
   applyFilters,
@@ -142,6 +143,8 @@ export default function DashboardPage() {
           <RightSidebar />
         </div>
       </div>
+
+      <ScrollToTop />
     </div>
   );
 }

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { toast } from "sonner";
-import { Loader2, Zap, CheckCircle2, AlertCircle } from "lucide-react";
+import { Loader2, Zap, CheckCircle2, AlertCircle, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useScoring } from "@/hooks/use-scoring";
@@ -58,7 +58,8 @@ export function ScoringButton({ userId }: ScoringButtonProps) {
             </p>
           </div>
           <Button disabled size="sm">
-            🎯 İlanları Puanla
+            <Target className="size-4" />
+            İlanları Puanla
           </Button>
         </CardContent>
       </Card>
@@ -78,7 +79,8 @@ export function ScoringButton({ userId }: ScoringButtonProps) {
           {/* Idle → Puanla butonu */}
           {status === "idle" && (
             <Button size="sm" onClick={() => triggerScoring(userId)}>
-              🎯 İlanları Puanla
+              <Target className="size-4" />
+              İlanları Puanla
             </Button>
           )}
 
@@ -149,10 +151,20 @@ function StatusMessage({
   switch (status) {
     case "scoring":
       if (progress) {
+        const completedBatches = Math.ceil(
+          (progress.scoredJobs / progress.totalJobs) * progress.totalBatches
+        );
+        const remainingBatches = progress.totalBatches - completedBatches;
+        const etaSeconds = remainingBatches * 20; // ~20s per batch (rate limit)
+        const etaMin = Math.ceil(etaSeconds / 60);
         return (
           <p className="text-xs text-muted-foreground">
-            {progress.scoredJobs}/{progress.totalJobs} ilan puanlandı (
-            {progress.totalBatches} batch)
+            {progress.scoredJobs}/{progress.totalJobs} ilan puanlandı
+            {" "}({completedBatches}/{progress.totalBatches} batch)
+            {" · "}%{progress.percentage}
+            {remainingBatches > 0 && (
+              <span className="ml-1">· ~{etaMin} dk kaldı</span>
+            )}
           </p>
         );
       }

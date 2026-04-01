@@ -72,12 +72,20 @@ function StatusMessage({ state }: { state: ScrapeState }) {
   switch (state.phase) {
     case "triggering":
       return <p>Scrape işlemi başlatılıyor...</p>;
-    case "scraping":
+    case "scraping": {
+      const pct = state.progress?.percentage ?? 0;
       return (
-        <p>
-          {state.progress?.message ?? "LinkedIn taranıyor..."}
-        </p>
+        <div>
+          <p>
+            {state.progress?.message ?? "LinkedIn taranıyor..."}{" "}
+            <span className="font-semibold">%{Math.round(pct)}</span>
+          </p>
+          <p className="text-[11px] opacity-70 mt-0.5">
+            Bu işlem arka planda devam eder — sayfadan ayrılabilirsiniz.
+          </p>
+        </div>
       );
+    }
     case "completed":
       if (state.result) {
         return (

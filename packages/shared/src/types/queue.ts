@@ -32,6 +32,8 @@ export interface ScrapeJobData {
   keywords: string[];
   /** Arama lokasyonu */
   location: string;
+  /** Scrape'i tetikleyen kullanıcı (legacy çağrılar için opsiyonel) */
+  userId?: string;
   /** Opsiyonel config override'ları — verilmezse .env default'ları kullanılır */
   config?: Partial<ScraperConfig>;
 }

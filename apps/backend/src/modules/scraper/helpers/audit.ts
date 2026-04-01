@@ -73,11 +73,13 @@ export const createAudit = async (
   prisma: PrismaService,
   keyword: string,
   location: string,
+  userId?: string,
 ): Promise<string> => {
   const audit = await prisma.scraperAudit.create({
     data: {
       keyword,
       location,
+      userId,
       status: ScraperStatus.IDLE,
       startedAt: new Date(),
     },

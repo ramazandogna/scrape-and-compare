@@ -82,9 +82,9 @@ export class JobsService {
    * @param query Zod ile validate edilmiş query parametreleri
    */
   async findAll(query: JobsQueryInput): Promise<PaginatedJobs> {
-    const { page, limit, search, location, sort } = query;
+    const { page, limit, userId, search, location, sort } = query;
 
-    const where = this.buildWhereClause(search, location);
+    const where = this.buildWhereClause(userId, search, location);
 
     const [data, total] = await Promise.all([
       this.prisma.jobListing.findMany({
@@ -140,10 +140,19 @@ export class JobsService {
    * AND mantığı: search + location filtresi birlikte uygulanır
    */
   private buildWhereClause(
+    userId?: string,
     search?: string,
     location?: string,
   ): Record<string, unknown> {
     const conditions: Record<string, unknown>[] = [];
+
+    if (userId) {
+      conditions.push({
+        userJobs: {
+          some: { userId },
+        },
+      });
+    }
 
     if (search) {
       conditions.push({

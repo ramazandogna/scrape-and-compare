@@ -44,4 +44,5 @@ export type {
   JobListing,
   MatchResult,
   ScraperAudit,
+  UserJobListing,
 } from './generated/prisma';

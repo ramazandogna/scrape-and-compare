@@ -64,12 +64,12 @@ enum ScraperStatus {
 
 /// Kullanıcı profili — CV parse sonucu ve tercihler
 model User {
-  id                String   @id @default(uuid())
-  email             String   @unique
-  name              String
-  techStack         String[] /// Bildiği teknolojiler: ["React", "TypeScript", ...]
-  experienceYears   Int      @default(0)
-  preferredRoles    String[] /// ["Frontend Developer", "Fullstack Engineer"]
+  id                 String   @id @default(uuid())
+  email              String   @unique
+  name               String
+  techStack          String[] /// Bildiği teknolojiler: ["React", "TypeScript", ...]
+  experienceYears    Int      @default(0)
+  preferredRoles     String[] /// ["Frontend Developer", "Fullstack Engineer"]
   preferredLocations String[] /// ["İstanbul", "Remote"]
 
   createdAt DateTime @default(now())
@@ -77,25 +77,29 @@ model User {
 
   /// User'ın eşleşme sonuçları
   matchResults MatchResult[]
+  /// User'ın scrape oturumları
+  scraperAudits ScraperAudit[]
+  /// User'ın erişebileceği iş ilanı eşlemeleri
+  userJobs UserJobListing[]
 
   @@map("users")
 }
 
 /// İş ilanı — scraper'dan gelen zenginleştirilmiş veri
 model JobListing {
-  id         String @id @default(uuid())
+  id String @id @default(uuid())
 
   /// LinkedIn'deki orijinal job ID — duplicate önleme
   externalId String @unique
   /// Doğrudan ilan linki — duplicate önleme
-  url        String @unique
+  url String @unique
 
-  title      String
-  company    String
-  location   String
+  title    String
+  company  String
+  location String
 
   /// Ham maaş string'i (LinkedIn'den gelen orijinal)
-  salary         String?
+  salary String?
   /// Normalize edilmiş maaş aralığı (TRY/ay cinsinden)
   salaryMin      Int?
   salaryMax      Int?
@@ -103,26 +107,28 @@ model JobListing {
   salaryPeriod   SalaryPeriod?
 
   /// İlan açıklaması (tam metin)
-  description    String?   @db.Text
+  description String? @db.Text
   /// Gereksinimler listesi
-  requirements   String[]
+  requirements String[]
   /// Çıkarılan skill'ler (JSON array: ExtractedSkill[])
-  skills         Json      @default("[]")
+  skills Json @default("[]")
 
   seniorityLevel String?
   employmentType String?
   postedDate     String?
 
   /// Hangi platform'dan geldi
-  source    JobSource @default(LINKEDIN)
+  source JobSource @default(LINKEDIN)
   /// Ne zaman scrape edildi
-  scrapedAt DateTime  @default(now())
+  scrapedAt DateTime @default(now())
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   /// Bu ilana ait eşleşme sonuçları
   matchResults MatchResult[]
+  /// User erişim eşlemeleri
+  userJobs UserJobListing[]
 
   @@map("job_listings")
 }
@@ -155,7 +161,11 @@ model MatchResult {
 
 /// Scraper denetim kaydı — her scrape oturumunun logu
 model ScraperAudit {
-  id     String @id @default(uuid())
+  id String @id @default(uuid())
+
+  /// Bu scrape'i tetikleyen kullanıcı (legacy kayıtlar için nullable)
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   /// State Machine durumu
   status   ScraperStatus @default(IDLE)
@@ -170,10 +180,35 @@ model ScraperAudit {
   /// Hata detayları (JSON array: ScraperError[])
   errorDetails Json?
   /// Toplam süre (milisaniye)
-  durationMs   Int   @default(0)
+  durationMs Int @default(0)
 
-  startedAt   DateTime  @default(now())
+  startedAt   DateTime @default(now())
   completedAt DateTime?
 
+  /// Bu scrape oturumunda user'a bağlanan ilanlar
+  userJobs UserJobListing[]
+
+  @@index([userId, startedAt])
   @@map("scraper_audits")
+}
+
+/// User ve JobListing arası erişim eşleme tablosu
+model UserJobListing {
+  id String @id @default(uuid())
+
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  jobId String
+  job   JobListing @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  auditId String?
+  audit   ScraperAudit? @relation(fields: [auditId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, jobId])
+  @@index([userId, createdAt])
+  @@index([auditId])
+  @@map("user_job_listings")
 }

@@ -15,7 +15,8 @@ interface UseJobsReturn {
   total: number;
   isLoading: boolean;
   error: string | null;
-  fetchJobs: (search?: string, location?: string) => Promise<void>;
+  fetchJobs: (userId: string, search?: string, location?: string) => Promise<void>;
+  clearJobs: () => void;
 }
 
 export function useJobs(): UseJobsReturn {
@@ -25,11 +26,11 @@ export function useJobs(): UseJobsReturn {
   const [error, setError] = useState<string | null>(null);
 
   const fetchJobs = useCallback(
-    async (search?: string, location?: string) => {
+    async (userId: string, search?: string, location?: string) => {
       setIsLoading(true);
       setError(null);
       try {
-        const params = new URLSearchParams({ limit: "100" });
+        const params = new URLSearchParams({ limit: "100", userId });
         if (search?.trim()) params.set("search", search.trim());
         if (location?.trim()) params.set("location", location.trim());
 
@@ -49,5 +50,11 @@ export function useJobs(): UseJobsReturn {
     []
   );
 
-  return { jobs, total, isLoading, error, fetchJobs };
+  const clearJobs = useCallback(() => {
+    setJobs([]);
+    setTotal(0);
+    setError(null);
+  }, []);
+
+  return { jobs, total, isLoading, error, fetchJobs, clearJobs };
 }

@@ -42,8 +42,8 @@ import { logger } from '@/utils/helpers';
  *   - status='failed'  → error alanı ZORUNLUDUR
  */
 export type JobPersistResult =
-  | { status: 'created'; externalId: string }
-  | { status: 'updated'; externalId: string }
+  | { status: 'created'; externalId: string; jobId: string }
+  | { status: 'updated'; externalId: string; jobId: string }
   | { status: 'failed'; externalId: string; error: string };
 
 /** Batch upsert özet raporu */
@@ -53,6 +53,11 @@ export interface UpsertSummary {
   updated: number;
   failed: number;
   errors: Array<{ externalId: string; error: string }>;
+}
+
+interface UserJobLinkOptions {
+  userId?: string;
+  auditId?: string;
 }
 
 // ═══════════════════════════════════════════
@@ -85,13 +90,14 @@ const upsertSingleJob = async (
         where: { externalId: job.id },
         data: mapJobToUpdateInput(job),
       });
-      return { status: 'updated', externalId: job.id };
+      return { status: 'updated', externalId: job.id, jobId: existing.id };
     }
 
-    await prisma.jobListing.create({
+    const created = await prisma.jobListing.create({
       data: mapJobToCreateInput(job),
+      select: { id: true },
     });
-    return { status: 'created', externalId: job.id };
+    return { status: 'created', externalId: job.id, jobId: created.id };
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown DB error';
     return { status: 'failed', externalId: job.id, error: message };
@@ -116,6 +122,7 @@ const upsertSingleJob = async (
 export const upsertJobs = async (
   prisma: PrismaService,
   jobs: JobListing[],
+  linkOptions?: UserJobLinkOptions,
 ): Promise<UpsertSummary> => {
   if (jobs.length === 0) {
     return { total: 0, created: 0, updated: 0, failed: 0, errors: [] };
@@ -127,6 +134,8 @@ export const upsertJobs = async (
   const settled = await Promise.allSettled(
     jobs.map((job) => upsertSingleJob(prisma, job)),
   );
+
+  await linkJobsToUser(prisma, settled, linkOptions);
 
   const summary = buildSummary(settled);
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
@@ -189,4 +198,45 @@ const buildSummary = (
     failed,
     errors,
   };
+};
+
+const isSuccessfulPersist = (
+  result: PromiseSettledResult<JobPersistResult>,
+): result is PromiseFulfilledResult<Extract<JobPersistResult, { status: 'created' | 'updated' }>> => {
+  return (
+    result.status === 'fulfilled' &&
+    (result.value.status === 'created' || result.value.status === 'updated')
+  );
+};
+
+const linkJobsToUser = async (
+  prisma: PrismaService,
+  results: PromiseSettledResult<JobPersistResult>[],
+  options?: UserJobLinkOptions,
+): Promise<void> => {
+  if (!options?.userId) return;
+
+  const links = results.filter(isSuccessfulPersist);
+  if (links.length === 0) return;
+
+  await Promise.allSettled(
+    links.map((result) =>
+      prisma.userJobListing.upsert({
+        where: {
+          userId_jobId: {
+            userId: options.userId!,
+            jobId: result.value.jobId,
+          },
+        },
+        create: {
+          userId: options.userId!,
+          jobId: result.value.jobId,
+          auditId: options.auditId,
+        },
+        update: {
+          auditId: options.auditId,
+        },
+      }),
+    ),
+  );
 };

@@ -76,11 +76,11 @@ export class ScraperService {
    *   Herhangi bir adımda hata → FAILED
    */
   async runFastScrape(jobData: ScrapeJobData): Promise<ScrapeJobCompleted> {
-    const { keywords, location } = jobData;
+    const { keywords, location, userId } = jobData;
     const config = loadFastConfig(keywords.length, jobData.config);
 
     // Audit kaydı oluştur (keyword'leri virgülle birleştir — schema tek string)
-    const auditId = await createAudit(this.prisma, keywords.join(', '), location);
+    const auditId = await createAudit(this.prisma, keywords.join(', '), location, userId);
 
     logger.info('FAST LinkedIn Job Scraper v2.0.0 (NestJS) başlatılıyor', {
       keywords,
@@ -108,7 +108,10 @@ export class ScraperService {
       const enrichedJobs = enrichJobsWithExtractors(jobs);
 
       // ADIM 4: DB'ye kaydet (upsert — varsa güncelle, yoksa oluştur)
-      const dbResult = await upsertJobs(this.prisma, enrichedJobs);
+      const dbResult = await upsertJobs(this.prisma, enrichedJobs, {
+        userId,
+        auditId,
+      });
       await updateAuditExtracted(this.prisma, auditId, dbResult.created + dbResult.updated);
 
       // EXTRACTING → COMPLETED

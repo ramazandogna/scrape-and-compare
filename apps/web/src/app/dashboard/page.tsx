@@ -29,7 +29,7 @@ const PAGE_SIZE = 10;
 
 export default function DashboardPage() {
   const { user } = useUser();
-  const { jobs, total, fetchJobs } = useJobs();
+  const { jobs, total, fetchJobs, clearJobs } = useJobs();
   const { matches, fetchMatches } = useMatchResults();
   const { state: scrapeState, startScrape, reset: resetScrape } = useScraper();
 
@@ -37,22 +37,27 @@ export default function DashboardPage() {
   const [sort, setSort] = useState<SortState>(INITIAL_SORT);
   const [page, setPage] = useState(1);
 
-  // İlk yüklemede mevcut ilanları çek
+  // User seçildiyse sadece o kullanıcıya ait ilanları çek
   useEffect(() => {
-    fetchJobs();
-  }, [fetchJobs]);
+    if (user?.id) {
+      fetchJobs(user.id);
+      return;
+    }
+
+    clearJobs();
+  }, [user?.id, fetchJobs, clearJobs]);
 
   // User varsa match sonuçlarını çek
   useEffect(() => {
     if (user?.id) fetchMatches(user.id);
   }, [user?.id, fetchMatches]);
 
-  // Scrape tamamlanınca ilanları yeniden çek
+  // Scrape tamamlanınca kullanıcıya ait ilanları yeniden çek
   useEffect(() => {
-    if (scrapeState.phase === "completed") {
-      fetchJobs();
+    if (scrapeState.phase === "completed" && user?.id) {
+      fetchJobs(user.id);
     }
-  }, [scrapeState.phase, fetchJobs]);
+  }, [scrapeState.phase, user?.id, fetchJobs]);
 
   // Filtre/sort değiştiğinde sayfa 1'e dön
   const handleFilterChange = useCallback((f: FilterState) => {
@@ -66,13 +71,12 @@ export default function DashboardPage() {
   }, []);
 
   // "Tara" → gerçek scrape tetikle
-  const handleSearch = useCallback(
-    (keywords: string[], location: string) => {
-      startScrape(keywords, location || "Turkey");
-      setPage(1);
-    },
-    [startScrape]
-  );
+  function handleSearch(keywords: string[], location: string): void {
+    if (!user?.id) return;
+
+    startScrape(keywords, location || "Turkey", user.id);
+    setPage(1);
+  }
 
   // Pipeline: enrich → filter → sort → paginate (memoized)
   const paginatedJobs = useMemo(() => {

@@ -51,7 +51,7 @@ export interface ScrapeState {
 
 interface UseScraperReturn {
   state: ScrapeState;
-  startScrape: (keywords: string[], location: string) => Promise<void>;
+  startScrape: (keywords: string[], location: string, userId: string) => Promise<void>;
   reset: () => void;
 }
 
@@ -85,7 +85,7 @@ export function useScraper(): UseScraperReturn {
   }
 
   const startScrape = useCallback(
-    async (keywords: string[], location: string) => {
+    async (keywords: string[], location: string, userId: string) => {
       cleanup();
       setState({ phase: "triggering", progress: null, result: null, error: null });
 
@@ -93,7 +93,7 @@ export function useScraper(): UseScraperReturn {
         // 1) Trigger — kuyruğa ekle
         const { jobId } = await apiFetch<TriggerResponse>("/scrape/trigger", {
           method: "POST",
-          body: JSON.stringify({ keywords, location }),
+          body: JSON.stringify({ keywords, location, userId }),
         });
 
         setState((prev) => ({ ...prev, phase: "scraping" }));

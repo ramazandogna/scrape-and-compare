@@ -118,7 +118,7 @@ export function ProfileForm({ user, onSave, onUpdate, error }: ProfileFormProps)
               maxTags={50}
             />
             <p className="text-xs text-muted-foreground">
-              Yazıp Enter&apos;a basın. {techStack.length}/50
+              Virgül veya Enter ile etiketleyin. Otomatik normalizasyon uygulanır. {techStack.length}/50
             </p>
           </div>
 

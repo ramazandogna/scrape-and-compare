@@ -21,17 +21,33 @@ export function TagInput({
 }: TagInputProps) {
   const [inputValue, setInputValue] = useState("");
 
-  const addTag = useCallback(
-    (raw: string) => {
-      const tag = raw.trim();
-      if (!tag) return;
-      if (value.includes(tag)) return; // duplicate engelle
-      if (value.length >= maxTags) return;
-      onChange([...value, tag]);
+  const normalizeTag = useCallback((raw: string): string => {
+    return raw.trim().toLowerCase().replaceAll(".", "");
+  }, []);
+
+  const addTagsFromInput = useCallback(() => {
+    const chunks = inputValue
+      .split(",")
+      .map((part) => normalizeTag(part))
+      .filter(Boolean);
+
+    if (chunks.length === 0) {
       setInputValue("");
-    },
-    [value, onChange, maxTags]
-  );
+      return;
+    }
+
+    let next = [...value];
+    for (const tag of chunks) {
+      if (next.length >= maxTags) break;
+      if (next.includes(tag)) continue;
+      next = [...next, tag];
+    }
+
+    if (next.length !== value.length) {
+      onChange(next);
+    }
+    setInputValue("");
+  }, [inputValue, maxTags, normalizeTag, onChange, value]);
 
   const removeTag = useCallback(
     (tagToRemove: string) => {
@@ -41,9 +57,9 @@ export function TagInput({
   );
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
+    if (e.key === "Enter" || e.key === ",") {
       e.preventDefault(); // form submit'i engelle
-      addTag(inputValue);
+      addTagsFromInput();
     }
     // Backspace ile son tag'i sil (input boşken)
     if (e.key === "Backspace" && !inputValue && value.length > 0) {
@@ -69,6 +85,7 @@ export function TagInput({
       <Input
         value={inputValue}
         onChange={(e) => setInputValue(e.target.value)}
+        onBlur={addTagsFromInput}
         onKeyDown={handleKeyDown}
         placeholder={value.length === 0 ? placeholder : ""}
         className="h-6 min-w-[120px] flex-1 border-0 p-0 shadow-none focus-visible:ring-0"

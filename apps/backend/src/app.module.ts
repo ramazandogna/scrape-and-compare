@@ -17,6 +17,7 @@ import { DatabaseModule } from '@/database/database.module';
 import { ScraperModule } from '@/modules/scraper/scraper.module';
 import { JobsModule } from '@/modules/jobs/jobs.module';
 import { MatcherModule } from '@/modules/matcher/matcher.module';
+import { UsersModule } from '@/modules/users/users.module';
 
 @Module({
   imports: [
@@ -41,6 +42,8 @@ import { MatcherModule } from '@/modules/matcher/matcher.module';
     JobsModule,
 
     MatcherModule,
+
+    UsersModule,
   ],
 })
 export class AppModule {}

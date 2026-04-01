@@ -1,0 +1,144 @@
+// ═══════════════════════════════════════════
+// JOB & MATCH TYPES — Frontend Data Models
+// ═══════════════════════════════════════════
+// Backend API response'larının type-safe karşılıkları.
+// Bu dosya tüm dashboard bileşenlerinin ortak dili.
+
+/** AI tarafından çıkarılan skill bilgisi */
+export interface ExtractedSkill {
+  name: string;
+  category: string;
+  isMain: boolean;
+}
+
+/** GET /api/jobs response'undaki tek ilan */
+export interface JobDto {
+  id: string;
+  externalId: string;
+  url: string;
+  title: string;
+  company: string;
+  location: string;
+  salary: string | null;
+  salaryMin: number | null;
+  salaryMax: number | null;
+  salaryCurrency: string | null;
+  seniorityLevel: string | null;
+  employmentType: string | null;
+  skills: ExtractedSkill[];
+  postedDate: string | null;
+  source: string;
+  scrapedAt: string;
+}
+
+/** Paginated API response wrapper */
+export interface PaginatedResponse<T> {
+  data: T[];
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+}
+
+/** GET /api/matcher/results/:userId response'undaki tek match */
+export interface MatchResultDto {
+  id: string;
+  score: number;
+  explanation: string;
+  matchedSkills: string[];
+  missingSkills: string[];
+  createdAt: string;
+  job: {
+    id: string;
+    title: string;
+    company: string;
+    location: string;
+    url: string;
+    seniorityLevel: string | null;
+    employmentType: string | null;
+  };
+}
+
+/**
+ * Frontend JOIN sonucu: Job + opsiyonel match bilgisi.
+ * Dashboard'daki her kart bu tipi kullanır.
+ */
+export interface EnrichedJob extends JobDto {
+  match: {
+    score: number;
+    explanation: string;
+    matchedSkills: string[];
+    missingSkills: string[];
+  } | null;
+}
+
+// ═══════════════════════════════════════════
+// FILTER & SORT STATE
+// ═══════════════════════════════════════════
+
+export interface FilterState {
+  source: string | null;
+  seniorityLevel: string | null;
+  employmentType: string | null;
+  minSalary: number | null;
+  minScore: number | null;
+}
+
+export type SortField = "default" | "date" | "salary" | "score";
+export type SortDirection = "asc" | "desc";
+
+export interface SortState {
+  field: SortField;
+  direction: SortDirection;
+}
+
+export const INITIAL_FILTERS: FilterState = {
+  source: null,
+  seniorityLevel: null,
+  employmentType: null,
+  minSalary: null,
+  minScore: null,
+};
+
+export const INITIAL_SORT: SortState = {
+  field: "default",
+  direction: "desc",
+};
+
+// ═══════════════════════════════════════════
+// FILTER OPTIONS (UI'da gösterilecek seçenekler)
+// ═══════════════════════════════════════════
+
+export const SENIORITY_OPTIONS = [
+  { label: "Hepsi", value: null },
+  { label: "Junior", value: "Junior" },
+  { label: "Mid", value: "Mid-Senior level" },
+  { label: "Senior", value: "Senior" },
+  { label: "Lead", value: "Lead" },
+] as const;
+
+export const EMPLOYMENT_OPTIONS = [
+  { label: "Hepsi", value: null },
+  { label: "Full-time", value: "Full-time" },
+  { label: "Part-time", value: "Part-time" },
+  { label: "Contract", value: "Contract" },
+] as const;
+
+export const SALARY_OPTIONS = [
+  { label: "Hepsi", value: null },
+  { label: "> 30k", value: 30000 },
+  { label: "> 50k", value: 50000 },
+  { label: "> 80k", value: 80000 },
+  { label: "> 100k", value: 100000 },
+] as const;
+
+export const SCORE_OPTIONS = [
+  { label: "Hepsi", value: null },
+  { label: "> 50", value: 50 },
+  { label: "> 70", value: 70 },
+  { label: "> 80", value: 80 },
+] as const;

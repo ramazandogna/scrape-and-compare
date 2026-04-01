@@ -53,12 +53,16 @@ export {
   singleScoringResultSchema,
   batchScoringResultSchema,
   matcherScoreInputSchema,
+  createUserSchema,
+  updateUserSchema,
   type LlmSkillExtraction,
   type ScrapeJobDataInput,
   type JobsQueryInput,
   type SingleScoringResult,
   type BatchScoringResult,
   type MatcherScoreInput,
+  type CreateUserInput,
+  type UpdateUserInput,
 } from './schemas/index';
 
 // Constants

@@ -1,16 +1,36 @@
+"use client";
+
+import { useUser } from "@/hooks/use-user";
+import { ProfileForm } from "@/components/profile/profile-form";
+import { ProfileSummary } from "@/components/profile/profile-summary";
+
 export default function ProfilePage() {
-  return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      <div className="rounded-xl border bg-card p-8 text-center text-card-foreground shadow-sm">
-        <h1 className="text-2xl font-bold tracking-tight">Profilim</h1>
-        <p className="mt-2 text-muted-foreground">
-          Yetenekler, deneyim, tercih edilen roller ve lokasyonlar formu buraya
-          gelecek.
-        </p>
-        <p className="mt-4 text-sm text-muted-foreground">
-          ⏳ Adım 5.3&apos;te inşa edilecek
-        </p>
+  const { user, isLoading, error, createUser, updateUser } = useUser();
+
+  if (isLoading) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-8">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 w-48 rounded bg-muted" />
+          <div className="h-64 rounded-xl bg-muted" />
+        </div>
       </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-3xl space-y-6 px-4 py-8 sm:px-6">
+      <h1 className="text-2xl font-bold tracking-tight">👤 Profilim</h1>
+
+      <ProfileForm
+        key={user?.id ?? "new"}
+        user={user}
+        onSave={createUser}
+        onUpdate={updateUser}
+        error={error}
+      />
+
+      {user && <ProfileSummary user={user} />}
     </div>
   );
 }

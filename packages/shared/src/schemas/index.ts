@@ -173,3 +173,49 @@ export const matcherScoreInputSchema = z.object({
 });
 
 export type MatcherScoreInput = z.infer<typeof matcherScoreInputSchema>;
+
+// ═══════════════════════════════════════════
+// USER SCHEMAS
+// ═══════════════════════════════════════════
+
+/**
+ * POST /api/users body — yeni kullanıcı oluşturma.
+ *
+ * Kurallar:
+ *   - email: geçerli email formatı (unique DB constraint)
+ *   - name: 1-100 karakter
+ *   - techStack: string array, her biri 1-50 karakter (max 50 skill)
+ *   - experienceYears: 0-50 arası tam sayı
+ *   - preferredRoles: string array (max 10 rol)
+ *   - preferredLocations: string array (max 10 lokasyon)
+ */
+export const createUserSchema = z.object({
+  email: z.string().trim().email('Geçerli bir email adresi giriniz'),
+  name: z.string().trim().min(1, 'İsim boş olamaz').max(100),
+  techStack: z
+    .array(z.string().trim().min(1).max(50))
+    .max(50, 'En fazla 50 teknoloji eklenebilir')
+    .default([]),
+  experienceYears: z.coerce.number().int().min(0).max(50).default(0),
+  preferredRoles: z
+    .array(z.string().trim().min(1).max(100))
+    .max(10, 'En fazla 10 rol tercihi')
+    .default([]),
+  preferredLocations: z
+    .array(z.string().trim().min(1).max(100))
+    .max(10, 'En fazla 10 lokasyon tercihi')
+    .default([]),
+});
+
+export type CreateUserInput = z.infer<typeof createUserSchema>;
+
+/**
+ * PATCH /api/users/:id body — kullanıcı güncelleme.
+ *
+ * .partial() → tüm alanları optional yapar.
+ * Frontend sadece değişen alanları gönderir, geri kalanı dokunulmaz.
+ * Boş body ({}) da geçerli — hiçbir şey güncellenmez.
+ */
+export const updateUserSchema = createUserSchema.partial();
+
+export type UpdateUserInput = z.infer<typeof updateUserSchema>;

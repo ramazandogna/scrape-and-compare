@@ -22,6 +22,7 @@ export function SkillTags({ skills, maxVisible = 4 }: SkillTagsProps) {
 
   const visible = sorted.slice(0, maxVisible);
   const remaining = sorted.length - maxVisible;
+  const hiddenSkills = sorted.slice(maxVisible).map((skill) => skill.name);
 
   return (
     <div className="flex flex-wrap gap-1">
@@ -35,7 +36,11 @@ export function SkillTags({ skills, maxVisible = 4 }: SkillTagsProps) {
         </Badge>
       ))}
       {remaining > 0 && (
-        <Badge variant="outline" className="text-[11px] text-muted-foreground">
+        <Badge
+          variant="outline"
+          className="text-[11px] text-muted-foreground"
+          title={hiddenSkills.join(", ")}
+        >
           +{remaining}
         </Badge>
       )}

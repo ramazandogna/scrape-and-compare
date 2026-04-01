@@ -34,6 +34,7 @@ interface UseScoringReturn {
   status: ScoringStatus;
   progress: ScoringProgress | null;
   error: string | null;
+  message: string | null;
   triggerScoring: (userId: string) => Promise<void>;
   reset: () => void;
 }
@@ -56,6 +57,7 @@ export function useScoring(): UseScoringReturn {
   const [status, setStatus] = useState<ScoringStatus>("idle");
   const [progress, setProgress] = useState<ScoringProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   /** Polling'i temizle */
@@ -72,6 +74,7 @@ export function useScoring(): UseScoringReturn {
     setStatus("idle");
     setProgress(null);
     setError(null);
+    setMessage(null);
   }, [stopPolling]);
 
   /** Puanlamayı tetikle + polling başlat */
@@ -80,6 +83,7 @@ export function useScoring(): UseScoringReturn {
       stopPolling();
       setStatus("scoring");
       setError(null);
+      setMessage(null);
 
       try {
         // 1. POST → scoring queue'ya ekle
@@ -87,6 +91,14 @@ export function useScoring(): UseScoringReturn {
           method: "POST",
           body: JSON.stringify({ userId }),
         });
+
+        if (res.totalJobs === 0) {
+          stopPolling();
+          setStatus("idle");
+          setProgress(null);
+          setMessage("Puanlanacak yeni ilan yok");
+          return;
+        }
 
         const initialProgress: ScoringProgress = {
           totalJobs: res.totalJobs,
@@ -102,7 +114,8 @@ export function useScoring(): UseScoringReturn {
           // Timeout kontrolü
           if (Date.now() - startTime > POLL_TIMEOUT_MS) {
             stopPolling();
-            setStatus("completed");
+            setStatus("error");
+            setError("Puanlama zaman aşımına uğradı. Lütfen biraz sonra tekrar deneyin.");
             return;
           }
 
@@ -141,7 +154,7 @@ export function useScoring(): UseScoringReturn {
     [stopPolling]
   );
 
-  return { status, progress, error, triggerScoring, reset };
+  return { status, progress, error, message, triggerScoring, reset };
 }
 
 // ═══════════════════════════════════════════
@@ -150,6 +163,7 @@ export function useScoring(): UseScoringReturn {
 
 function extractScoringError(err: unknown): string {
   if (err instanceof ApiError) {
+    if (err.status === 429) return "Rate limit aşıldı (429). Lütfen 1-2 dakika sonra tekrar deneyin";
     if (err.status === 404) return "Kullanıcı bulunamadı — önce profil oluşturun";
     if (err.status === 400) return "Geçersiz kullanıcı bilgisi";
     return `Puanlama hatası (${err.status})`;

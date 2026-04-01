@@ -21,7 +21,7 @@ interface ScoringButtonProps {
 
 export function ScoringButton({ userId }: ScoringButtonProps) {
   const router = useRouter();
-  const { status, progress, error, triggerScoring, reset } = useScoring();
+  const { status, progress, error, message, triggerScoring, reset } = useScoring();
 
   // Tamamlanınca toast + yönlendirme
   useEffect(() => {
@@ -39,6 +39,11 @@ export function ScoringButton({ userId }: ScoringButtonProps) {
   useEffect(() => {
     if (error) toast.error(error);
   }, [error]);
+
+  // Info toast (yeni ilan yok vb.)
+  useEffect(() => {
+    if (message) toast.info(message);
+  }, [message]);
 
   // Profil yoksa → disabled CTA
   if (!userId) {
@@ -67,7 +72,7 @@ export function ScoringButton({ userId }: ScoringButtonProps) {
           <StatusIcon status={status} />
           <div className="flex-1">
             <p className="text-sm font-medium">AI Puanlama</p>
-            <StatusMessage status={status} progress={progress} error={error} />
+            <StatusMessage status={status} progress={progress} error={error} message={message} />
           </div>
 
           {/* Idle → Puanla butonu */}
@@ -134,10 +139,12 @@ function StatusMessage({
   status,
   progress,
   error,
+  message,
 }: {
   status: string;
   progress: ScoringProgress | null;
   error: string | null;
+  message: string | null;
 }) {
   switch (status) {
     case "scoring":
@@ -161,6 +168,13 @@ function StatusMessage({
     case "error":
       return <p className="text-xs text-destructive">{error}</p>;
     default:
+      if (message) {
+        return (
+          <p className="text-xs text-amber-700">
+            {message}
+          </p>
+        );
+      }
       return (
         <p className="text-xs text-muted-foreground">
          Gelişmiş AI ile ilanları profilinize göre puanlayın ve en uygun ilanları görün.

@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { CheckCircle, XCircle } from "lucide-react";
 
 // ═══════════════════════════════════════════
 // MatchSkills — Eşleşen ✅ ve eksik ❌ skill'ler
@@ -27,6 +28,8 @@ export function MatchSkills({
 
   const matched = matchedSkills ?? [];
   const missing = missingSkills ?? [];
+  const hiddenCount = Math.max(0, matched.length + missing.length - maxVisible * 2);
+  const hiddenSkills = [...matched.slice(maxVisible), ...missing.slice(maxVisible)];
 
   return (
     <div className="flex flex-wrap gap-1">
@@ -34,23 +37,25 @@ export function MatchSkills({
         <Badge
           key={`m-${s}`}
           variant="default"
-          className="gap-0.5 bg-green-100 text-[11px] text-green-700 hover:bg-green-100"
+          className="gap-1 bg-green-100 text-[11px] text-green-700 hover:bg-green-100"
         >
-          ✅ {s}
+          <CheckCircle className="size-3" />
+          {s}
         </Badge>
       ))}
       {missing.slice(0, maxVisible).map((s) => (
         <Badge
           key={`x-${s}`}
           variant="default"
-          className="gap-0.5 bg-red-50 text-[11px] text-red-600 hover:bg-red-50"
+          className="gap-1 bg-red-50 text-[11px] text-red-600 hover:bg-red-50"
         >
-          ❌ {s}
+          <XCircle className="size-3" />
+          {s}
         </Badge>
       ))}
-      {matched.length + missing.length > maxVisible * 2 && (
-        <span className="text-[11px] text-muted-foreground">
-          +{matched.length + missing.length - maxVisible * 2} daha
+      {hiddenCount > 0 && (
+        <span className="text-[11px] text-muted-foreground" title={hiddenSkills.join(", ")}>
+          +{hiddenCount} daha
         </span>
       )}
     </div>

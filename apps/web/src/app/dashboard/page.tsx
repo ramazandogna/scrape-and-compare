@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import { toast } from "sonner";
 import { useJobs } from "@/hooks/use-jobs";
 import { useMatchResults } from "@/hooks/use-match-results";
 import { useScraper } from "@/hooks/use-scraper";
@@ -36,6 +37,8 @@ export default function DashboardPage() {
   const [filters, setFilters] = useState<FilterState>(INITIAL_FILTERS);
   const [sort, setSort] = useState<SortState>(INITIAL_SORT);
   const [page, setPage] = useState(1);
+  const listTopRef = useRef<HTMLDivElement | null>(null);
+  const latestScrapeToastRef = useRef<string | null>(null);
 
   // User seçildiyse sadece o kullanıcıya ait ilanları çek
   useEffect(() => {
@@ -56,8 +59,16 @@ export default function DashboardPage() {
   useEffect(() => {
     if (scrapeState.phase === "completed" && user?.id) {
       fetchJobs(user.id);
+
+      const auditId = scrapeState.result?.auditId ?? null;
+      if (auditId && latestScrapeToastRef.current !== auditId) {
+        latestScrapeToastRef.current = auditId;
+        toast.success(
+          `Tarama tamamlandı: ${scrapeState.result?.totalJobs ?? 0} ilan işlendi, ${scrapeState.result?.created ?? 0} yeni ilan eklendi.`
+        );
+      }
     }
-  }, [scrapeState.phase, user?.id, fetchJobs]);
+  }, [scrapeState.phase, scrapeState.result, user?.id, fetchJobs]);
 
   // Filtre/sort değiştiğinde sayfa 1'e dön
   const handleFilterChange = useCallback((f: FilterState) => {
@@ -68,6 +79,11 @@ export default function DashboardPage() {
   const handleSortChange = useCallback((s: SortState) => {
     setSort(s);
     setPage(1);
+  }, []);
+
+  const handlePageChange = useCallback((nextPage: number) => {
+    setPage(nextPage);
+    listTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 
   // "Tara" → gerçek scrape tetikle
@@ -104,7 +120,7 @@ export default function DashboardPage() {
       )}
 
       {/* 3-Column Grid */}
-      <div className="mt-6 grid gap-6 lg:grid-cols-[240px_1fr_280px]">
+      <div ref={listTopRef} className="mt-6 grid gap-6 lg:grid-cols-[240px_1fr_280px]">
         {/* Sol: Filtreler */}
         <div className="hidden lg:block">
           <FilterSidebar
@@ -118,7 +134,7 @@ export default function DashboardPage() {
           paginatedJobs={paginatedJobs}
           sort={sort}
           onSortChange={handleSortChange}
-          onPageChange={setPage}
+          onPageChange={handlePageChange}
         />
 
         {/* Sağ: Sidebar */}

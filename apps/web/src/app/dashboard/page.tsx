@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useJobs } from "@/hooks/use-jobs";
 import { useMatchResults } from "@/hooks/use-match-results";
+import { useScraper } from "@/hooks/use-scraper";
 import { useUser } from "@/hooks/use-user";
 import { HeroSearch } from "@/components/dashboard/hero-search";
 import { FilterSidebar } from "@/components/dashboard/filter-sidebar";
@@ -19,22 +20,24 @@ import { INITIAL_FILTERS, INITIAL_SORT } from "@/types/job";
 import type { FilterState, SortState } from "@/types/job";
 
 // ═══════════════════════════════════════════
-// Dashboard — Ana sayfa
+// Dashboard — Ana sayfa (Scrape + Sonuçlar)
 // ═══════════════════════════════════════════
-// Veri akışı: fetchJobs + fetchMatches → enrich → filter → sort → paginate
+// "Tara" → POST /scrape/trigger → polling → tamamlanınca ilanları yenile
+// Mevcut ilanlar her zaman gösterilir (kümülatif havuz)
 
 const PAGE_SIZE = 10;
 
 export default function DashboardPage() {
   const { user } = useUser();
-  const { jobs, total, isLoading, fetchJobs } = useJobs();
+  const { jobs, total, fetchJobs } = useJobs();
   const { matches, fetchMatches } = useMatchResults();
+  const { state: scrapeState, startScrape, reset: resetScrape } = useScraper();
 
   const [filters, setFilters] = useState<FilterState>(INITIAL_FILTERS);
   const [sort, setSort] = useState<SortState>(INITIAL_SORT);
   const [page, setPage] = useState(1);
 
-  // İlk yüklemede ilanları çek
+  // İlk yüklemede mevcut ilanları çek
   useEffect(() => {
     fetchJobs();
   }, [fetchJobs]);
@@ -43,6 +46,13 @@ export default function DashboardPage() {
   useEffect(() => {
     if (user?.id) fetchMatches(user.id);
   }, [user?.id, fetchMatches]);
+
+  // Scrape tamamlanınca ilanları yeniden çek
+  useEffect(() => {
+    if (scrapeState.phase === "completed") {
+      fetchJobs();
+    }
+  }, [scrapeState.phase, fetchJobs]);
 
   // Filtre/sort değiştiğinde sayfa 1'e dön
   const handleFilterChange = useCallback((f: FilterState) => {
@@ -55,12 +65,13 @@ export default function DashboardPage() {
     setPage(1);
   }, []);
 
+  // "Tara" → gerçek scrape tetikle
   const handleSearch = useCallback(
-    (search: string, location: string) => {
-      fetchJobs(search, location);
+    (keywords: string[], location: string) => {
+      startScrape(keywords, location || "Turkey");
       setPage(1);
     },
-    [fetchJobs]
+    [startScrape]
   );
 
   // Pipeline: enrich → filter → sort → paginate (memoized)
@@ -73,8 +84,13 @@ export default function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-      {/* Hero Search */}
-      <HeroSearch onSearch={handleSearch} total={total} isLoading={isLoading} />
+      {/* Hero Search + Scrape Status */}
+      <HeroSearch
+        onSearch={handleSearch}
+        scrapeState={scrapeState}
+        onScrapeReset={resetScrape}
+        total={total}
+      />
 
       {/* Scoring — profil oluşturulduysa göster */}
       {user && (

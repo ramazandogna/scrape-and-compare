@@ -2,6 +2,7 @@
 
 import { toast } from "sonner";
 import Link from "next/link";
+import { Mail, Rocket, Lightbulb, Sparkles } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,7 +25,7 @@ export function RightSidebar() {
       {/* Newsletter */}
       <Card size="sm">
         <CardHeader>
-          <CardTitle className="text-sm">📬 Eşleşme Bülteni</CardTitle>
+          <CardTitle className="text-sm flex items-center gap-1.5"><Mail className="size-4" /> Eşleşme Bülteni</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-xs text-muted-foreground">
@@ -33,7 +34,7 @@ export function RightSidebar() {
           <form onSubmit={handleSubscribe} className="mt-3 space-y-2">
             <Input placeholder="email@domain.com" type="email" className="h-8 text-xs" />
             <Button type="submit" size="sm" className="w-full text-xs">
-              📧 Abone Ol
+              Abone Ol
             </Button>
           </form>
         </CardContent>
@@ -42,7 +43,7 @@ export function RightSidebar() {
       {/* Coming Soon */}
       <Card size="sm">
         <CardHeader>
-          <CardTitle className="text-sm">🚀 Çok Yakında</CardTitle>
+          <CardTitle className="text-sm flex items-center gap-1.5"><Rocket className="size-4" /> Çok Yakında</CardTitle>
         </CardHeader>
         <CardContent className="space-y-1.5">
           {[
@@ -51,8 +52,8 @@ export function RightSidebar() {
             "Indeed entegrasyonu",
             "HackerNews Jobs",
           ].map((feat) => (
-            <p key={feat} className="text-xs text-muted-foreground">
-              ✦ {feat}
+            <p key={feat} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Sparkles className="size-3 shrink-0" /> {feat}
             </p>
           ))}
           <p className="mt-2 text-xs text-muted-foreground italic">
@@ -66,7 +67,7 @@ export function RightSidebar() {
       {/* Tip */}
       <Card size="sm">
         <CardHeader>
-          <CardTitle className="text-sm">💡 İpucu</CardTitle>
+          <CardTitle className="text-sm flex items-center gap-1.5"><Lightbulb className="size-4" /> İpucu</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-xs text-muted-foreground">

@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { ArrowUpDown, ArrowUp, ArrowDown, CalendarDays, Banknote, Star } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { SortField, SortState } from "@/types/job";
@@ -21,13 +22,13 @@ interface SortBarProps {
 interface SortOption {
   field: SortField;
   label: string;
-  icon: string;
+  icon: LucideIcon;
 }
 
 const SORT_OPTIONS: SortOption[] = [
-  { field: "date", label: "Tarih", icon: "📅" },
-  { field: "salary", label: "Maaş", icon: "💰" },
-  { field: "score", label: "Skor", icon: "⭐" },
+  { field: "date", label: "Tarih", icon: CalendarDays },
+  { field: "salary", label: "Maaş", icon: Banknote },
+  { field: "score", label: "Skor", icon: Star },
 ];
 
 function getNextSort(current: SortState, field: SortField): SortState {
@@ -56,6 +57,7 @@ export function SortBar({ sort, onSortChange, total }: SortBarProps) {
         <span className="mr-1 text-xs text-muted-foreground">Sırala:</span>
         {SORT_OPTIONS.map((opt) => {
           const isActive = sort.field === opt.field;
+          const Icon = opt.icon;
           return (
             <Button
               key={opt.field}
@@ -63,12 +65,14 @@ export function SortBar({ sort, onSortChange, total }: SortBarProps) {
               size="xs"
               onClick={() => onSortChange(getNextSort(sort, opt.field))}
               className={cn(
-                "gap-1 text-xs",
+                "gap-1 text-xs min-w-[5.5rem] justify-center",
                 isActive && "font-semibold text-primary"
               )}
             >
-              <span>{opt.icon}</span>
-              {opt.label}
+              <Icon className="size-3.5 shrink-0" />
+              <span className={isActive ? "font-semibold" : ""} style={{ width: "var(--label-w)", textAlign: "center" }}>
+                {opt.label}
+              </span>
               <SortIcon sort={sort} field={opt.field} />
             </Button>
           );

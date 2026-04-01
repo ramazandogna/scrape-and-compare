@@ -163,7 +163,7 @@ function StatusMessage({
     default:
       return (
         <p className="text-xs text-muted-foreground">
-          Gemini AI ile ilanları profilinize göre puanlayın
+         Gelişmiş AI ile ilanları profilinize göre puanlayın ve en uygun ilanları görün.
         </p>
       );
   }

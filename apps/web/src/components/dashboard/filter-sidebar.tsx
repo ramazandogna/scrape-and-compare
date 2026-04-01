@@ -36,12 +36,12 @@ export function FilterSidebar({ filters, onFilterChange }: FilterSidebarProps) {
     <aside className="space-y-5">
       {/* Platform */}
       <FilterSection title="Platform">
-        <label className="flex items-center gap-2 text-sm">
+        <label className="flex items-center gap-2 px-2 py-1 text-sm">
           <input
             type="checkbox"
             checked={true}
             disabled
-            className="accent-primary"
+            className="size-3.5 shrink-0 accent-primary"
           />
           <span>LinkedIn</span>
         </label>
@@ -170,8 +170,8 @@ function RadioOption({
 
 function LockedOption({ label }: { label: string }) {
   return (
-    <div className="flex items-center gap-2 px-2 py-1 text-sm text-muted-foreground/50">
-      <Lock className="size-3" />
+    <div className="flex items-center gap-2 px-2 py-1 text-sm text-muted-foreground/50 cursor-not-allowed">
+      <Lock className="size-3.5 shrink-0" />
       <span>{label}</span>
       <Badge variant="outline" className="ml-auto text-[10px] opacity-50">
         Yakında

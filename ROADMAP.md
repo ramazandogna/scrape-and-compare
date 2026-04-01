@@ -120,17 +120,25 @@ scrape-and-compare/
 - [x] Jobs API endpoint (GET /api/jobs — pagination, filtreleme, sıralama)
 - [x] .env.example güncellemesi (PORT, CORS_ORIGIN, SEARCH_CONCURRENCY)
 
-### Phase 3: Intelligence (LLM Scoring)
-- [ ] CV/Profil parse servisi (GPT-4o mini)
-- [ ] Zod validated LLM output pipeline
-- [ ] Semantic matching + scoring algoritması
-- [ ] MatchResult tablosuna sonuçları kaydet
+### Phase 3: Intelligence (LLM Scoring) ✅
+- [x] CV/Profil parse servisi (GPT-4o mini)
+- [x] Zod validated LLM output pipeline
+- [x] Semantic matching + scoring algoritması
+- [x] MatchResult tablosuna sonuçları kaydet
+- [x] Matcher BullMQ queue (batch processing, fire-and-forget)
+- [x] User CRUD API (POST /api/users, GET /api/users/:id)
 
-### Phase 4: Interface (Next.js Dashboard)
-- [ ] `apps/web` — Next.js 15 App Router
-- [ ] Kullanıcı profil girişi (skills, preferences)
-- [ ] Eşleşme sonuçları kartları (match %, açıklama)
-- [ ] "Apply" butonu → orijinal ilan linki
+### Phase 4: Interface (Next.js Dashboard) ✅
+- [x] `apps/web` — Next.js 16 App Router + Tailwind CSS 4 + Shadcn/UI
+- [x] Kullanıcı profil girişi (skills, preferences, localStorage persistence)
+- [x] Dashboard — 3 column layout (filtreler, ilanlar, sidebar)
+- [x] Canlı scrape tetikleme (Ara → POST /scrape/trigger → BullMQ → polling)
+- [x] Scrape progress göstergesi (state machine: idle → scraping → completed)
+- [x] Puanlama butonu (POST /matcher/score → polling → sonuçlara yönlendir)
+- [x] Eşleşme sonuçları sayfası (/matches — score filtre, detaylı kartlar)
+- [x] Match kartları (score badge, AI açıklaması, matched/missing skills, LinkedIn link)
+- [x] Filtre + sıralama pipeline (source, kıdem, maaş, skor, tarih)
+- [x] Uçtan uca akış: Profil → Tara → Puanla → Sonuçları gör
 
 ---
 

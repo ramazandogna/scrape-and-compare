@@ -73,7 +73,7 @@ export function RightSidebar() {
             Profilinize ne kadar çok skill eklerseniz eşleşme o kadar doğru
             olur.
           </p>
-          <Button variant="link" size="sm" className="mt-2 h-auto p-0 text-xs" render={<Link href="/profile" />}>
+          <Button variant="link" size="sm" nativeButton={false} className="mt-2 h-auto p-0 text-xs" render={<Link href="/profile" />}>
             Profili Düzenle →
           </Button>
         </CardContent>

@@ -90,6 +90,7 @@ export function JobCard({ job }: JobCardProps) {
           <Button
             variant="ghost"
             size="sm"
+            nativeButton={false}
             className="shrink-0 text-xs"
             render={
               <a

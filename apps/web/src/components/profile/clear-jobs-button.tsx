@@ -62,13 +62,11 @@ export function ClearJobsButton({ userId, jobCount }: ClearJobsButtonProps) {
         </div>
 
         <AlertDialog open={open} onOpenChange={setOpen}>
-          <AlertDialogTrigger>
-            <Button size="sm" variant="destructive" asChild>
-              <span>
-                <Trash2 className="size-4" />
-                Temizle
-              </span>
-            </Button>
+          <AlertDialogTrigger
+            render={<Button size="sm" variant="destructive" />}
+          >
+            <Trash2 className="size-4" />
+            Temizle
           </AlertDialogTrigger>
 
           <AlertDialogContent>

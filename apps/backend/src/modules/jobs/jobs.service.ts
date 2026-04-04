@@ -14,6 +14,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@/database/prisma.service';
 import type { JobsQueryInput } from '@scrape/shared';
+import { logger } from '@/utils/helpers';
 
 // ═══════════════════════════════════════════
 // RESPONSE TYPE
@@ -170,5 +171,50 @@ export class JobsService {
     }
 
     return conditions.length > 0 ? { AND: conditions } : {};
+  }
+
+  // ═══════════════════════════════════════════
+  // DELETE OPERATIONS
+  // ═══════════════════════════════════════════
+
+  /**
+   * Kullanıcının tüm ilan bağlantılarını ve match sonuçlarını siler.
+   *
+   * Prisma $transaction: Atomik garanti — ya ikisi de silinir ya da hiçbiri.
+   * JobListing kayıtları silinmez — başka kullanıcılar aynı ilanları görebilir.
+   */
+  async removeAllUserJobs(userId: string): Promise<{ removedJobs: number; removedMatches: number }> {
+    const [matchResult, jobResult] = await this.prisma.$transaction([
+      this.prisma.matchResult.deleteMany({ where: { userId } }),
+      this.prisma.userJobListing.deleteMany({ where: { userId } }),
+    ]);
+
+    logger.info(
+      { userId, removedJobs: jobResult.count, removedMatches: matchResult.count },
+      '[JOBS] Kullanıcının tüm ilanları temizlendi',
+    );
+
+    return {
+      removedJobs: jobResult.count,
+      removedMatches: matchResult.count,
+    };
+  }
+
+  /**
+   * Tekil ilan-kullanıcı bağlantısını ve ilgili match sonucunu siler.
+   */
+  async removeUserJob(userId: string, jobId: string): Promise<{ removed: boolean }> {
+    const [matchResult, jobResult] = await this.prisma.$transaction([
+      this.prisma.matchResult.deleteMany({ where: { userId, jobId } }),
+      this.prisma.userJobListing.deleteMany({ where: { userId, jobId } }),
+    ]);
+
+    const removed = jobResult.count > 0;
+
+    if (removed) {
+      logger.info({ userId, jobId, matchRemoved: matchResult.count }, '[JOBS] İlan kullanıcıdan kaldırıldı');
+    }
+
+    return { removed };
   }
 }

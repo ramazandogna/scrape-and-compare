@@ -2,17 +2,19 @@
  * Jobs Controller — İş ilanları REST API.
  *
  * Endpoint'ler:
- *   GET /api/jobs — Tüm ilanları listele (paginated, filtrelenebilir)
+ *   GET    /api/jobs                       — Tüm ilanları listele (paginated, filtrelenebilir)
+ *   DELETE /api/jobs/user/:userId          — Kullanıcının tüm ilanlarını temizle
+ *   DELETE /api/jobs/user/:userId/job/:jobId — Tek bir ilanı kullanıcıdan kaldır
  *
  * Bu dosya sadece HTTP katmanıyla ilgilenir:
- *   - Query parametrelerini al (Zod ile validate et)
+ *   - Query/Param parametrelerini al (Zod ile validate et)
  *   - JobsService'e ilet
  *   - Sonucu JSON olarak dön
  *
- * İş mantığı (filtreleme, pagination) JobsService'de yaşar.
+ * İş mantığı (filtreleme, pagination, silme) JobsService'de yaşar.
  */
 
-import { Controller, Get, Query, UsePipes } from '@nestjs/common';
+import { Controller, Get, Delete, Param, Query, UsePipes, HttpCode, HttpStatus } from '@nestjs/common';
 import { jobsQuerySchema } from '@scrape/shared';
 import type { JobsQueryInput } from '@scrape/shared';
 import { ZodValidationPipe } from '@/pipes/zod-validation.pipe';
@@ -42,5 +44,37 @@ export class JobsController {
   @UsePipes(new ZodValidationPipe(jobsQuerySchema))
   async findAll(@Query() query: JobsQueryInput): Promise<PaginatedJobs> {
     return this.jobsService.findAll(query);
+  }
+
+  /**
+   * DELETE /api/jobs/user/:userId — Kullanıcının tüm ilanlarını temizle.
+   *
+   * İş mantığı:
+   *   1. UserJobListing bağlantılarını sil (ilan → kullanıcı ilişkisi)
+   *   2. MatchResult kayıtlarını sil (puanlama sonuçları)
+   *   3. JobListing'ler silinmez — başka kullanıcılar da kullanabilir
+   *
+   * Transaction: İkisi birden ya başarılı olur ya da hiçbiri olmaz.
+   */
+  @Delete('user/:userId')
+  @HttpCode(HttpStatus.OK)
+  async removeAllUserJobs(
+    @Param('userId') userId: string,
+  ): Promise<{ removedJobs: number; removedMatches: number }> {
+    return this.jobsService.removeAllUserJobs(userId);
+  }
+
+  /**
+   * DELETE /api/jobs/user/:userId/job/:jobId — Tekil ilanı kullanıcıdan kaldır.
+   *
+   * Sadece UserJobListing + MatchResult silinir, JobListing kalır.
+   */
+  @Delete('user/:userId/job/:jobId')
+  @HttpCode(HttpStatus.OK)
+  async removeUserJob(
+    @Param('userId') userId: string,
+    @Param('jobId') jobId: string,
+  ): Promise<{ removed: boolean }> {
+    return this.jobsService.removeUserJob(userId, jobId);
   }
 }

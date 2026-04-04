@@ -1,14 +1,23 @@
 "use client";
 
+import { useEffect } from "react";
 import { useUser } from "@/hooks/use-user";
+import { useJobs } from "@/hooks/use-jobs";
 import { UserSelector } from "@/components/profile/user-selector";
 import { ProfileForm } from "@/components/profile/profile-form";
 import { ProfileSummary } from "@/components/profile/profile-summary";
 import { ScoringButton } from "@/components/scoring/scoring-button";
+import { ClearJobsButton } from "@/components/profile/clear-jobs-button";
 
 export default function ProfilePage() {
   const { user, users, isLoading, error, createUser, updateUser, selectUser } =
     useUser();
+  const { total: jobCount, fetchJobs } = useJobs();
+
+  // User seçildiyse ilan sayısını güncel tut
+  useEffect(() => {
+    if (user?.id) fetchJobs(user.id);
+  }, [user?.id, fetchJobs]);
 
   if (isLoading) {
     return (
@@ -45,6 +54,9 @@ export default function ProfilePage() {
 
       {/* AI Puanlama — profil oluşturulduysa aktif */}
       <ScoringButton userId={user?.id ?? null} />
+
+      {/* İlanları Temizle — ilanı olan kullanıcıya göster */}
+      {user && <ClearJobsButton userId={user.id} jobCount={jobCount} />}
     </div>
   );
 }

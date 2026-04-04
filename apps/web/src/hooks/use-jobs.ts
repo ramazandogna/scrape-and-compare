@@ -17,6 +17,8 @@ interface UseJobsReturn {
   error: string | null;
   fetchJobs: (userId: string, search?: string, location?: string) => Promise<void>;
   clearJobs: () => void;
+  removeAllJobs: (userId: string) => Promise<{ removedJobs: number; removedMatches: number }>;
+  removeJob: (userId: string, jobId: string) => Promise<boolean>;
 }
 
 export function useJobs(): UseJobsReturn {
@@ -56,5 +58,35 @@ export function useJobs(): UseJobsReturn {
     setError(null);
   }, []);
 
-  return { jobs, total, isLoading, error, fetchJobs, clearJobs };
+  /** Kullanıcının tüm ilanlarını backend'den sil ve local state'i temizle */
+  const removeAllJobs = useCallback(
+    async (userId: string): Promise<{ removedJobs: number; removedMatches: number }> => {
+      const res = await apiFetch<{ removedJobs: number; removedMatches: number }>(
+        `/jobs/user/${userId}`,
+        { method: "DELETE" }
+      );
+      setJobs([]);
+      setTotal(0);
+      return res;
+    },
+    []
+  );
+
+  /** Tek bir ilanı kullanıcıdan kaldır ve local state'i güncelle */
+  const removeJob = useCallback(
+    async (userId: string, jobId: string): Promise<boolean> => {
+      const res = await apiFetch<{ removed: boolean }>(
+        `/jobs/user/${userId}/job/${jobId}`,
+        { method: "DELETE" }
+      );
+      if (res.removed) {
+        setJobs((prev) => prev.filter((j) => j.id !== jobId));
+        setTotal((prev) => Math.max(0, prev - 1));
+      }
+      return res.removed;
+    },
+    []
+  );
+
+  return { jobs, total, isLoading, error, fetchJobs, clearJobs, removeAllJobs, removeJob };
 }

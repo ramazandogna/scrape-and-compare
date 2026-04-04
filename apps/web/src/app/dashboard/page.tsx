@@ -31,7 +31,7 @@ const PAGE_SIZE = 10;
 
 export default function DashboardPage() {
   const { user } = useUser();
-  const { jobs, total, fetchJobs, clearJobs } = useJobs();
+  const { jobs, total, fetchJobs, clearJobs, removeJob } = useJobs();
   const { matches, fetchMatches } = useMatchResults();
   const { state: scrapeState, startScrape, reset: resetScrape } = useScraper();
 
@@ -95,6 +95,16 @@ export default function DashboardPage() {
     setPage(1);
   }
 
+  // Tekil ilan kaldırma
+  const handleRemoveJob = useCallback(
+    async (jobId: string) => {
+      if (!user?.id) return;
+      const removed = await removeJob(user.id, jobId);
+      if (removed) toast.success("İlan kaldırıldı");
+    },
+    [user?.id, removeJob]
+  );
+
   // Pipeline: enrich → filter → sort → paginate (memoized)
   const paginatedJobs = useMemo(() => {
     const enriched = enrichJobsWithMatches(jobs, matches);
@@ -136,6 +146,7 @@ export default function DashboardPage() {
           sort={sort}
           onSortChange={handleSortChange}
           onPageChange={handlePageChange}
+          onRemoveJob={handleRemoveJob}
         />
 
         {/* Sağ: Sidebar */}

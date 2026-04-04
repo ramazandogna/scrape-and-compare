@@ -1,4 +1,5 @@
-import { ExternalLink, MapPin, Clock, Banknote, Calendar } from "lucide-react";
+import { useState } from "react";
+import { ExternalLink, MapPin, Clock, Banknote, Calendar, Trash2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -18,14 +19,16 @@ import type { EnrichedJob } from "@/types/job";
 
 interface JobCardProps {
   job: EnrichedJob;
+  onRemove?: (jobId: string) => Promise<void>;
 }
 
-export function JobCard({ job }: JobCardProps) {
+export function JobCard({ job, onRemove }: JobCardProps) {
   const salary = formatSalary(job.salaryMin, job.salaryMax, job.salaryCurrency);
   const posted = timeAgo(job.scrapedAt, job.postedDate);
+  const [confirmRemove, setConfirmRemove] = useState(false);
 
   return (
-    <Card className="transition-shadow hover:shadow-md">
+    <Card className="group/card relative transition-shadow hover:shadow-md">
       <CardContent className="space-y-3">
         {/* Score Badge — her ilanda eşleşti/eşleşmedi durumu */}
         <div className="flex items-center justify-between">
@@ -103,6 +106,38 @@ export function JobCard({ job }: JobCardProps) {
           </Button>
         </div>
       </CardContent>
+
+      {/* Sil butonu — kartın sağ kenarında, hover'da belirginleşir */}
+      {onRemove && (
+        <div className="absolute -right-3 top-3 z-10">
+          {confirmRemove ? (
+            <div className="flex flex-col gap-1">
+              <button
+                onClick={() => { onRemove(job.id); setConfirmRemove(false); }}
+                className="flex size-6 items-center justify-center rounded-full bg-red-600 text-white shadow-md transition-transform hover:scale-110"
+                title="Evet, kaldır"
+              >
+                <Trash2 className="size-3.5" />
+              </button>
+              <button
+                onClick={() => setConfirmRemove(false)}
+                className="flex size-6 items-center justify-center rounded-full bg-gray-300 text-gray-700 shadow-md transition-transform hover:scale-110"
+                title="Vazgeç"
+              >
+                ✕
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmRemove(true)}
+              className="flex size-6 items-center justify-center rounded-full bg-red-100 text-red-400 shadow-sm transition-all hover:bg-red-600 hover:text-white hover:shadow-md opacity-0 group-hover/card:opacity-100"
+              title="Bu ilanı kaldır"
+            >
+              <Trash2 className="size-3.5" />
+            </button>
+          )}
+        </div>
+      )}
     </Card>
   );
 }

@@ -63,16 +63,24 @@ export function ScoreBadge({ score, showLabel = true, className }: ScoreBadgePro
 
   return (
     <span
-      title={tier.tooltip}
       className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold",
+        "group relative inline-flex cursor-pointer items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold",
+        "transition-all duration-200 hover:scale-110 hover:shadow-md hover:brightness-110",
         tier.colors,
-        tier.pulse && "animate-pulse",
+        tier.pulse && "animate-pulse hover:animate-none",
         className
       )}
     >
       {showLabel && <span>{tier.label}</span>}
       <span>{score}/100</span>
+
+      {/* Custom Tooltip — title yerine CSS-only */}
+      <span
+        className="pointer-events-none absolute -top-9 left-1/2 z-50 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-900 px-2.5 py-1 text-[11px] font-medium text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100"
+      >
+        {tier.tooltip}
+        <span className="absolute -bottom-1 left-1/2 size-2 -translate-x-1/2 rotate-45 bg-gray-900" />
+      </span>
     </span>
   );
 }

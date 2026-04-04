@@ -28,7 +28,7 @@ export function JobCard({ job, onRemove }: JobCardProps) {
   const [confirmRemove, setConfirmRemove] = useState(false);
 
   return (
-    <Card className="group/card relative transition-shadow hover:shadow-md">
+    <Card className="relative overflow-visible transition-shadow hover:shadow-md">
       <CardContent className="space-y-3">
         {/* Score Badge — her ilanda eşleşti/eşleşmedi durumu */}
         <div className="flex items-center justify-between">
@@ -109,7 +109,7 @@ export function JobCard({ job, onRemove }: JobCardProps) {
 
       {/* Sil butonu — kartın sağ kenarında, hover'da belirginleşir */}
       {onRemove && (
-        <div className="absolute -right-3 top-3 z-10">
+        <div className="absolute -right-3 top-1/2 z-10 -translate-y-1/2">
           {confirmRemove ? (
             <div className="flex flex-col gap-1">
               <button

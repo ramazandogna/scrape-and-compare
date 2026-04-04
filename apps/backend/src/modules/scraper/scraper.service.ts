@@ -69,13 +69,17 @@ export class ScraperService {
    * Fast scrape çalıştırır — CLI veya BullMQ Worker tarafından çağrılır.
    *
    * @param jobData Queue payload'ı — keywords, location ve opsiyonel config override
+   * @param onProgress Opsiyonel progress callback — processor her aşamada çağırır
    * @returns ScrapeJobCompleted — Worker bu sonucu Redis'e yazar
    *
    * Audit lifecycle:
    *   createAudit (IDLE) → SCANNING → EXTRACTING → COMPLETED
    *   Herhangi bir adımda hata → FAILED
    */
-  async runFastScrape(jobData: ScrapeJobData): Promise<ScrapeJobCompleted> {
+  async runFastScrape(
+    jobData: ScrapeJobData,
+    onProgress?: (phase: 'SCANNING' | 'EXTRACTING', message: string, percentage: number) => void,
+  ): Promise<ScrapeJobCompleted> {
     const { keywords, location, userId } = jobData;
     const config = loadFastConfig(keywords.length, jobData.config);
 
@@ -98,13 +102,15 @@ export class ScraperService {
       // IDLE → SCANNING
       await transitionAudit(this.prisma, auditId, ScraperStatus.SCANNING);
 
-      const { jobs, errors } = await this.executeScrape(keywords, location, config);
+      onProgress?.('SCANNING', `${keywords.length} keyword taranıyor...`, 0);
+
+      const { jobs, errors } = await this.executeScrape(keywords, location, config, onProgress);
       await updateAuditFound(this.prisma, auditId, jobs.length);
 
       // SCANNING → EXTRACTING
       await transitionAudit(this.prisma, auditId, ScraperStatus.EXTRACTING);
 
-      logger.info('🧠 Skill extraction ve salary parsing başlatılıyor...');
+      onProgress?.('EXTRACTING', `${jobs.length} ilan zenginleştiriliyor...`, 80);
       const enrichedJobs = enrichJobsWithExtractors(jobs);
 
       // ADIM 4: DB'ye kaydet (upsert — varsa güncelle, yoksa oluştur)
@@ -112,6 +118,7 @@ export class ScraperService {
         userId,
         auditId,
       });
+      onProgress?.('EXTRACTING', `${dbResult.created + dbResult.updated} ilan DB'ye kaydedildi`, 95);
       await updateAuditExtracted(this.prisma, auditId, dbResult.created + dbResult.updated);
 
       // EXTRACTING → COMPLETED
@@ -156,6 +163,7 @@ export class ScraperService {
     keywords: string[],
     location: string,
     config: FastScraperConfig,
+    onProgress?: (phase: 'SCANNING' | 'EXTRACTING', message: string, percentage: number) => void,
   ): Promise<{
     jobs: JobListing[];
     errors: Array<{ keyword: string; error: ScraperErrorLegacy }>;
@@ -183,6 +191,9 @@ export class ScraperService {
         async (keyword, _itemIndex, slotIndex) => {
           const page = searchPool.pages[slotIndex]!;
           const jobs = await fastParseSearchPage(page, keyword, location);
+          // keyword tarama ilerlemesi: %0-50 aralığı
+          const pct = Math.round(((_itemIndex + 1) / keywords.length) * 50);
+          onProgress?.('SCANNING', `"${keyword}" tarandı (${_itemIndex + 1}/${keywords.length})`, pct);
           return jobs;
         },
         {
@@ -216,6 +227,7 @@ export class ScraperService {
       if (config.fetchDetails && allJobs.length > 0) {
         const jobsToEnrich = allJobs.slice(0, config.maxDetailFetch);
         logger.info(`ADIM 2: ${jobsToEnrich.length} ilanın detayı ${config.parallelTabs} paralel tab ile çekilecek...`);
+        onProgress?.('SCANNING', `${jobsToEnrich.length} ilanın detayı çekiliyor...`, 55);
 
         const detailPool = await createPagePool(this.browserService, context, config.parallelTabs);
         const enriched = await parallelFetchDetails(detailPool, jobsToEnrich, config.requestDelayMin, config.requestDelayMax);

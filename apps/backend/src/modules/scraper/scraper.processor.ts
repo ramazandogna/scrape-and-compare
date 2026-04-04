@@ -89,7 +89,13 @@ export class ScraperProcessor extends WorkerHost {
 
     try {
       // Asıl iş burada — ScraperService tüm scraping mantığını çalıştırır
-      const result = await this.scraperService.runFastScrape(job.data);
+      // Progress callback: her aşamada BullMQ'ya ilerleme bildirimi yapar
+      const result = await this.scraperService.runFastScrape(
+        job.data,
+        (phase, message, percentage) => {
+          void this.reportProgress(job, { phase, message, percentage });
+        },
+      );
 
       // Son ilerleme bildirimi: tamamlandı
       await this.reportProgress(job, {

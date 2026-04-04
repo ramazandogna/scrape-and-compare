@@ -121,7 +121,7 @@ export type ScrapeJobDataInput = z.infer<typeof scrapeJobDataSchema>;
  */
 export const jobsQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  limit: z.coerce.number().int().min(1).max(500).default(20),
   userId: z.string().uuid('Geçerli bir userId olmalı').optional(),
   search: z.string().trim().max(200).optional(),
   location: z.string().trim().max(100).optional(),

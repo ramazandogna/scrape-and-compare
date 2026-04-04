@@ -95,6 +95,24 @@ export default function DashboardPage() {
     setPage(1);
   }
 
+  // ── Scoring Callbacks ──────────────────────────────────
+  // ScoringButton her batch tamamlandığında ve scoring bittiğinde bizi bilgilendirir.
+  // Biz de match verilerini yenileyerek kartlardaki skorları canlı güncelliyoruz.
+  // Bu "reactive data refresh" pattern'i: UI her zaman güncel veriyi yansıtır.
+
+  /** Yeni batch puanlandı → match'leri yenile (skorlar kartlarda canlı güncellenir) */
+  const handleScoringProgress = useCallback(
+    (scoredJobs: number) => {
+      if (scoredJobs > 0 && user?.id) fetchMatches(user.id);
+    },
+    [user?.id, fetchMatches]
+  );
+
+  /** Tüm ilanlar puanlandı → son kez match'leri yenile (tam veri) */
+  const handleScoringComplete = useCallback(() => {
+    if (user?.id) fetchMatches(user.id);
+  }, [user?.id, fetchMatches]);
+
   // Tekil ilan kaldırma
   const handleRemoveJob = useCallback(
     async (jobId: string) => {
@@ -126,7 +144,11 @@ export default function DashboardPage() {
       {/* Scoring — profil oluşturulduysa göster */}
       {user && (
         <div className="mt-4">
-          <ScoringButton userId={user.id} />
+          <ScoringButton
+            userId={user.id}
+            onComplete={handleScoringComplete}
+            onProgress={handleScoringProgress}
+          />
         </div>
       )}
 

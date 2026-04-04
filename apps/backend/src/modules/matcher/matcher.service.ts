@@ -237,17 +237,18 @@ Her ilan için MUTLAKA bir sonuç döndür. results array'inde ${String(jobs.len
   /**
    * Puanlama sonuçlarını MatchResult tablosuna yazar.
    *
-   * Prisma createMany ile toplu insert — 8 ayrı INSERT yerine tek sorgu.
-   * skipDuplicates: Aynı user-job çifti zaten varsa sessizce atla.
-   * minScore altı sonuçlar kaydedilmez (gereksiz veri önleme).
+   * Promise.allSettled kullanılır — tek bir upsert hatası tüm batch'i çökertmez.
+   * Bu "partial failure tolerance" (kısmi hata toleransı) pattern'i:
+   *   8 ilandan 7'si başarıyla kaydedilir, 1'i hata verirse → 7 kayıt DB'ye girer.
+   *   Promise.all kullansak → 1 hata tümünü sıfırlar.
    */
-  private async saveResults(userId: string, results: SingleScoringResult[]): Promise<void> {
+  async saveResults(userId: string, results: SingleScoringResult[]): Promise<void> {
     if (results.length === 0) {
       logger.info('[MATCHER] Kaydedilecek sonuç yok');
       return;
     }
 
-    await Promise.all(
+    const outcomes = await Promise.allSettled(
       results.map((result) =>
         this.prisma.matchResult.upsert({
           where: {
@@ -274,8 +275,17 @@ Her ilan için MUTLAKA bir sonuç döndür. results array'inde ${String(jobs.len
       ),
     );
 
+    const failedCount = outcomes.filter((o) => o.status === 'rejected').length;
+
+    if (failedCount > 0) {
+      logger.warn(
+        { userId, failed: failedCount, total: results.length },
+        '[MATCHER] Bazı sonuçlar kaydedilemedi (Promise.allSettled — diğerleri başarılı)',
+      );
+    }
+
     logger.info(
-      { count: results.length, userId },
+      { count: results.length - failedCount, userId },
       '[MATCHER] Sonuçlar DB\'ye yazıldı',
     );
   }
@@ -291,6 +301,23 @@ Her ilan için MUTLAKA bir sonuç döndür. results array'inde ${String(jobs.len
       matchedSkills: [],
       missingSkills: [],
     }));
+  }
+
+  /**
+   * Processor'ın son denemesinde çağırdığı "güvenlik ağı" (safety net).
+   *
+   * Neden gerekli?
+   *   BullMQ processor'da hem birinci hem ikinci attempt başarısız olabilir.
+   *   Bu durumda o batch'teki ilanlar MatchResult tablosunda HİÇ yer almaz.
+   *   Frontend "scoredCount >= totalJobs" kontrolünü yapıyor → count hiç yetmez
+   *   → polling sonsuza kadar devam eder → timeout hatası.
+   *
+   *   Bu metod: "her koşulda her ilan bir MatchResult'a sahip olsun" garantisi sağlar.
+   *   score=0 ile kaydedilir → frontend en azından "eşleşmedi" gösterir, takılmaz.
+   */
+  async saveFallbackForBatch(userId: string, jobs: MatcherJobSummary[]): Promise<void> {
+    const fallback = this.createFallbackResults(jobs);
+    await this.saveResults(userId, fallback);
   }
 
   /**

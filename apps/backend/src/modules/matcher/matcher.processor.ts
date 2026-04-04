@@ -136,6 +136,8 @@ export class MatcherProcessor extends WorkerHost {
       };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
+      const maxAttempts = job.opts?.attempts ?? 2;
+      const isLastAttempt = (job.attemptsMade + 1) >= maxAttempts;
 
       logger.error(
         {
@@ -144,12 +146,43 @@ export class MatcherProcessor extends WorkerHost {
           batchIndex,
           error: message,
           attempt: job.attemptsMade + 1,
+          isLastAttempt,
         },
         `[MATCHER-WORKER] Batch ${String(batchIndex + 1)}/${String(totalBatches)} başarısız`,
       );
 
-      // throw edersek BullMQ retry mekanizması devreye girer
-      // (attempts: 2, backoff: exponential 5s — controller'da ayarlandı)
+      // ── Safety Net: Son denemede boşluk bırakma ──────────────
+      // "Never Leave Gaps" prensibi:
+      //   Eğer bu son attempt'se, throw edersek BullMQ job'ı FAILED yapar.
+      //   O batch'teki ilanlar hiç MatchResult almaz → frontend takılır.
+      //   Bunun yerine fallback (score=0) kaydet ve completed dön.
+      //   Başarısız bir skor (0), hiç skor olmamasından iyidir.
+      if (isLastAttempt) {
+        try {
+          await this.matcherService.saveFallbackForBatch(user.id, jobs);
+          logger.warn(
+            { userId: user.id, batchIndex, jobCount: jobs.length },
+            '[MATCHER-WORKER] Son deneme — fallback sonuçlar kaydedildi (score=0)',
+          );
+        } catch (fallbackErr) {
+          const fbMsg = fallbackErr instanceof Error ? fallbackErr.message : 'Unknown';
+          logger.error(
+            { userId: user.id, batchIndex, error: fbMsg },
+            '[MATCHER-WORKER] Fallback kaydetme de başarısız — bu ilanlar puanlanmadı kalacak',
+          );
+        }
+
+        return {
+          status: 'completed' as const,
+          scored: 0,
+          failed: jobs.length,
+          totalJobs: jobs.length,
+          avgScore: 0,
+          batchIndex,
+        };
+      }
+
+      // İlk deneme — BullMQ retry mekanizmasına bırak
       throw err;
     }
   }

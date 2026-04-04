@@ -27,7 +27,7 @@ export function useMatchResults(): UseMatchResultsReturn {
     setError(null);
     try {
       const res = await apiFetch<PaginatedResponse<MatchResultDto>>(
-        `/matcher/results/${userId}?limit=100`
+        `/matcher/results/${userId}?limit=500`
       );
       setMatches(res.data);
     } catch {

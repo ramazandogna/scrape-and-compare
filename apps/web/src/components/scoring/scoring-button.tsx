@@ -17,23 +17,28 @@ import type { ScoringProgress } from "@/hooks/use-scoring";
 
 interface ScoringButtonProps {
   userId: string | null;
+  /** Scoring tamamlandığında çağrılır — dashboard match'leri yenileyebilsin */
+  onComplete?: () => void;
+  /** Yeni batch puanlandığında çağrılır (scoredJobs sayısı iletilir) */
+  onProgress?: (scoredJobs: number) => void;
 }
 
-export function ScoringButton({ userId }: ScoringButtonProps) {
+export function ScoringButton({ userId, onComplete, onProgress }: ScoringButtonProps) {
   const router = useRouter();
   const { status, progress, error, message, triggerScoring, reset } = useScoring();
 
-  // Tamamlanınca toast + yönlendirme
+  // ── Callback: scoring tamamlandı → parent'a bildir ──
   useEffect(() => {
     if (status !== "completed") return;
+    onComplete?.();
+    toast.success("Tüm ilanlar puanlandı!");
+  }, [status, onComplete]);
 
-    toast.success("Puanlama tamamlandı! Sonuçlara yönlendiriliyorsunuz...");
-    const timer = setTimeout(() => {
-      router.push("/matches");
-    }, 1500);
-
-    return () => clearTimeout(timer);
-  }, [status, router]);
+  // ── Callback: yeni batch puanlandı → parent'a bildir ──
+  // scoredJobs > 0 kontrolü: deleteMany sonrası ilk 0 değerini yayma
+  useEffect(() => {
+    if (progress && progress.scoredJobs > 0) onProgress?.(progress.scoredJobs);
+  }, [progress?.scoredJobs, onProgress]);
 
   // Error toast
   useEffect(() => {
@@ -92,14 +97,14 @@ export function ScoringButton({ userId }: ScoringButtonProps) {
             </Button>
           )}
 
-          {/* Completed → Sonuçları gör */}
+          {/* Completed → Sonuçları gör + dashboard'da kal */}
           {status === "completed" && (
             <Button
               size="sm"
               variant="secondary"
               onClick={() => router.push("/matches")}
             >
-              Sonuçları Gör →
+              Eşleşmelere Git →
             </Button>
           )}
 
@@ -200,7 +205,7 @@ function ProgressBar({ progress }: { progress: ScoringProgress }) {
     <div className="space-y-1">
       <div className="h-2 overflow-hidden rounded-full bg-muted">
         <div
-          className="h-full rounded-full bg-primary transition-all duration-500"
+          className="h-full rounded-full bg-primary transition-[width] duration-1000 ease-out"
           style={{ width: `${progress.percentage}%` }}
         />
       </div>

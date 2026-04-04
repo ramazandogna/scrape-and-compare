@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { apiFetch } from "@/lib/api";
 
 // ═══════════════════════════════════════════
@@ -8,6 +8,10 @@ import { apiFetch } from "@/lib/api";
 // ═══════════════════════════════════════════
 // State Machine: idle → triggering → scraping → completed / error
 // POST /scrape/trigger → jobId al → GET /scrape/status/:jobId polling
+//
+// F5 Persistence:
+//   sessionStorage'da aktif scrape jobId tutulur.
+//   Mount'ta kontrol edilir, polling devam eder.
 
 // ── Types ──────────────────────────────────
 
@@ -59,6 +63,36 @@ interface UseScraperReturn {
 
 const POLL_INTERVAL_MS = 2_000;
 const POLL_TIMEOUT_MS = 5 * 60_000; // 5 dakika max
+const SESSION_KEY = "scrape:scraper-active";
+
+/** sessionStorage'a yazılan aktif scrape bilgisi */
+interface ScrapeSession {
+  jobId: string;
+  startedAt: number;
+}
+
+// ── Session Helpers ────────────────────────
+
+function saveScrapeSession(session: ScrapeSession): void {
+  try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch { /* SSR/private */ }
+}
+
+function loadScrapeSession(): ScrapeSession | null {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as ScrapeSession;
+    if (Date.now() - parsed.startedAt > POLL_TIMEOUT_MS) {
+      sessionStorage.removeItem(SESSION_KEY);
+      return null;
+    }
+    return parsed;
+  } catch { return null; }
+}
+
+function clearScrapeSession(): void {
+  try { sessionStorage.removeItem(SESSION_KEY); } catch { /* SSR */ }
+}
 
 // ── Hook ───────────────────────────────────
 
@@ -71,6 +105,7 @@ export function useScraper(): UseScraperReturn {
   });
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const resumedRef = useRef(false);
 
   function cleanup() {
     if (intervalRef.current) {
@@ -81,8 +116,22 @@ export function useScraper(): UseScraperReturn {
 
   function reset() {
     cleanup();
+    clearScrapeSession();
     setState({ phase: "idle", progress: null, result: null, error: null });
   }
+
+  /** F5 sonrası: aktif scrape varsa polling'i devam ettir */
+  useEffect(() => {
+    if (resumedRef.current) return;
+    resumedRef.current = true;
+
+    const session = loadScrapeSession();
+    if (!session) return;
+
+    setState((prev) => ({ ...prev, phase: "scraping" }));
+    pollJobStatus(session.jobId, session.startedAt);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const startScrape = useCallback(
     async (keywords: string[], location: string, userId: string) => {
@@ -98,8 +147,12 @@ export function useScraper(): UseScraperReturn {
 
         setState((prev) => ({ ...prev, phase: "scraping" }));
 
+        // sessionStorage'a kaydet — F5 sonrasına persist
+        const startedAt = Date.now();
+        saveScrapeSession({ jobId, startedAt });
+
         // 2) Poll — durumu takip et
-        await pollJobStatus(jobId);
+        await pollJobStatus(jobId, startedAt);
       } catch (err) {
         const message = err instanceof Error ? err.message : "Scrape başlatılamadı";
         setState((prev) => ({ ...prev, phase: "error", error: message }));
@@ -109,14 +162,13 @@ export function useScraper(): UseScraperReturn {
     []
   );
 
-  async function pollJobStatus(jobId: string): Promise<void> {
-    const startedAt = Date.now();
-
+  async function pollJobStatus(jobId: string, startedAt: number): Promise<void> {
     return new Promise<void>((resolve) => {
       intervalRef.current = setInterval(async () => {
         // Timeout kontrolü
         if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
           cleanup();
+          clearScrapeSession();
           setState((prev) => ({
             ...prev,
             phase: "error",
@@ -133,6 +185,7 @@ export function useScraper(): UseScraperReturn {
 
           if (status.state === "completed" && status.result) {
             cleanup();
+            clearScrapeSession();
             setState({
               phase: "completed",
               progress: null,
@@ -145,6 +198,7 @@ export function useScraper(): UseScraperReturn {
 
           if (status.state === "failed") {
             cleanup();
+            clearScrapeSession();
             setState({
               phase: "error",
               progress: null,

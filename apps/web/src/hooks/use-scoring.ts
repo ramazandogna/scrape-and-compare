@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { apiFetch, ApiError } from "@/lib/api";
 import type { MatchResultDto, PaginatedResponse } from "@/types/job";
 
@@ -12,11 +12,9 @@ import type { MatchResultDto, PaginatedResponse } from "@/types/job";
 //   idle → (trigger) → scoring → (done) → completed
 //                    → (error)  → error
 //
-// Akış:
-//   1. POST /api/matcher/score { userId }  → 202
-//   2. Poll GET /api/matcher/results/:userId (her 5 sn)
-//   3. match sayısı == totalJobs → completed
-//   4. 2 dakika timeout → otomatik dur
+// F5 Persistence:
+//   sessionStorage'da aktif scoring bilgisi tutulur.
+//   Sayfa yenilendiğinde mount'ta kontrol edilir, polling devam eder.
 
 // ─────────────────────────────────────────
 
@@ -47,7 +45,42 @@ export interface ScoringProgress {
 }
 
 const POLL_INTERVAL_MS = 5_000;
-const POLL_TIMEOUT_MS = 5 * 60_000; // 5 dakika max (rate-limited batch'ler için yeterli)
+const POLL_TIMEOUT_MS = 10 * 60_000; // 10 dakika max
+const SESSION_KEY = "scrape:scoring-active";
+
+/** sessionStorage'a yazılan aktif scoring bilgisi */
+interface ScoringSession {
+  userId: string;
+  totalJobs: number;
+  totalBatches: number;
+  startedAt: number;
+}
+
+// ═══════════════════════════════════════════
+// SESSION HELPERS
+// ═══════════════════════════════════════════
+
+function saveScoringSession(session: ScoringSession): void {
+  try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch { /* SSR/private mode */ }
+}
+
+function loadScoringSession(): ScoringSession | null {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as ScoringSession;
+    // 10 dk'dan eski session'ları geçersiz say
+    if (Date.now() - parsed.startedAt > POLL_TIMEOUT_MS) {
+      sessionStorage.removeItem(SESSION_KEY);
+      return null;
+    }
+    return parsed;
+  } catch { return null; }
+}
+
+function clearScoringSession(): void {
+  try { sessionStorage.removeItem(SESSION_KEY); } catch { /* SSR */ }
+}
 
 // ═══════════════════════════════════════════
 // HOOK
@@ -59,6 +92,7 @@ export function useScoring(): UseScoringReturn {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const resumedRef = useRef(false);
 
   /** Polling'i temizle */
   const stopPolling = useCallback(() => {
@@ -71,22 +105,89 @@ export function useScoring(): UseScoringReturn {
   /** State'i sıfırla (yeniden puanlama için) */
   const reset = useCallback(() => {
     stopPolling();
+    clearScoringSession();
     setStatus("idle");
     setProgress(null);
     setError(null);
     setMessage(null);
   }, [stopPolling]);
 
+  /** Polling başlat — hem triggerScoring hem F5 resume için ortaklaştırıldı */
+  const startPolling = useCallback(
+    (userId: string, totalJobs: number, totalBatches: number, startTime: number) => {
+      stopPolling();
+      setStatus("scoring");
+
+      pollingRef.current = setInterval(async () => {
+        if (Date.now() - startTime > POLL_TIMEOUT_MS) {
+          stopPolling();
+          clearScoringSession();
+          setStatus("error");
+          setError("Puanlama zaman aşımına uğradı. Lütfen biraz sonra tekrar deneyin.");
+          return;
+        }
+
+        try {
+          const matchRes = await apiFetch<PaginatedResponse<MatchResultDto>>(
+            `/matcher/results/${userId}?limit=1`
+          );
+
+          const scoredCount = matchRes.meta.total;
+          const pct = totalJobs > 0
+            ? Math.round((scoredCount / totalJobs) * 100)
+            : 100;
+
+          setProgress({
+            totalJobs,
+            scoredJobs: scoredCount,
+            totalBatches,
+            percentage: Math.min(pct, 100),
+          });
+
+          if (scoredCount >= totalJobs) {
+            stopPolling();
+            clearScoringSession();
+            setStatus("completed");
+          }
+        } catch {
+          // Poll hatası → sessizce atla
+        }
+      }, POLL_INTERVAL_MS);
+    },
+    [stopPolling]
+  );
+
+  /** F5 sonrası: sessionStorage'da aktif scoring varsa polling'i devam ettir */
+  useEffect(() => {
+    if (resumedRef.current) return;
+    resumedRef.current = true;
+
+    const session = loadScoringSession();
+    if (!session) return;
+
+    setProgress({
+      totalJobs: session.totalJobs,
+      scoredJobs: 0,
+      totalBatches: session.totalBatches,
+      percentage: 0,
+    });
+
+    startPolling(session.userId, session.totalJobs, session.totalBatches, session.startedAt);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   /** Puanlamayı tetikle + polling başlat */
   const triggerScoring = useCallback(
     async (userId: string) => {
+      // Zaten scoring varsa tekrar tetikleme (F5 koruması)
+      if (status === "scoring") return;
+
       stopPolling();
       setStatus("scoring");
       setError(null);
       setMessage(null);
 
       try {
-        // 1. POST → scoring queue'ya ekle
         const res = await apiFetch<ScoreTriggerResponse>("/matcher/score", {
           method: "POST",
           body: JSON.stringify({ userId }),
@@ -108,50 +209,24 @@ export function useScoring(): UseScoringReturn {
         };
         setProgress(initialProgress);
 
-        // 2. Polling başlat
-        const startTime = Date.now();
-        pollingRef.current = setInterval(async () => {
-          // Timeout kontrolü
-          if (Date.now() - startTime > POLL_TIMEOUT_MS) {
-            stopPolling();
-            setStatus("error");
-            setError("Puanlama zaman aşımına uğradı. Lütfen biraz sonra tekrar deneyin.");
-            return;
-          }
+        // sessionStorage'a kaydet — F5 sonrasına persist
+        const startedAt = Date.now();
+        saveScoringSession({
+          userId,
+          totalJobs: res.totalJobs,
+          totalBatches: res.totalBatches,
+          startedAt,
+        });
 
-          try {
-            const matchRes = await apiFetch<PaginatedResponse<MatchResultDto>>(
-              `/matcher/results/${userId}?limit=1`
-            );
-
-            const scoredCount = matchRes.meta.total;
-            const pct = res.totalJobs > 0
-              ? Math.round((scoredCount / res.totalJobs) * 100)
-              : 100;
-
-            setProgress({
-              totalJobs: res.totalJobs,
-              scoredJobs: scoredCount,
-              totalBatches: res.totalBatches,
-              percentage: Math.min(pct, 100),
-            });
-
-            // Tamamlandı mı?
-            if (scoredCount >= res.totalJobs) {
-              stopPolling();
-              setStatus("completed");
-            }
-          } catch {
-            // Poll hatası → sessizce atla (ağ geçici sorun olabilir)
-          }
-        }, POLL_INTERVAL_MS);
+        startPolling(userId, res.totalJobs, res.totalBatches, startedAt);
       } catch (err) {
         stopPolling();
+        clearScoringSession();
         setStatus("error");
         setError(extractScoringError(err));
       }
     },
-    [stopPolling]
+    [stopPolling, startPolling, status]
   );
 
   return { status, progress, error, message, triggerScoring, reset };

@@ -144,6 +144,22 @@ export class MatcherController {
       };
     }
 
+    // ── Re-scoring: eski sonuçları sil ──────────────────
+    // Frontend polling "toplam sonuç sayısı == toplam ilan" kontrolü yapıyor.
+    // Upsert ile eski kayıtlar güncellenir ama sayı artmaz → count zaten 85.
+    // Frontend ilk poll'da "tamamlandı" sanır. Temiz çözüm: önce sıfırla.
+    const jobIds = jobsToScore.map((j) => j.id);
+    const deleted = await this.prisma.matchResult.deleteMany({
+      where: { userId: body.userId, jobId: { in: jobIds } },
+    });
+
+    if (deleted.count > 0) {
+      logger.info(
+        { userId: body.userId, deletedCount: deleted.count },
+        '[MATCHER] Eski match sonuçları silindi (re-scoring)',
+      );
+    }
+
     const batchSize = Number(
       process.env['MATCHER_BATCH_SIZE'] ?? MATCHER_DEFAULTS.BATCH_SIZE,
     );

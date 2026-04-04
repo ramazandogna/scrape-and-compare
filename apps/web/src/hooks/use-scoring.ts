@@ -47,7 +47,7 @@ export interface ScoringProgress {
 }
 
 const POLL_INTERVAL_MS = 5_000;
-const POLL_TIMEOUT_MS = 120_000; // 2 dakika max
+const POLL_TIMEOUT_MS = 5 * 60_000; // 5 dakika max (rate-limited batch'ler için yeterli)
 
 // ═══════════════════════════════════════════
 // HOOK

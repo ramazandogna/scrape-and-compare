@@ -28,7 +28,7 @@ export function JobCardList({
   const { items, page, totalPages, total } = paginatedJobs;
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4">
       <SortBar sort={sort} onSortChange={onSortChange} total={total} />
 
       {items.length === 0 ? (

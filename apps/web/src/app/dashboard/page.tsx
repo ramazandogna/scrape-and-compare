@@ -114,7 +114,7 @@ export default function DashboardPage() {
   }, [jobs, matches, filters, sort, page]);
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-7xl overflow-x-clip px-4 py-6 sm:px-6 lg:px-8">
       {/* Hero Search + Scrape Status */}
       <HeroSearch
         onSearch={handleSearch}
@@ -133,7 +133,7 @@ export default function DashboardPage() {
       {/* 3-Column Grid */}
       <div ref={listTopRef} className="mt-6 grid gap-6 lg:grid-cols-[240px_1fr_280px]">
         {/* Sol: Filtreler */}
-        <div className="hidden lg:block">
+        <div className="hidden min-w-0 lg:block">
           <FilterSidebar
             filters={filters}
             onFilterChange={handleFilterChange}
@@ -150,7 +150,7 @@ export default function DashboardPage() {
         />
 
         {/* Sağ: Sidebar */}
-        <div className="hidden lg:block">
+        <div className="hidden min-w-0 lg:block">
           <RightSidebar />
         </div>
       </div>

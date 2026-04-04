@@ -28,7 +28,7 @@ export function JobCard({ job, onRemove }: JobCardProps) {
   const [confirmRemove, setConfirmRemove] = useState(false);
 
   return (
-    <Card className="relative overflow-visible transition-shadow hover:shadow-md">
+    <Card className="group/card relative overflow-visible transition-shadow hover:shadow-md">
       <CardContent className="space-y-3">
         {/* Score Badge — her ilanda eşleşti/eşleşmedi durumu */}
         <div className="flex items-center justify-between">

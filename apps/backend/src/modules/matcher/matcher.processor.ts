@@ -56,6 +56,18 @@ import { logger } from '@/utils/helpers';
     max: Number(process.env['MATCHER_RATE_LIMIT'] ?? MATCHER_DEFAULTS.RATE_LIMIT_RPM),
     duration: 60_000,
   },
+  /**
+   * lockDuration: Worker'ın bir job üzerindeki kilit süresi (ms).
+   *
+   * Varsayılan: 30s → Gemini 503 retry (3×30s = 90s) + fallback model retry (3×30s)
+   * sırasında kilit süre doluyor → BullMQ "stalled" sanıp job'ı tekrar kuyruğa atıyor.
+   *
+   * 4 dakika (240s): birincil model (3 retry × 30s = 90s) + fallback model (3 retry × 30s = 90s)
+   * + API çağrı süresi (~30s) + güvenlik marjı = yeterli.
+   *
+   * BullMQ lockDuration/2 aralıklarla otomatik kilit yeniler (autorun heartbeat).
+   */
+  lockDuration: 240_000,
 })
 export class MatcherProcessor extends WorkerHost {
   constructor(

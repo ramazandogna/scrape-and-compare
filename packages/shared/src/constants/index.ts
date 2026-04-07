@@ -53,7 +53,7 @@ export const QUEUE_NAMES = {
 
 /** Matcher varsayılan ayarları */
 export const MATCHER_DEFAULTS = {
-  BATCH_SIZE: 8,
-  RATE_LIMIT_RPM: 10,
+  BATCH_SIZE: 16,
+  RATE_LIMIT_RPM: 4,
   MIN_SCORE: 50,
 } as const;

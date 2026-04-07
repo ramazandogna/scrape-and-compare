@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { Loader2, Zap, CheckCircle2, AlertCircle, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,19 +27,34 @@ export function ScoringButton({ userId, onComplete, onProgress }: ScoringButtonP
   const router = useRouter();
   const { status, progress, error, message, triggerScoring, reset } = useScoring();
 
+  // ── useRef ile callback'leri sabit tut ──────────────────
+  // Neden useRef?
+  //   onComplete ve onProgress her render'da yeni fonksiyon referansı olabilir
+  //   (parent düz function kullanıyorsa, React Compiler memoize edemeyebilir).
+  //   useEffect dependency'sine koyarsan → her render'da effect ateşlenir → sonsuz döngü.
+  //   useRef ise: obje referansı ASLA DEĞİŞMEZ, .current her render'da güncellenir.
+  //   Böylece effect sadece gerçek veri değişikliğinde (scoredJobs, status) ateşlenir.
+  const onCompleteRef = useRef(onComplete);
+  const onProgressRef = useRef(onProgress);
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+    onProgressRef.current = onProgress;
+  });
+
   // ── Callback: scoring tamamlandı → parent'a bildir ──
   useEffect(() => {
     if (status !== "completed") return;
-    onComplete?.();
+    onCompleteRef.current?.();
     toast.success("Tüm ilanlar puanlandı!");
-  }, [status, onComplete]);
+  }, [status]);
 
   // ── Callback: yeni batch puanlandı → parent'a bildir ──
   // scoredJobs > 0 kontrolü: deleteMany sonrası ilk 0 değerini yayma
+  // Dependency: sadece scoredJobs — onProgress ref olduğu için eklenmez
   const scoredJobs = progress?.scoredJobs ?? 0;
   useEffect(() => {
-    if (scoredJobs > 0) onProgress?.(scoredJobs);
-  }, [scoredJobs, onProgress]);
+    if (scoredJobs > 0) onProgressRef.current?.(scoredJobs);
+  }, [scoredJobs]);
 
   // Error toast
   useEffect(() => {

@@ -28,6 +28,7 @@ import {
   HttpStatus,
   UsePipes,
   NotFoundException,
+  type OnModuleInit,
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
@@ -93,12 +94,38 @@ interface MatchResultDto {
 // ═══════════════════════════════════════════
 
 @Controller('matcher')
-export class MatcherController {
+export class MatcherController implements OnModuleInit {
   constructor(
     private readonly matcherService: MatcherService,
     private readonly prisma: PrismaService,
     @InjectQueue(QUEUE_NAMES.MATCHER) private readonly matcherQueue: Queue<MatcherJobData>,
   ) {}
+
+  /**
+   * Uygulama başlatıldığında önceki session'dan kalan stale job'ları temizler.
+   *
+   * Neden gerekli?
+   *   Backend restart edildiğinde Redis'teki eski waiting/delayed job'lar
+   *   hemen işlenmeye başlıyor ama bunlar eski session'a ait stale veriler.
+   *   Kullanıcı yeni scoring başlatana kadar kuyruk temiz olmalı.
+   */
+  async onModuleInit(): Promise<void> {
+    try {
+      // drain: waiting + delayed job'ları siler (completed/failed'a dokunmaz)
+      await this.matcherQueue.drain();
+      const jobCounts = await this.matcherQueue.getJobCounts();
+      logger.info(
+        { queue: QUEUE_NAMES.MATCHER, remaining: jobCounts },
+        '[MATCHER] Kuyruk temizlendi — eski stale job\'lar silindi',
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Bilinmeyen hata';
+      logger.warn(
+        { error: msg },
+        '[MATCHER] Kuyruk temizleme başarısız — devam ediliyor',
+      );
+    }
+  }
 
   /**
    * POST /api/matcher/score — Puanlama başlat.

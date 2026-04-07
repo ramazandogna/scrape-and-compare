@@ -176,6 +176,11 @@ export function useScoring(): UseScoringReturn {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Unmount cleanup — polling leak'i önle (HMR, sayfa geçişi)
+  useEffect(() => {
+    return () => stopPolling();
+  }, [stopPolling]);
+
   /** Puanlamayı tetikle + polling başlat */
   const triggerScoring = useCallback(
     async (userId: string) => {

@@ -161,6 +161,7 @@ const parseJobCardsFromDom = (scrapedAt: string): JobListing[] => {
         skills: [],
         seniorityLevel: null,
         employmentType: null,
+        workType: null,
         link: link.startsWith('http') ? link : `https://www.linkedin.com${link}`,
         postedDate: (dateEl?.textContent ?? '').trim() || dateEl?.getAttribute('datetime') || null,
         scrapedAt,
@@ -224,6 +225,7 @@ export const fastParseDetailPage = async (
         requirements: details.requirements,
         seniorityLevel: details.seniorityLevel,
         employmentType: details.employmentType,
+        workType: details.workType,
       },
       success: true,
     };
@@ -279,6 +281,7 @@ const parseDetailFromDom = () => {
 
   let seniorityLevel: string | null = null;
   let employmentType: string | null = null;
+  let workType: string | null = null;
 
   criteriaItems.forEach((item) => {
     const headerEl = item.querySelector('h3, .description__job-criteria-subheader');
@@ -288,7 +291,37 @@ const parseDetailFromDom = () => {
 
     if (header.includes('seniority')) seniorityLevel = value || null;
     if (header.includes('employment') || header.includes('type')) employmentType = value || null;
+    if (header.includes('workplace') || header.includes('work type') || header.includes('location type')) workType = value || null;
   });
+
+  // ── Fallback: Description'dan seniority çıkarma ──
+  // LinkedIn'de bazı ilanlarda criteria bölümü boş olabiliyor.
+  // İlan açıklamasında "senior", "junior", "lead" geçiyorsa yakala.
+  if (!seniorityLevel && description) {
+    const descLower = description.toLowerCase();
+    if (/\b(senior|sr\.?|kıdemli)\b/i.test(descLower)) seniorityLevel = 'Senior';
+    else if (/\b(junior|jr\.?|entry[\s-]?level)\b/i.test(descLower)) seniorityLevel = 'Junior';
+    else if (/\b(mid[\s-]?senior|orta[\s-]?kıdemli)\b/i.test(descLower)) seniorityLevel = 'Mid-Senior level';
+    else if (/\b(lead|principal|staff)\b/i.test(descLower)) seniorityLevel = 'Lead';
+    else if (/\b(intern|stajyer)\b/i.test(descLower)) seniorityLevel = 'Internship';
+  }
+
+  // ── Fallback: Description'dan workType çıkarma ──
+  // "Hibrit", "remote", "uzaktan" gibi terimler açıklamada geçebilir.
+  if (!workType && description) {
+    const descLower = description.toLowerCase();
+    if (/\b(hibrit|hybrid)\b/i.test(descLower)) workType = 'Hybrid';
+    else if (/\b(uzaktan|remote|fully[\s-]?remote)\b/i.test(descLower)) workType = 'Remote';
+    else if (/\b(ofiste|on[\s-]?site|yerinde)\b/i.test(descLower)) workType = 'On-site';
+  }
+
+  // ── Fallback: Description'dan employmentType çıkarma ──
+  if (!employmentType && description) {
+    const descLower = description.toLowerCase();
+    if (/\b(part[\s-]?time|yarı[\s-]?zamanlı)\b/i.test(descLower)) employmentType = 'Part-time';
+    else if (/\b(full[\s-]?time|tam[\s-]?zamanlı)\b/i.test(descLower)) employmentType = 'Full-time';
+    else if (/\b(contract|sözleşme(li)?|freelance)\b/i.test(descLower)) employmentType = 'Contract';
+  }
 
   const titleEl = document.querySelector('.top-card-layout__title, h1');
   const detailTitle = (titleEl?.textContent ?? '').trim();
@@ -298,7 +331,7 @@ const parseDetailFromDom = () => {
   );
   const detailCompany = (companyEl?.textContent ?? '').trim();
 
-  return { description, requirements, seniorityLevel, employmentType, detailTitle, detailCompany };
+  return { description, requirements, seniorityLevel, employmentType, workType, detailTitle, detailCompany };
 };
 
 // ═══════════════════════════════════════════

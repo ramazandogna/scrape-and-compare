@@ -68,6 +68,8 @@ export interface JobListing {
   seniorityLevel: string | null;
   /** İstihdam tipi */
   employmentType: string | null;
+  /** Çalışma şekli: Remote, Hybrid, On-site */
+  workType: string | null;
   /** Doğrudan ilan linki */
   link: string;
   /** Relative tarih ("2 days ago" gibi) */

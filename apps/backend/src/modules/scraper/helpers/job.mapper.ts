@@ -122,6 +122,7 @@ export const mapJobToCreateInput = (
     skills: skillsToJson(job.skills),
     seniorityLevel: job.seniorityLevel,
     employmentType: job.employmentType,
+    workType: job.workType,
     postedDate: job.postedDate,
     source: JobSource.LINKEDIN,
     scrapedAt: new Date(job.scrapedAt),
@@ -150,6 +151,7 @@ export const mapJobToUpdateInput = (
     skills: skillsToJson(job.skills),
     seniorityLevel: job.seniorityLevel,
     employmentType: job.employmentType,
+    workType: job.workType,
     postedDate: job.postedDate,
     scrapedAt: new Date(job.scrapedAt),
   };

@@ -115,6 +115,8 @@ model JobListing {
 
   seniorityLevel String?
   employmentType String?
+  /// Çalışma şekli: Remote, Hybrid, On-site
+  workType       String?
   postedDate     String?
 
   /// Hangi platform'dan geldi

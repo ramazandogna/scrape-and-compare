@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { useJobs } from "@/hooks/use-jobs";
 import { useMatchResults } from "@/hooks/use-match-results";
@@ -72,20 +72,20 @@ export default function DashboardPage() {
   }, [scrapeState.phase, scrapeState.result, user?.id, fetchJobs]);
 
   // Filtre/sort değiştiğinde sayfa 1'e dön
-  const handleFilterChange = useCallback((f: FilterState) => {
+  function handleFilterChange(f: FilterState) {
     setFilters(f);
     setPage(1);
-  }, []);
+  }
 
-  const handleSortChange = useCallback((s: SortState) => {
+  function handleSortChange(s: SortState) {
     setSort(s);
     setPage(1);
-  }, []);
+  }
 
-  const handlePageChange = useCallback((nextPage: number) => {
+  function handlePageChange(nextPage: number) {
     setPage(nextPage);
     listTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, []);
+  }
 
   // "Tara" → gerçek scrape tetikle
   function handleSearch(keywords: string[], location: string): void {
@@ -101,27 +101,21 @@ export default function DashboardPage() {
   // Bu "reactive data refresh" pattern'i: UI her zaman güncel veriyi yansıtır.
 
   /** Yeni batch puanlandı → match'leri yenile (skorlar kartlarda canlı güncellenir) */
-  const handleScoringProgress = useCallback(
-    (scoredJobs: number) => {
-      if (scoredJobs > 0 && user?.id) fetchMatches(user.id);
-    },
-    [user?.id, fetchMatches]
-  );
+  function handleScoringProgress(scoredJobs: number) {
+    if (scoredJobs > 0 && user?.id) fetchMatches(user.id);
+  }
 
   /** Tüm ilanlar puanlandı → son kez match'leri yenile (tam veri) */
-  const handleScoringComplete = useCallback(() => {
+  function handleScoringComplete() {
     if (user?.id) fetchMatches(user.id);
-  }, [user?.id, fetchMatches]);
+  }
 
   // Tekil ilan kaldırma
-  const handleRemoveJob = useCallback(
-    async (jobId: string) => {
-      if (!user?.id) return;
-      const removed = await removeJob(user.id, jobId);
-      if (removed) toast.success("İlan kaldırıldı");
-    },
-    [user?.id, removeJob]
-  );
+  async function handleRemoveJob(jobId: string) {
+    if (!user?.id) return;
+    const removed = await removeJob(user.id, jobId);
+    if (removed) toast.success("İlan kaldırıldı");
+  }
 
   // Pipeline: enrich → filter → sort → paginate (memoized)
   const paginatedJobs = useMemo(() => {

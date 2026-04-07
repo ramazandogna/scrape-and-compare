@@ -36,9 +36,10 @@ export function ScoringButton({ userId, onComplete, onProgress }: ScoringButtonP
 
   // ── Callback: yeni batch puanlandı → parent'a bildir ──
   // scoredJobs > 0 kontrolü: deleteMany sonrası ilk 0 değerini yayma
+  const scoredJobs = progress?.scoredJobs ?? 0;
   useEffect(() => {
-    if (progress && progress.scoredJobs > 0) onProgress?.(progress.scoredJobs);
-  }, [progress?.scoredJobs, onProgress]);
+    if (scoredJobs > 0) onProgress?.(scoredJobs);
+  }, [scoredJobs, onProgress]);
 
   // Error toast
   useEffect(() => {

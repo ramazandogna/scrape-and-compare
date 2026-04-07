@@ -53,7 +53,7 @@ export default function ProfilePage() {
       {user && <ProfileSummary user={user} />}
 
       {/* AI Puanlama — profil oluşturulduysa aktif */}
-      <ScoringButton userId={user?.id ?? null} />
+      <ScoringButton userId={user?.id ?? null} unscoredCount={0} />
 
       {/* İlanları Temizle — ilanı olan kullanıcıya göster */}
       {user && <ClearJobsButton userId={user.id} jobCount={jobCount} />}

@@ -1,11 +1,21 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { Loader2, Zap, CheckCircle2, AlertCircle, Target } from "lucide-react";
+import { Loader2, Sparkles, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 import { useScoring } from "@/hooks/use-scoring";
 import type { ScoringProgress } from "@/hooks/use-scoring";
 
@@ -13,19 +23,77 @@ import type { ScoringProgress } from "@/hooks/use-scoring";
 // ScoringButton — AI puanlama tetikleme bileşeni
 // ═══════════════════════════════════════════
 // 4 state: idle → scoring (progress) → completed → (reset) idle
-// Profil sayfası ve/veya dashboard'a konulabilir.
+// Tümü puanlanmışsa (unscoredCount=0) → onay dialog'u + 5s countdown
 
 interface ScoringButtonProps {
   userId: string | null;
+  /** Puanlanmamış ilan sayısı (0 = tümü puanlı) */
+  unscoredCount: number;
   /** Scoring tamamlandığında çağrılır — dashboard match'leri yenileyebilsin */
   onComplete?: () => void;
   /** Yeni batch puanlandığında çağrılır (scoredJobs sayısı iletilir) */
   onProgress?: (scoredJobs: number) => void;
 }
 
-export function ScoringButton({ userId, onComplete, onProgress }: ScoringButtonProps) {
+export function ScoringButton({ userId, unscoredCount, onComplete, onProgress }: ScoringButtonProps) {
   const router = useRouter();
   const { status, progress, error, message, triggerScoring, reset } = useScoring();
+
+  // ── Re-score onay dialog state ──────────────────
+  const [showRescore, setShowRescore] = useState(false);
+  const [countdown, setCountdown] = useState(5);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const allScored = unscoredCount === 0;
+
+  /** Dialog açıldığında 5s geri sayım başlat */
+  const startCountdown = useCallback(() => {
+    setCountdown(5);
+    countdownRef.current = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          if (countdownRef.current) clearInterval(countdownRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, []);
+
+  /** Dialog kapandığında countdown temizle */
+  const stopCountdown = useCallback(() => {
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current);
+      countdownRef.current = null;
+    }
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => () => stopCountdown(), [stopCountdown]);
+
+  /** Puanla butonuna tıklandığında: tümü puanlıysa onay dialog, değilse doğrudan tetikle */
+  function handleScoreClick() {
+    if (!userId) return;
+    if (allScored) {
+      setShowRescore(true);
+      startCountdown();
+    } else {
+      triggerScoring(userId);
+    }
+  }
+
+  /** Re-score onaylandı */
+  function handleRescore() {
+    stopCountdown();
+    setShowRescore(false);
+    if (userId) triggerScoring(userId);
+  }
+
+  /** Dialog kapatıldı */
+  function handleDialogClose() {
+    stopCountdown();
+    setShowRescore(false);
+  }
 
   // ── useRef ile callback'leri sabit tut ──────────────────
   // Neden useRef?
@@ -71,7 +139,7 @@ export function ScoringButton({ userId, onComplete, onProgress }: ScoringButtonP
     return (
       <Card>
         <CardContent className="flex items-center gap-3 py-4">
-          <Zap className="size-5 text-muted-foreground" />
+          <Sparkles className="size-5 text-muted-foreground" />
           <div className="flex-1">
             <p className="text-sm font-medium">AI Puanlama</p>
             <p className="text-xs text-muted-foreground">
@@ -79,7 +147,7 @@ export function ScoringButton({ userId, onComplete, onProgress }: ScoringButtonP
             </p>
           </div>
           <Button disabled size="sm">
-            <Target className="size-4" />
+            <Sparkles className="size-4" />
             İlanları Puanla
           </Button>
         </CardContent>
@@ -88,6 +156,7 @@ export function ScoringButton({ userId, onComplete, onProgress }: ScoringButtonP
   }
 
   return (
+    <>
     <Card>
       <CardContent className="space-y-3 py-4">
         <div className="flex items-center gap-3">
@@ -95,13 +164,19 @@ export function ScoringButton({ userId, onComplete, onProgress }: ScoringButtonP
           <div className="flex-1">
             <p className="text-sm font-medium">AI Puanlama</p>
             <StatusMessage status={status} progress={progress} error={error} message={message} />
+            {/* Puanlanmamış ilan sayısı — idle'da göster */}
+            {status === "idle" && unscoredCount > 0 && (
+              <p className="mt-0.5 text-xs italic text-amber-600">
+                Puanlanmamış {unscoredCount} ilan var
+              </p>
+            )}
           </div>
 
           {/* Idle → Puanla butonu */}
           {status === "idle" && (
-            <Button size="sm" onClick={() => triggerScoring(userId)}>
-              <Target className="size-4" />
-              İlanları Puanla
+            <Button size="sm" onClick={handleScoreClick}>
+              <Sparkles className="size-4" />
+              {allScored ? "Yeniden Puanla" : "İlanları Puanla"}
             </Button>
           )}
 
@@ -138,6 +213,31 @@ export function ScoringButton({ userId, onComplete, onProgress }: ScoringButtonP
         )}
       </CardContent>
     </Card>
+
+    {/* Re-score onay dialog'u — 5 saniyelik geri sayım */}
+    <AlertDialog open={showRescore} onOpenChange={(open) => { if (!open) handleDialogClose(); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Yeniden Puanlama</AlertDialogTitle>
+          <AlertDialogDescription>
+            Tüm ilanlar zaten puanlanmış. Yeniden puanlama mevcut skorları sıfırlayıp
+            tüm ilanları baştan puanlayacak. Bu işlem AI token maliyeti oluşturur.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={handleDialogClose}>
+            Vazgeç
+          </AlertDialogCancel>
+          <AlertDialogAction
+            disabled={countdown > 0}
+            onClick={handleRescore}
+          >
+            {countdown > 0 ? `Bekleyin (${countdown}s)` : "Yeniden Puanla"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
 
@@ -154,7 +254,7 @@ function StatusIcon({ status }: { status: string }) {
     case "error":
       return <AlertCircle className="size-5 text-destructive" />;
     default:
-      return <Zap className="size-5 text-primary" />;
+      return <Sparkles className="size-5 text-primary" />;
   }
 }
 

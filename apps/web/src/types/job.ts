@@ -25,6 +25,7 @@ export interface JobDto {
   salaryCurrency: string | null;
   seniorityLevel: string | null;
   employmentType: string | null;
+  workType: string | null;
   skills: ExtractedSkill[];
   postedDate: string | null;
   source: string;
@@ -84,6 +85,7 @@ export interface FilterState {
   source: string | null;
   seniorityLevel: string | null;
   employmentType: string | null;
+  workType: string | null;
   minSalary: number | null;
   scoreStatus: "all" | "matched" | "unmatched" | "unscored";
 }
@@ -100,6 +102,7 @@ export const INITIAL_FILTERS: FilterState = {
   source: null,
   seniorityLevel: null,
   employmentType: null,
+  workType: null,
   minSalary: null,
   scoreStatus: "all",
 };
@@ -126,6 +129,13 @@ export const EMPLOYMENT_OPTIONS = [
   { label: "Full-time", value: "Full-time" },
   { label: "Part-time", value: "Part-time" },
   { label: "Contract", value: "Contract" },
+] as const;
+
+export const WORK_TYPE_OPTIONS = [
+  { label: "Hepsi", value: null },
+  { label: "Remote", value: "Remote" },
+  { label: "Hybrid", value: "Hybrid" },
+  { label: "On-site", value: "On-site" },
 ] as const;
 
 export const SALARY_OPTIONS = [

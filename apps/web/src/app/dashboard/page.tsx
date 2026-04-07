@@ -118,12 +118,21 @@ export default function DashboardPage() {
   }
 
   // Pipeline: enrich → filter → sort → paginate (memoized)
+  const enrichedJobs = useMemo(
+    () => enrichJobsWithMatches(jobs, matches),
+    [jobs, matches]
+  );
+
+  const unscoredCount = useMemo(
+    () => enrichedJobs.filter((j) => !j.match).length,
+    [enrichedJobs]
+  );
+
   const paginatedJobs = useMemo(() => {
-    const enriched = enrichJobsWithMatches(jobs, matches);
-    const filtered = applyFilters(enriched, filters);
+    const filtered = applyFilters(enrichedJobs, filters);
     const sorted = applySort(filtered, sort);
     return paginate(sorted, page, PAGE_SIZE);
-  }, [jobs, matches, filters, sort, page]);
+  }, [enrichedJobs, filters, sort, page]);
 
   return (
     <div className="mx-auto max-w-7xl overflow-x-clip px-4 py-6 sm:px-6 lg:px-8">
@@ -140,6 +149,7 @@ export default function DashboardPage() {
         <div className="mt-4">
           <ScoringButton
             userId={user.id}
+            unscoredCount={unscoredCount}
             onComplete={handleScoringComplete}
             onProgress={handleScoringProgress}
           />

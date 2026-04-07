@@ -8,6 +8,7 @@ import type { FilterState } from "@/types/job";
 import {
   SENIORITY_OPTIONS,
   EMPLOYMENT_OPTIONS,
+  WORK_TYPE_OPTIONS,
   SALARY_OPTIONS,
   SCORE_OPTIONS,
 } from "@/types/job";
@@ -73,6 +74,20 @@ export function FilterSidebar({ filters, onFilterChange }: FilterSidebarProps) {
             label={opt.label}
             active={filters.employmentType === opt.value}
             onClick={() => updateFilter("employmentType", opt.value)}
+          />
+        ))}
+      </FilterSection>
+
+      <Separator />
+
+      {/* Çalışma Şekli */}
+      <FilterSection title="Çalışma Şekli">
+        {WORK_TYPE_OPTIONS.map((opt) => (
+          <RadioOption
+            key={opt.label}
+            label={opt.label}
+            active={filters.workType === opt.value}
+            onClick={() => updateFilter("workType", opt.value)}
           />
         ))}
       </FilterSection>

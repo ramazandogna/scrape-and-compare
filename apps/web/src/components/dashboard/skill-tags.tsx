@@ -1,4 +1,9 @@
 import { Badge } from "@/components/ui/badge";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import type { ExtractedSkill } from "@/types/job";
 
 // ═══════════════════════════════════════════
@@ -6,6 +11,7 @@ import type { ExtractedSkill } from "@/types/job";
 // ═══════════════════════════════════════════
 // ui-example: [React] [TypeScript] [Node.js] [+2]
 // isMain: true olanlar önce, sonra secondary. Max 4 görünür.
+// 8+ skill varsa +N badge'ine tıklayınca popover açılır.
 
 interface SkillTagsProps {
   skills: ExtractedSkill[];
@@ -22,7 +28,7 @@ export function SkillTags({ skills, maxVisible = 4 }: SkillTagsProps) {
 
   const visible = sorted.slice(0, maxVisible);
   const remaining = sorted.length - maxVisible;
-  const hiddenSkills = sorted.slice(maxVisible).map((skill) => skill.name);
+  const hiddenSkills = sorted.slice(maxVisible);
 
   return (
     <div className="flex flex-wrap gap-1">
@@ -36,13 +42,36 @@ export function SkillTags({ skills, maxVisible = 4 }: SkillTagsProps) {
         </Badge>
       ))}
       {remaining > 0 && (
-        <Badge
-          variant="outline"
-          className="text-[11px] text-muted-foreground"
-          title={hiddenSkills.join(", ")}
-        >
-          +{remaining}
-        </Badge>
+        <Popover>
+          <PopoverTrigger
+            className="cursor-pointer"
+            render={
+              <Badge
+                variant="outline"
+                className="text-[11px] text-muted-foreground hover:bg-muted"
+              >
+                +{remaining}
+              </Badge>
+            }
+          />
+          <PopoverContent
+            className="w-auto max-w-64 p-3"
+            side="top"
+            align="start"
+          >
+            <div className="flex flex-wrap gap-1">
+              {hiddenSkills.map((skill) => (
+                <Badge
+                  key={skill.name}
+                  variant={skill.isMain ? "secondary" : "outline"}
+                  className="text-[11px]"
+                >
+                  {skill.name}
+                </Badge>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
       )}
     </div>
   );

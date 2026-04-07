@@ -162,6 +162,7 @@ export function applyFilters(
       job.employmentType !== filters.employmentType
     )
       return false;
+    if (filters.workType && job.workType !== filters.workType) return false;
     if (filters.minSalary && (job.salaryMin ?? 0) < filters.minSalary)
       return false;
     if (filters.scoreStatus === "matched" && (job.match?.score ?? -1) < 50) return false;

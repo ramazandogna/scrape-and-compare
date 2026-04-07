@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ExternalLink, MapPin, Clock, Banknote, Calendar, Trash2 } from "lucide-react";
+import { ExternalLink, MapPin, Clock, Banknote, Calendar, Trash2, Briefcase, Wifi } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -51,10 +51,22 @@ export function JobCard({ job, onRemove }: JobCardProps) {
                   {job.location}
                 </span>
               )}
+              {job.seniorityLevel && (
+                <span className="inline-flex items-center gap-1">
+                  <Briefcase className="size-3" />
+                  {job.seniorityLevel}
+                </span>
+              )}
               {job.employmentType && (
                 <span className="inline-flex items-center gap-1">
                   <Clock className="size-3" />
                   {job.employmentType}
+                </span>
+              )}
+              {job.workType && (
+                <span className="inline-flex items-center gap-1">
+                  <Wifi className="size-3" />
+                  {job.workType}
                 </span>
               )}
               {salary && (

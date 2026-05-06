@@ -1,117 +1,196 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { useUser } from "@/hooks/use-user";
+import Link from "next/link";
+import { useEffect, useMemo } from "react";
+import { toast } from "sonner";
+import { Sparkles, TrendingUp, Target, LayoutDashboard } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { JobCard } from "@/components/dashboard/job-card";
+import { ScoringButton } from "@/components/scoring/scoring-button";
+import { useFavoriteJobs } from "@/hooks/use-favorite-jobs";
+import { useJobs } from "@/hooks/use-jobs";
 import { useMatchResults } from "@/hooks/use-match-results";
-import { MatchCard } from "@/components/matches/match-card";
-import { ScoreFilter } from "@/components/matches/score-filter";
-import { MatchesHeader } from "@/components/matches/matches-header";
-import { Pagination } from "@/components/dashboard/pagination";
+import { useUser } from "@/hooks/use-user";
+import { enrichJobsWithMatches } from "@/lib/job-helpers";
 
 // ═══════════════════════════════════════════
-// Matches Page — AI eşleşme sonuçları
+// Matches Page — Yüksek puanlı eşleşmeler (score >= 60)
 // ═══════════════════════════════════════════
-// GET /api/matcher/results/:userId → score desc sıralı
-// Filtre: minimum score slider
-// Her kart: ScoreBadge, explanation, matched/missing skills, LinkedIn link
 
-const PAGE_SIZE = 10;
+const MATCH_THRESHOLD = 60;
 
 export default function MatchesPage() {
-  const router = useRouter();
-  const { user } = useUser();
-  const { matches, isLoading, error, fetchMatches } = useMatchResults();
+  const { user, updateUser } = useUser();
+  const { jobs, fetchJobs, removeJob } = useJobs();
+  const { matches, fetchMatches } = useMatchResults();
+  const { isFavorite, toggleFavorite } = useFavoriteJobs(user?.id ?? null);
 
-  const [minScore, setMinScore] = useState(0);
-  const [page, setPage] = useState(1);
-
-  // User yoksa profil sayfasına yönlendir
   useEffect(() => {
-    if (user === null) {
-      router.push("/profile");
-    }
-  }, [user, router]);
+    if (!user?.id) return;
+    void fetchJobs(user.id);
+    void fetchMatches(user.id);
+  }, [fetchJobs, fetchMatches, user?.id]);
 
-  // Match sonuçlarını çek
-  useEffect(() => {
-    if (user?.id) fetchMatches(user.id);
-  }, [user?.id, fetchMatches]);
+  const matchedJobs = useMemo(() => {
+    return enrichJobsWithMatches(jobs, matches)
+      .filter((job) => (job.match?.score ?? 0) >= MATCH_THRESHOLD)
+      .sort((a, b) => (b.match?.score ?? 0) - (a.match?.score ?? 0));
+  }, [jobs, matches]);
 
-  // Filtreleme + pagination
-  const filtered = useMemo(
-    () => matches.filter((m) => m.score >= minScore),
-    [matches, minScore]
+  const avgScore = useMemo(() => {
+    if (matchedJobs.length === 0) return null;
+    const sum = matchedJobs.reduce((acc, j) => acc + (j.match?.score ?? 0), 0);
+    return Math.round(sum / matchedJobs.length);
+  }, [matchedJobs]);
+
+  const topScore = useMemo(
+    () => matchedJobs[0]?.match?.score ?? null,
+    [matchedJobs],
   );
 
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-  const paged = useMemo(
-    () => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
-    [filtered, page]
-  );
-
-  const handleScoreChange = useCallback((val: number) => {
-    setMinScore(val);
-    setPage(1);
-  }, []);
-
-  // Profil yoksa loading göster (redirect beklerken)
-  if (!user) {
-    return (
-      <div className="mx-auto max-w-4xl px-4 py-12 text-center">
-        <p className="text-muted-foreground">Profil yükleniyor...</p>
-      </div>
+  async function handleAddMissingSkill(skill: string): Promise<boolean> {
+    if (!user) return false;
+    const normalizedSkill = skill.trim();
+    if (!normalizedSkill) return false;
+    const hasSkill = user.techStack.some(
+      (tech) => tech.toLowerCase() === normalizedSkill.toLowerCase(),
     );
+    if (hasSkill) return false;
+    const nextTechStack = [...user.techStack, normalizedSkill];
+    const updated = await updateUser({ techStack: nextTechStack });
+    if (!updated) {
+      toast.error("Beceri profile eklenemedi");
+      return false;
+    }
+    toast.success(
+      `✅ "${normalizedSkill}" profiline eklendi — kalıcı etki için ilanları yeniden puanlayabilirsin.`,
+      { duration: 5000 },
+    );
+    return true;
+  }
+
+  async function handleRemoveJob(jobId: string): Promise<void> {
+    if (!user?.id) return;
+    const removed = await removeJob(user.id, jobId);
+    if (removed) toast.success("İlan kaldırıldı");
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 lg:px-8">
-      <MatchesHeader total={matches.length} filtered={filtered.length} />
-
-      {/* Score filtre */}
-      <ScoreFilter value={minScore} onChange={handleScoreChange} />
-
-      {/* Loading */}
-      {isLoading && (
-        <div className="mt-8 text-center text-sm text-muted-foreground">
-          Eşleşme sonuçları yükleniyor...
-        </div>
-      )}
-
-      {/* Error */}
-      {error && (
-        <div className="mt-8 rounded-lg border border-red-200 bg-red-50 p-4 text-center text-sm text-red-700">
-          {error}
-        </div>
-      )}
-
-      {/* No results */}
-      {!isLoading && !error && matches.length === 0 && (
-        <div className="mt-8 rounded-xl border bg-card p-8 text-center">
-          <p className="text-lg font-medium">Henüz eşleşme sonucu yok</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Dashboard&apos;dan ilanları tarayıp &quot;Puanla&quot; butonuyla eşleştirme başlatın.
+    <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
+      {/* Header */}
+      <div className="flex flex-col gap-4 rounded-3xl border bg-card/80 p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="flex items-center gap-2 text-sm font-semibold text-fuchsia-600">
+            <Sparkles className="size-4" />
+            Eşleşen İlanlar
           </p>
+          <h1 className="mt-1 text-2xl font-semibold">Senin için seçilmiş fırsatlar</h1>
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+            AI puanlama skoru {MATCH_THRESHOLD} ve üzeri olan ilanlar. Ne kadar yüksekse o kadar iyi eşleşme.
+          </p>
+
+          {/* İstatistikler */}
+          {matchedJobs.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-4">
+              <div className="flex items-center gap-1.5 rounded-xl border bg-background px-3 py-1.5 text-xs">
+                <Target className="size-3.5 text-fuchsia-500" />
+                <span className="font-semibold">{matchedJobs.length}</span>
+                <span className="text-muted-foreground">eşleşme</span>
+              </div>
+              {avgScore !== null && (
+                <div className="flex items-center gap-1.5 rounded-xl border bg-background px-3 py-1.5 text-xs">
+                  <TrendingUp className="size-3.5 text-emerald-500" />
+                  <span className="font-semibold">Ort. %{avgScore}</span>
+                  <span className="text-muted-foreground">skor</span>
+                </div>
+              )}
+              {topScore !== null && (
+                <div className="flex items-center gap-1.5 rounded-xl border bg-background px-3 py-1.5 text-xs">
+                  <Sparkles className="size-3.5 text-amber-500" />
+                  <span className="font-semibold">En yüksek %{topScore}</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
+
+        {user && (
+          <div className="min-w-[280px]">
+            <ScoringButton
+              userId={user.id}
+              unscoredCount={enrichJobsWithMatches(jobs, matches).filter((j) => !j.match).length}
+              favoriteJobIds={[]}
+              onComplete={() => void fetchMatches(user.id)}
+              onProgress={() => void fetchMatches(user.id)}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Kullanıcı yok */}
+      {!user && (
+        <Card className="mt-6">
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            Eşleşmeleri görmek için önce bir kullanıcı profili oluştur.
+          </CardContent>
+        </Card>
       )}
 
-      {/* Match cards */}
-      {!isLoading && paged.length > 0 && (
-        <div className="mt-6 space-y-4">
-          {paged.map((match) => (
-            <MatchCard key={match.id} match={match} />
+      {/* Eşleşme yok — hiç puanlanmamış */}
+      {user && matchedJobs.length === 0 && matches.length === 0 && (
+        <Card className="mt-6 border-dashed">
+          <CardContent className="space-y-3 py-12 text-center">
+            <Sparkles className="mx-auto size-10 text-muted-foreground/40" />
+            <p className="text-lg font-medium">Henüz eşleşme yok</p>
+            <p className="text-sm text-muted-foreground">
+              Dashboard&apos;dan ilanları tara ve &quot;İlanları Puanla&quot; ile AI analizi başlat.
+            </p>
+            <Button asChild className="cursor-pointer">
+              <Link href="/dashboard">
+                <LayoutDashboard className="size-4" />
+                Dashboard&apos;a git
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Puanlama var ama threshold altında */}
+      {user && matchedJobs.length === 0 && matches.length > 0 && (
+        <Card className="mt-6 border-dashed">
+          <CardContent className="space-y-3 py-12 text-center">
+            <Target className="mx-auto size-10 text-muted-foreground/40" />
+            <p className="text-lg font-medium">%{MATCH_THRESHOLD} üzeri eşleşme bulunamadı</p>
+            <p className="text-sm text-muted-foreground">
+              {matches.length} ilan puanlandı ancak hiçbiri eşleşme eşiğini geçmedi.
+              Profilini güncelleyip yeniden puanlayabilirsin.
+            </p>
+            <div className="flex justify-center gap-2">
+              <Button variant="outline" asChild className="cursor-pointer">
+                <Link href="/profile">Profili güncelle</Link>
+              </Button>
+              <Button asChild className="cursor-pointer">
+                <Link href="/dashboard">Dashboard&apos;a git</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Eşleşme listesi */}
+      {user && matchedJobs.length > 0 && (
+        <div className="mt-6 space-y-3">
+          {matchedJobs.map((job) => (
+            <JobCard
+              key={job.id}
+              job={job}
+              onRemove={handleRemoveJob}
+              onAddMissingSkill={handleAddMissingSkill}
+              isFavorite={isFavorite(job.id)}
+              onToggleFavorite={toggleFavorite}
+            />
           ))}
-        </div>
-      )}
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="mt-6">
-          <Pagination
-            page={page}
-            totalPages={totalPages}
-            onPageChange={setPage}
-          />
         </div>
       )}
     </div>

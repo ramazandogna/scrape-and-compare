@@ -35,7 +35,7 @@ const bootstrap = async (): Promise<void> => {
   // CORS — Next.js frontend'in API'ye erişimi için
   app.enableCors({
     origin: process.env['CORS_ORIGIN'] ?? 'http://localhost:3001',
-    methods: ['GET', 'POST'],
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     credentials: true,
   });
 

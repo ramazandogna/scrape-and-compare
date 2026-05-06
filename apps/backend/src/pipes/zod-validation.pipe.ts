@@ -34,7 +34,8 @@ export class ZodValidationPipe implements PipeTransform {
   constructor(private readonly schema: ZodSchema) {}
 
   transform(value: unknown): unknown {
-    const result = this.schema.safeParse(value);
+    const normalizedValue = this.tryParseJsonString(value);
+    const result = this.schema.safeParse(normalizedValue);
 
     if (!result.success) {
       throw new BadRequestException({
@@ -44,5 +45,55 @@ export class ZodValidationPipe implements PipeTransform {
     }
 
     return result.data;
+  }
+
+  private tryParseJsonString(value: unknown): unknown {
+    if (Buffer.isBuffer(value)) {
+      return this.tryParseJsonText(value.toString('utf8'));
+    }
+
+    if (value instanceof String) {
+      return this.tryParseJsonText(value.toString());
+    }
+
+    if (typeof value === 'string') {
+      return this.tryParseJsonText(value);
+    }
+
+    if (this.isUrlEncodedJsonPayload(value)) {
+      return this.tryParseJsonText(Object.keys(value)[0]);
+    }
+
+    return value;
+  }
+
+  private tryParseJsonText(value: string): unknown {
+    const trimmed = value.trim();
+
+    if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+      return value;
+    }
+
+    try {
+      return JSON.parse(trimmed) as unknown;
+    } catch {
+      return value;
+    }
+  }
+
+  private isUrlEncodedJsonPayload(
+    value: unknown,
+  ): value is Record<string, string> {
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+      return false;
+    }
+
+    const entries = Object.entries(value);
+    if (entries.length !== 1) {
+      return false;
+    }
+
+    const [[key, entryValue]] = entries;
+    return key.trim().startsWith('{') && typeof entryValue === 'string';
   }
 }

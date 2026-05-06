@@ -17,6 +17,7 @@ export const FULL_JOB: JobListing = {
   id: 'linkedin-12345',
   title: 'Senior Frontend Developer',
   company: 'Acme Corp',
+  logoUrl: 'https://media.licdn.com/dms/image/v2/company-logo_100_100/example',
   location: 'Istanbul, Turkey',
   salary: '40.000 - 60.000 TL/ay',
   salaryParsed: {
@@ -48,6 +49,7 @@ export const MINIMAL_JOB: JobListing = {
   id: 'linkedin-99999',
   title: 'Junior Developer',
   company: 'Startup Inc',
+  logoUrl: null,
   location: 'Remote',
   salary: null,
   salaryParsed: null,

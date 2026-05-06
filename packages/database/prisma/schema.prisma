@@ -96,6 +96,7 @@ model JobListing {
 
   title    String
   company  String
+  logoUrl  String?
   location String
 
   /// Ham maaş string'i (LinkedIn'den gelen orijinal)

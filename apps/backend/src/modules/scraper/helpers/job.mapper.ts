@@ -114,6 +114,7 @@ export const mapJobToCreateInput = (
     url: job.link,
     title: job.title,
     company: job.company,
+    logoUrl: job.logoUrl,
     location: job.location,
     salary: job.salary,
     ...salary,
@@ -143,6 +144,7 @@ export const mapJobToUpdateInput = (
   return {
     title: job.title,
     company: job.company,
+    logoUrl: job.logoUrl,
     location: job.location,
     salary: job.salary,
     ...salary,

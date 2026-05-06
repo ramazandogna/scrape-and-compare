@@ -10,6 +10,7 @@ import { getAvatarColor, getInitial } from "@/lib/job-helpers";
 
 interface CompanyAvatarProps {
   company: string;
+  logoUrl?: string | null;
   size?: "sm" | "md";
   className?: string;
 }
@@ -26,6 +27,7 @@ function toClearbitDomain(company: string): string {
 
 export function CompanyAvatar({
   company,
+  logoUrl,
   size = "md",
   className,
 }: CompanyAvatarProps) {
@@ -35,7 +37,8 @@ export function CompanyAvatar({
 
   const sizeClass = size === "sm" ? "size-8" : "size-10";
   const domain = toClearbitDomain(company);
-  const logoUrl = `https://logo.clearbit.com/${domain}`;
+  const clearbitLogoUrl = `https://logo.clearbit.com/${domain}`;
+  const preferredLogoUrl = logoUrl?.trim() || clearbitLogoUrl;
 
   if (!logoFailed) {
     return (
@@ -49,7 +52,7 @@ export function CompanyAvatar({
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={logoUrl}
+          src={preferredLogoUrl}
           alt={company}
           className="size-full object-contain p-0.5"
           onError={() => setLogoFailed(true)}

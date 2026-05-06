@@ -72,7 +72,7 @@ export function JobCard({
 
         {/* Header: Avatar + Job Info */}
         <div className="flex gap-3">
-          <CompanyAvatar company={job.company} />
+          <CompanyAvatar company={job.company} logoUrl={job.logoUrl} />
           <div className="min-w-0 flex-1">
             <p className="text-sm text-muted-foreground">{job.company}</p>
             <h3 className="truncate text-base font-semibold leading-tight">

@@ -91,6 +91,32 @@ export const isPageBlocked = async (page: Page): Promise<boolean> =>
 const parseJobCardsFromDom = (scrapedAt: string): JobListing[] => {
   const results: JobListing[] = [];
 
+  const extractUrl = (el: Element | null): string | null => {
+    if (!el) return null;
+    const fromDelayed = el.getAttribute('data-delayed-url');
+    if (fromDelayed && fromDelayed.startsWith('http')) return fromDelayed;
+    const fromSrc = el.getAttribute('src');
+    if (fromSrc && fromSrc.startsWith('http')) return fromSrc;
+    return null;
+  };
+
+  const readCardLogo = (card: Element): string | null => {
+    const logoCandidates: Array<Element | null> = [
+      card.querySelector('img[data-delayed-url*="company-logo"]'),
+      card.querySelector('img[data-delayed-url][alt]'),
+      card.querySelector('.artdeco-entity-image[data-delayed-url]'),
+      card.querySelector('img[src*="company-logo"]'),
+      card.querySelector('img[src*="licdn.com"]'),
+    ];
+
+    for (const candidate of logoCandidates) {
+      const logoUrl = extractUrl(candidate);
+      if (logoUrl) return logoUrl;
+    }
+
+    return null;
+  };
+
   const cardSelectors = [
     '.jobs-search__results-list li',
     '.job-search-card',
@@ -141,6 +167,7 @@ const parseJobCardsFromDom = (scrapedAt: string): JobListing[] => {
       const title = (titleEl?.textContent ?? '').trim();
       const company = (companyEl?.textContent ?? '').trim();
       const link = linkEl?.getAttribute('href') ?? '';
+      const logoUrl = readCardLogo(card);
 
       if (!title || !company) return;
 
@@ -153,6 +180,7 @@ const parseJobCardsFromDom = (scrapedAt: string): JobListing[] => {
         id,
         title,
         company,
+        logoUrl,
         location: (locationEl?.textContent ?? '').trim() || 'Unknown',
         salary: (salaryEl?.textContent ?? '').trim() || null,
         salaryParsed: null,
@@ -221,6 +249,7 @@ export const fastParseDetailPage = async (
         ...job,
         title: details.detailTitle || job.title,
         company: details.detailCompany || job.company,
+        logoUrl: details.detailLogoUrl || job.logoUrl,
         description: details.description,
         requirements: details.requirements,
         seniorityLevel: details.seniorityLevel,
@@ -331,7 +360,39 @@ const parseDetailFromDom = () => {
   );
   const detailCompany = (companyEl?.textContent ?? '').trim();
 
-  return { description, requirements, seniorityLevel, employmentType, workType, detailTitle, detailCompany };
+  const logoCandidates = [
+    document.querySelector('a[data-tracking-control-name="public_jobs_topcard_logo"] img[data-delayed-url]'),
+    document.querySelector('.top-card-layout__card img[data-delayed-url*="company-logo"]'),
+    document.querySelector('.sub-nav-cta__image[data-delayed-url*="company-logo"]'),
+    document.querySelector('img[src*="company-logo"]'),
+  ];
+
+  let detailLogoUrl: string | null = null;
+  for (const candidate of logoCandidates) {
+    if (!candidate) continue;
+    const delayed = candidate.getAttribute('data-delayed-url');
+    if (delayed && delayed.startsWith('http')) {
+      detailLogoUrl = delayed;
+      break;
+    }
+
+    const src = candidate.getAttribute('src');
+    if (src && src.startsWith('http')) {
+      detailLogoUrl = src;
+      break;
+    }
+  }
+
+  return {
+    description,
+    requirements,
+    seniorityLevel,
+    employmentType,
+    workType,
+    detailTitle,
+    detailCompany,
+    detailLogoUrl,
+  };
 };
 
 // ═══════════════════════════════════════════

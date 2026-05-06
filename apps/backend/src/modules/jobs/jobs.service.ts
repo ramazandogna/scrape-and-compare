@@ -50,6 +50,7 @@ export interface JobListingDto {
   url: string;
   title: string;
   company: string;
+  logoUrl: string | null;
   location: string;
   salary: string | null;
   salaryMin: number | null;
@@ -57,6 +58,7 @@ export interface JobListingDto {
   salaryCurrency: string | null;
   seniorityLevel: string | null;
   employmentType: string | null;
+  workType: string | null;
   skills: unknown;
   postedDate: string | null;
   source: string;
@@ -99,6 +101,7 @@ export class JobsService {
           url: true,
           title: true,
           company: true,
+          logoUrl: true,
           location: true,
           salary: true,
           salaryMin: true,
@@ -106,6 +109,7 @@ export class JobsService {
           salaryCurrency: true,
           seniorityLevel: true,
           employmentType: true,
+          workType: true,
           skills: true,
           postedDate: true,
           source: true,

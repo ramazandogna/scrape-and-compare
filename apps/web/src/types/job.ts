@@ -18,6 +18,7 @@ export interface JobDto {
   url: string;
   title: string;
   company: string;
+  logoUrl: string | null;
   location: string;
   salary: string | null;
   salaryMin: number | null;

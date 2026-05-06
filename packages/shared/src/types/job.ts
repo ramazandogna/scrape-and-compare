@@ -52,6 +52,8 @@ export interface JobListing {
   title: string;
   /** Şirket adı */
   company: string;
+  /** LinkedIn'den çıkarılan şirket logo URL'i */
+  logoUrl: string | null;
   /** Lokasyon */
   location: string;
   /** Ham maaş bilgisi (LinkedIn'de her zaman gösterilmez) */

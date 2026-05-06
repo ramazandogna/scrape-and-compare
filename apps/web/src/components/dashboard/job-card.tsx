@@ -35,13 +35,25 @@ export function JobCard({
   const salary = formatSalary(job.salaryMin, job.salaryMax, job.salaryCurrency);
   const posted = timeAgo(job.scrapedAt, job.postedDate);
   const [confirmRemove, setConfirmRemove] = useState(false);
+  const [localAddedSkills, setLocalAddedSkills] = useState<string[]>([]);
+
+  const displayScore = computeSimulatedScore(
+    job.match?.score ?? null,
+    job.match?.matchedSkills ?? [],
+    job.match?.missingSkills ?? [],
+    localAddedSkills,
+  );
+
+  function handleLocalSkillAdd(skill: string): void {
+    setLocalAddedSkills((prev) => (prev.includes(skill) ? prev : [...prev, skill]));
+  }
 
   return (
     <Card className="group/card relative overflow-visible transition-shadow hover:shadow-md">
       <CardContent className="space-y-3">
         {/* Score Badge — her ilanda eşleşti/eşleşmedi durumu */}
         <div className="flex items-center justify-between">
-          <ScoreBadge score={job.match?.score} />
+          <ScoreBadge score={displayScore} />
           <div className="flex items-center gap-2">
             {onToggleFavorite && (
               <button
@@ -121,7 +133,9 @@ export function JobCard({
           <MatchSkills
             matchedSkills={job.match?.matchedSkills ?? null}
             missingSkills={job.match?.missingSkills ?? null}
+            addedSkills={localAddedSkills}
             onAddMissingSkill={onAddMissingSkill}
+            onLocalSkillAdd={handleLocalSkillAdd}
           />
           <Button
             variant="ghost"
@@ -175,4 +189,37 @@ export function JobCard({
       )}
     </Card>
   );
+}
+
+// ═══════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════
+
+/**
+ * Geçici olarak eklenen skill'leri hesaba katarak simüle edilmiş skor döner.
+ * Formül: (matchedSkills / totalRequired) × 60 + experienceComponent
+ * experienceComponent mevcut skor ve skill oranından geri hesaplanır.
+ */
+function computeSimulatedScore(
+  originalScore: number | null,
+  matchedSkills: string[],
+  missingSkills: string[],
+  addedSkills: string[],
+): number | null {
+  if (originalScore === null) return null;
+  if (addedSkills.length === 0) return originalScore;
+
+  const totalRequired = matchedSkills.length + missingSkills.length;
+  if (totalRequired === 0) return originalScore;
+
+  const originalSkillScore = (matchedSkills.length / totalRequired) * 60;
+  const experienceComponent = originalScore - originalSkillScore;
+
+  const newlyMatched = addedSkills.filter((s) =>
+    missingSkills.some((m) => m.toLowerCase() === s.toLowerCase()),
+  );
+  const newMatchedCount = matchedSkills.length + newlyMatched.length;
+  const newSkillScore = (newMatchedCount / totalRequired) * 60;
+
+  return Math.min(100, Math.round(newSkillScore + experienceComponent));
 }

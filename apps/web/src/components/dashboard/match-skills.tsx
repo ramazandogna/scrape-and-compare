@@ -28,17 +28,20 @@ import { toast } from "sonner";
 interface MatchSkillsProps {
   matchedSkills: string[] | null;
   missingSkills: string[] | null;
+  addedSkills?: string[];
   maxVisible?: number;
   onAddMissingSkill?: (skill: string) => Promise<boolean>;
+  onLocalSkillAdd?: (skill: string) => void;
 }
 
 export function MatchSkills({
   matchedSkills,
   missingSkills,
+  addedSkills = [],
   maxVisible = 3,
   onAddMissingSkill,
+  onLocalSkillAdd,
 }: MatchSkillsProps) {
-  const [addedSkills, setAddedSkills] = useState<string[]>([]);
   const [addingSkill, setAddingSkill] = useState<string | null>(null);
   const [pendingSkill, setPendingSkill] = useState<string | null>(null);
 
@@ -64,7 +67,7 @@ export function MatchSkills({
   const hiddenCount = hiddenMatched.length + hiddenMissing.length;
 
   function markSkillAsAdded(skill: string): void {
-    setAddedSkills((prev) => (prev.includes(skill) ? prev : [...prev, skill]));
+    onLocalSkillAdd?.(skill);
   }
 
   function openSkillDialog(skill: string): void {

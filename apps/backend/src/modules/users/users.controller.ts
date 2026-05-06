@@ -23,7 +23,6 @@ import {
   Body,
   Param,
   ParseUUIDPipe,
-  UsePipes,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
@@ -50,8 +49,7 @@ export class UsersController {
    */
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  @UsePipes(new ZodValidationPipe(createUserSchema))
-  async create(@Body() body: CreateUserInput): Promise<UserDto> {
+  async create(@Body(new ZodValidationPipe(createUserSchema)) body: CreateUserInput): Promise<UserDto> {
     return this.usersService.create(body);
   }
 
@@ -93,10 +91,9 @@ export class UsersController {
    * Hata: 400 (validation/uuid) | 404 (kullanıcı yok) | 409 (email çakışması)
    */
   @Patch(':id')
-  @UsePipes(new ZodValidationPipe(updateUserSchema))
   async update(
     @Param('id', new ParseUUIDPipe()) id: string,
-    @Body() body: UpdateUserInput,
+    @Body(new ZodValidationPipe(updateUserSchema)) body: UpdateUserInput,
   ): Promise<UserDto> {
     return this.usersService.update(id, body);
   }

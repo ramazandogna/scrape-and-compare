@@ -79,7 +79,7 @@ export function MatchSkills({
     if (!pendingSkill) return;
 
     markSkillAsAdded(pendingSkill);
-    toast.info(`${pendingSkill} bu kart için deneme amaçlı eklendi.`);
+    toast.info(`${pendingSkill} bu kart için deneme amaçlı eklendi. Bu davranış ilanların sıralamasına etki etmez.`);
     setPendingSkill(null);
   }
 

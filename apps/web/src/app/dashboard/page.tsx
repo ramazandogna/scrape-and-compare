@@ -139,7 +139,8 @@ export default function DashboardPage() {
     }
 
     toast.success(
-      `${normalizedSkill} profiline eklendi. Doğru etkisini görmek için yeniden puanlama yapabilirsin.`,
+      `✅ "${normalizedSkill}" profiline eklendi — diğer ilanlarda kalıcı etki için Dashboard'dan yeniden puanlama başlatabilirsin.`,
+      { duration: 8000 },
     );
     return true;
   }

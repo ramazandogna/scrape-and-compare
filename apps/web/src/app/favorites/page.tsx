@@ -63,7 +63,8 @@ export default function FavoritesPage() {
     }
 
     toast.success(
-      `${normalizedSkill} profiline eklendi. Tam etkisi için favorileri yeniden puanlayabilirsin.`,
+      `✅ "${normalizedSkill}" profiline eklendi — kalıcı etki için favorileri yeniden puanlayabilirsin.`,
+      { duration: 5000 },
     );
     return true;
   }

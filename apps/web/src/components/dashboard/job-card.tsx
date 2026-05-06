@@ -20,9 +20,10 @@ import type { EnrichedJob } from "@/types/job";
 interface JobCardProps {
   job: EnrichedJob;
   onRemove?: (jobId: string) => Promise<void>;
+  onAddMissingSkill?: (skill: string) => Promise<boolean>;
 }
 
-export function JobCard({ job, onRemove }: JobCardProps) {
+export function JobCard({ job, onRemove, onAddMissingSkill }: JobCardProps) {
   const salary = formatSalary(job.salaryMin, job.salaryMax, job.salaryCurrency);
   const posted = timeAgo(job.scrapedAt, job.postedDate);
   const [confirmRemove, setConfirmRemove] = useState(false);
@@ -99,6 +100,7 @@ export function JobCard({ job, onRemove }: JobCardProps) {
           <MatchSkills
             matchedSkills={job.match?.matchedSkills ?? null}
             missingSkills={job.match?.missingSkills ?? null}
+            onAddMissingSkill={onAddMissingSkill}
           />
           <Button
             variant="ghost"

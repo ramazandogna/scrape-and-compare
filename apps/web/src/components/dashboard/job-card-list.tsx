@@ -16,6 +16,7 @@ interface JobCardListProps {
   onSortChange: (sort: SortState) => void;
   onPageChange: (page: number) => void;
   onRemoveJob?: (jobId: string) => Promise<void>;
+  onAddMissingSkill?: (skill: string) => Promise<boolean>;
 }
 
 export function JobCardList({
@@ -24,6 +25,7 @@ export function JobCardList({
   onSortChange,
   onPageChange,
   onRemoveJob,
+  onAddMissingSkill,
 }: JobCardListProps) {
   const { items, page, totalPages, total } = paginatedJobs;
 
@@ -40,7 +42,12 @@ export function JobCardList({
       ) : (
         <div className="space-y-3">
           {items.map((job) => (
-            <JobCard key={job.id} job={job} onRemove={onRemoveJob} />
+            <JobCard
+              key={job.id}
+              job={job}
+              onRemove={onRemoveJob}
+              onAddMissingSkill={onAddMissingSkill}
+            />
           ))}
         </div>
       )}

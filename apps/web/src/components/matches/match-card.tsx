@@ -103,15 +103,15 @@ export function MatchCard({ match }: MatchCardProps) {
                 {match.missingSkills.slice(0, 2).map((s) => (
                   <Badge
                     key={`x-${s}`}
-                    variant="default"
-                    className="gap-0.5 bg-red-50 text-[11px] text-red-600 hover:bg-red-50"
+                    variant="outline"
+                    className="gap-0.5 text-[11px] text-muted-foreground"
                   >
                     <XCircle className="size-3" />
                     {s}
                   </Badge>
                 ))}
                 {match.matchedSkills.length + match.missingSkills.length > 6 && (
-                  <span className="text-[11px] text-muted-foreground self-center">
+                  <span className="self-center text-[11px] text-muted-foreground">
                     +{match.matchedSkills.length + match.missingSkills.length - 6} daha
                   </span>
                 )}
@@ -166,15 +166,15 @@ export function MatchCard({ match }: MatchCardProps) {
               {/* Eksik skills */}
               {match.missingSkills.length > 0 && (
                 <div>
-                  <h4 className="text-xs font-semibold text-red-600 mb-1.5">
+                  <h4 className="mb-1.5 text-xs font-semibold text-muted-foreground">
                     Eksik Yetenekler ({match.missingSkills.length})
                   </h4>
                   <div className="flex flex-wrap gap-1.5">
                     {match.missingSkills.map((s) => (
                       <Badge
                         key={s}
-                        variant="default"
-                        className="gap-1 bg-red-50 text-xs text-red-600 hover:bg-red-50"
+                        variant="outline"
+                        className="gap-1 text-xs text-muted-foreground"
                       >
                         <XCircle className="size-3" />
                         {s}

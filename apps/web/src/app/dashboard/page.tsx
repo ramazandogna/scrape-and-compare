@@ -30,7 +30,7 @@ import type { FilterState, SortState } from "@/types/job";
 const PAGE_SIZE = 10;
 
 export default function DashboardPage() {
-  const { user } = useUser();
+  const { user, updateUser } = useUser();
   const { jobs, total, fetchJobs, clearJobs, removeJob } = useJobs();
   const { matches, fetchMatches } = useMatchResults();
   const { state: scrapeState, startScrape, reset: resetScrape } = useScraper();
@@ -117,6 +117,31 @@ export default function DashboardPage() {
     if (removed) toast.success("İlan kaldırıldı");
   }
 
+  async function handleAddMissingSkill(skill: string): Promise<boolean> {
+    if (!user) return false;
+
+    const normalizedSkill = skill.trim();
+    if (!normalizedSkill) return false;
+
+    const hasSkill = user.techStack.some(
+      (tech) => tech.toLowerCase() === normalizedSkill.toLowerCase(),
+    );
+    if (hasSkill) return false;
+
+    const nextTechStack = [...user.techStack, normalizedSkill];
+    const updated = await updateUser({ techStack: nextTechStack });
+
+    if (!updated) {
+      toast.error("Beceri profile eklenemedi");
+      return false;
+    }
+
+    toast.success(
+      `${normalizedSkill} profiline eklendi. Doğru etkisini görmek için yeniden puanlama yapabilirsin.`,
+    );
+    return true;
+  }
+
   // Pipeline: enrich → filter → sort → paginate (memoized)
   const enrichedJobs = useMemo(
     () => enrichJobsWithMatches(jobs, matches),
@@ -173,6 +198,7 @@ export default function DashboardPage() {
           onSortChange={handleSortChange}
           onPageChange={handlePageChange}
           onRemoveJob={handleRemoveJob}
+          onAddMissingSkill={handleAddMissingSkill}
         />
 
         {/* Sağ: Sidebar */}

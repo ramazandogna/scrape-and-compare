@@ -25,6 +25,10 @@ import { batchScoringResultSchema } from '@scrape/shared';
 import type { BatchScoringResult, SingleScoringResult, MatcherUserProfile, MatcherJobSummary } from '@scrape/shared';
 import { logger } from '@/utils/helpers';
 
+const MAX_PROMPT_SKILLS = 8;
+const MAX_PROMPT_REQUIREMENTS = 4;
+const MAX_REQUIREMENT_LENGTH = 120;
+
 // ═══════════════════════════════════════════
 // TYPES
 // ═══════════════════════════════════════════
@@ -154,6 +158,8 @@ export class MatcherService {
    *   - Türkçe explanation iste → kullanıcı doğrudan okuyabilsin
    */
   private buildPrompt(user: MatcherUserProfile, jobs: MatcherJobSummary[]): string {
+    const allowedJobIds = jobs.map((job) => job.id).join(', ');
+
     const jobDescriptions = jobs
       .map(
         (job, i) =>
@@ -163,8 +169,8 @@ export class MatcherService {
   Lokasyon: ${job.location}
   Kıdem: ${job.seniorityLevel ?? 'Belirtilmemiş'}
   Çalışma Tipi: ${job.employmentType ?? 'Belirtilmemiş'}
-  İstenen Yetenekler: ${job.skills.length > 0 ? job.skills.join(', ') : 'Belirtilmemiş'}
-  Gereksinimler: ${job.requirements.length > 0 ? job.requirements.join('; ') : 'Belirtilmemiş'}`,
+  İstenen Yetenekler: ${this.compactSkills(job.skills)}
+  Gereksinimler: ${this.compactRequirements(job.requirements)}`,
       )
       .join('\n\n');
 
@@ -178,6 +184,9 @@ export class MatcherService {
 - explanation Türkçe olmalı ve neden bu puanı verdiğini 1-2 cümleyle açıklamalı
 - matchedSkills: Kullanıcıda olan VE ilanda istenen skill'ler
 - missingSkills: İlanda istenen ama kullanıcıda olmayan skill'ler
+- SADECE aşağıdaki jobId listesinden değer kullan: [${allowedJobIds}]
+- Listede olmayan bir jobId ASLA üretme
+- Yalnızca saf JSON döndür, markdown/code block döndürme
 
 ## Kullanıcı Profili
 - Yetenekler: ${user.techStack.join(', ')}
@@ -202,6 +211,20 @@ ${jobDescriptions}
 }
 
 Her ilan için MUTLAKA bir sonuç döndür. results array'inde ${String(jobs.length)} eleman olmalı.`;
+  }
+
+  private compactSkills(skills: string[]): string {
+    if (skills.length === 0) return 'Belirtilmemiş';
+    return skills.slice(0, MAX_PROMPT_SKILLS).join(', ');
+  }
+
+  private compactRequirements(requirements: string[]): string {
+    if (requirements.length === 0) return 'Belirtilmemiş';
+
+    return requirements
+      .slice(0, MAX_PROMPT_REQUIREMENTS)
+      .map((item) => item.trim().slice(0, MAX_REQUIREMENT_LENGTH))
+      .join('; ');
   }
 
   /**

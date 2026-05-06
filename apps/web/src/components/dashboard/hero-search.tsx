@@ -205,7 +205,7 @@ export function HeroSearch({ onSearch, scrapeState, onScrapeReset, total }: Hero
               onKeyDown={handleKeywordKeyDown}
               onBlur={addKeywordsFromInput}
               placeholder="Keyword yazıp Enter'a bas (orn: frontend developer)"
-              className="pl-8"
+              className="h-9 pl-8 text-sm placeholder:text-[13px]"
               disabled={isScraping || keywords.length >= MAX_KEYWORDS}
             />
           </div>
@@ -222,7 +222,7 @@ export function HeroSearch({ onSearch, scrapeState, onScrapeReset, total }: Hero
                 }, 120);
               }}
               placeholder="Lokasyon secin veya yazin"
-              className="pl-8"
+              className="h-9 pl-8 text-sm placeholder:text-[13px]"
               disabled={isScraping}
             />
 

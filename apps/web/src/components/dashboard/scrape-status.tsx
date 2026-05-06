@@ -89,14 +89,22 @@ function StatusMessage({ state }: { state: ScrapeState }) {
     case "completed":
       if (state.result) {
         const filtered = state.result.filtered ?? 0;
+        const target = state.result.targetPerKeyword;
+        const hit = state.result.keywordsHitTarget;
+        const totalKw = state.result.keywordsTotal;
+        const missed = state.result.perKeyword?.filter((k) => !k.targetReached) ?? [];
+
         return (
-          <div>
+          <div className="space-y-1">
             <p>
               Tamamlandı — <strong>{state.result.totalJobs}</strong> ilan bulundu,{" "}
               <strong>{state.result.created}</strong> yeni eklendi,{" "}
               <strong>{state.result.updated}</strong> güncellendi
               {filtered > 0 && (
-                <span className="ml-1 text-xs text-amber-600" title="Açıklama veya skill içermeyen düşük kaliteli ilanlar otomatik elendi">
+                <span
+                  className="ml-1 text-xs text-amber-600"
+                  title="Açıklama veya skill içermeyen düşük kaliteli ilanlar otomatik elendi"
+                >
                   · {filtered} eksik ilan elenip kaydetmeden önce temizlendi ✨
                 </span>
               )}
@@ -104,12 +112,40 @@ function StatusMessage({ state }: { state: ScrapeState }) {
                 ({(state.result.durationMs / 1000).toFixed(0)}s)
               </span>
             </p>
-            <p className={cn(
-              "mt-0.5 text-[11px]",
-              state.result.targetReached ? "text-emerald-700" : "text-amber-700",
-            )}>
-              Hedef: {state.result.targetNewJobs} yeni ilan · {state.result.discoveryMessage}
-            </p>
+
+            {state.result.discoveryMessage && (
+              <p
+                className={cn(
+                  "text-[11px]",
+                  state.result.targetReached ? "text-emerald-700" : "text-amber-700",
+                )}
+              >
+                {state.result.discoveryMessage}
+              </p>
+            )}
+
+            {target > 0 && totalKw > 0 && (
+              <p className="text-[11px] opacity-80">
+                Hedef: keyword başına {target} yeni ilan · {hit}/{totalKw} keyword
+                hedefi tutturdu.
+                {missed.length > 0 && (
+                  <span className="ml-1">
+                    Hedefini tutturamayan:{" "}
+                    {missed
+                      .map((k) =>
+                        k.blocked
+                          ? `${k.keyword} (engellendi)`
+                          : `${k.keyword} (${k.collected}/${k.target}, ${k.pagesScanned} sayfa)`,
+                      )
+                      .join(", ")}
+                    .{" "}
+                    {missed.some((k) => k.blocked)
+                      ? "LinkedIn bizi geçici engelledi olabilir, biraz sonra tekrar dene."
+                      : "LinkedIn bu keyword için yeterince yeni ilan yayımlamamış."}
+                  </span>
+                )}
+              </p>
+            )}
           </div>
         );
       }

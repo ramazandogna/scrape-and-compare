@@ -23,94 +23,58 @@ import { sleep, randomBetween, logger } from '@/utils/helpers';
 // SEARCH PAGE PARSER
 // ═══════════════════════════════════════════
 
-/** LinkedIn search URL'i oluşturur */
-export const buildSearchUrl = (keyword: string, location: string, start: number = 0): string => {
+/**
+ * LinkedIn search URL'i oluşturur. `start` parametresi pagination için kullanılır
+ * (LinkedIn guest API her sayfada ~25 kart döner; start=0, 25, 50, ... ilerler).
+ */
+export const buildSearchUrl = (
+  keyword: string,
+  location: string,
+  start: number = 0,
+): string => {
   const params = new URLSearchParams({
     keywords: keyword,
     location,
-    start: String(start),
   });
+  if (start > 0) params.set('start', String(start));
   return `https://www.linkedin.com/jobs/search/?${params.toString()}`;
 };
 
 /**
  * Search sayfasından job card'larını parse eder.
  * Resource blocking aktif olmalı — sayfa ~500ms'de yüklenir.
+ *
+ * @param start LinkedIn pagination offset'i (0, 25, 50, ...)
  */
 export const fastParseSearchPage = async (
   page: Page,
   keyword: string,
   location: string,
-  maxPages: number,
-  maxJobs: number,
+  start: number = 0,
 ): Promise<JobListing[]> => {
-  logger.info(`[FAST] Aranıyor: "${keyword}" — ${location}`, {
-    maxPages,
-    maxJobs,
+  const url = buildSearchUrl(keyword, location, start);
+  logger.info(`[FAST] Aranıyor: "${keyword}" — ${location} (start=${start})`);
+
+  const startTime = Date.now();
+
+  await page.goto(url, {
+    waitUntil: 'domcontentloaded',
+    timeout: 15000,
   });
 
-  const collected: JobListing[] = [];
-  const seenLinks = new Set<string>();
-  const seenIds = new Set<string>();
+  const loadTime = Date.now() - startTime;
+  logger.info(`[FAST] Sayfa yüklendi: ${loadTime}ms`);
 
-  for (let pageIndex = 0; pageIndex < maxPages; pageIndex++) {
-    const start = pageIndex * 25;
-    const url = buildSearchUrl(keyword, location, start);
-    const startedAt = Date.now();
-
-    await page.goto(url, {
-      waitUntil: 'domcontentloaded',
-      timeout: 15000,
-    });
-
-    const loadTime = Date.now() - startedAt;
-    logger.info(`[FAST] Sayfa yüklendi`, {
-      keyword,
-      pageIndex: pageIndex + 1,
-      loadTime,
-      start,
-    });
-
-    if (await isPageBlocked(page)) {
-      logger.error('[FAST] LinkedIn bizi engelledi! (Captcha/AuthWall)');
-      break;
-    }
-
-    const now = new Date().toISOString();
-    const jobs = await page.evaluate(parseJobCardsFromDom, now);
-
-    if (jobs.length === 0) {
-      logger.info(`[FAST] "${keyword}" için daha fazla sonuç bulunamadı`, {
-        pageIndex: pageIndex + 1,
-      });
-      break;
-    }
-
-    for (const job of jobs) {
-      if (seenLinks.has(job.link) || seenIds.has(job.id)) continue;
-      seenLinks.add(job.link);
-      seenIds.add(job.id);
-      collected.push(job);
-      if (collected.length >= maxJobs) break;
-    }
-
-    if (collected.length >= maxJobs) {
-      break;
-    }
-
-    if (jobs.length < 10) {
-      logger.info(`[FAST] "${keyword}" için sonuç sonuna yaklaşıldı`, {
-        pageIndex: pageIndex + 1,
-        parsed: jobs.length,
-      });
-      break;
-    }
-
-    await sleep(randomBetween(350, 850));
+  if (await isPageBlocked(page)) {
+    logger.error('[FAST] LinkedIn bizi engelledi! (Captcha/AuthWall)');
+    return [];
   }
 
-  logger.success(`[FAST] "${keyword}" → ${collected.length} unique job card parse edildi`);
-  return collected;
+  const now = new Date().toISOString();
+  const jobs = await page.evaluate(parseJobCardsFromDom, now);
+
+  logger.success(`[FAST] "${keyword}" → ${jobs.length} job card parse edildi (${loadTime}ms)`);
+  return jobs;
 };
 
 /** Captcha veya AuthWall kontrolü */
@@ -253,6 +217,115 @@ const parseJobCardsFromDom = (scrapedAt: string): JobListing[] => {
 
   return results;
 };
+
+// ═══════════════════════════════════════════
+// PAGINATED SEARCH (Smart Target)
+// ═══════════════════════════════════════════
+
+/**
+ * Aynı keyword için ~50 yeni ilana ulaşana kadar peş peşe sayfa gezer.
+ *
+ * LinkedIn guest API'sinde her sayfa ~25 kart döner. Tek sayfa çoğunlukla
+ * dedup + zaman filtresi (r604800) sonrası 5-10 ilana düşebiliyor —
+ * bu yüzden hedefe ulaşana kadar `start` offset'ini artırarak ilerliyoruz.
+ *
+ * Durma koşulları (önce hangisi olursa o kazanır):
+ *   1. Toplanan unique ilan sayısı >= target
+ *   2. maxPages tüketildi
+ *   3. Sayfa hiç kart döndürmedi (LinkedIn'de bu keyword için sonuç bitti)
+ *   4. Sayfa block/captcha gösterdi
+ *
+ * Dedup, çağıran taraftan paylaşılan `seenIds`/`seenLinks` set'leri ile yapılır.
+ * Bu sayede aynı job birden fazla keyword tarafından bulunduğunda sayılmaz.
+ */
+export const paginatedSearchScan = async (
+  page: Page,
+  keyword: string,
+  location: string,
+  options: PaginatedSearchOptions,
+  seenIds: Set<string>,
+  seenLinks: Set<string>,
+): Promise<PaginatedSearchOutcome> => {
+  const collected: JobListing[] = [];
+  const startStep = options.startStep ?? 25;
+  let pagesScanned = 0;
+  let blocked = false;
+  let exhausted = false;
+
+  for (let pageIndex = 0; pageIndex < options.maxPages; pageIndex++) {
+    const start = pageIndex * startStep;
+    const pageJobs = await fastParseSearchPage(page, keyword, location, start);
+    pagesScanned++;
+
+    if (pageJobs.length === 0) {
+      // İlk sayfada sıfır → büyük ihtimalle blocklu/captcha; sonraki sayfada
+      // tekrar yapay sonuç dönmesini bekleyemeyiz, döngüyü kır.
+      if (pageIndex === 0) blocked = true;
+      else exhausted = true;
+      break;
+    }
+
+    let newOnThisPage = 0;
+    for (const job of pageJobs) {
+      const isDupId = job.id.startsWith('unknown_') ? false : seenIds.has(job.id);
+      const isDupLink = seenLinks.has(job.link);
+      if (isDupId || isDupLink) continue;
+      seenIds.add(job.id);
+      seenLinks.add(job.link);
+      collected.push(job);
+      newOnThisPage++;
+      if (collected.length >= options.target) break;
+    }
+
+    options.onPageFetched?.({
+      keyword,
+      pageIndex: pageIndex + 1,
+      pagesScanned,
+      collected: collected.length,
+      target: options.target,
+      newOnThisPage,
+    });
+
+    if (collected.length >= options.target) break;
+    if (newOnThisPage === 0 && pageIndex >= 1) {
+      // Yeni dedupe edilmiş ilan üretmedi → büyük ihtimalle aynı sayfayı
+      // gösteriyor (LinkedIn pagination'ı bazen tekrar ediyor). Vakit kaybetme.
+      exhausted = true;
+      break;
+    }
+  }
+
+  const targetReached = collected.length >= options.target;
+  return { jobs: collected, pagesScanned, targetReached, exhausted, blocked };
+};
+
+export interface PaginatedSearchOptions {
+  /** Bu keyword için hedeflenen unique ilan sayısı (örn 50). */
+  target: number;
+  /** Maksimum sayfa sayısı (LinkedIn'i çok zorlamamak için). */
+  maxPages: number;
+  /** LinkedIn pagination adımı — guest API'de 25. */
+  startStep?: number;
+  /** Her sayfa parse edildiğinde ilerleme için tetiklenir. */
+  onPageFetched?: (event: PaginatedSearchPageEvent) => void;
+}
+
+export interface PaginatedSearchPageEvent {
+  keyword: string;
+  pageIndex: number;
+  pagesScanned: number;
+  collected: number;
+  target: number;
+  newOnThisPage: number;
+}
+
+export interface PaginatedSearchOutcome {
+  jobs: JobListing[];
+  pagesScanned: number;
+  targetReached: boolean;
+  exhausted: boolean;
+  blocked: boolean;
+}
 
 // ═══════════════════════════════════════════
 // DETAIL PAGE PARSER

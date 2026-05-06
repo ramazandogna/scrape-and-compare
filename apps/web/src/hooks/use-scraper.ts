@@ -36,6 +36,16 @@ interface StatusResponse {
   failedReason: string | null;
 }
 
+export interface KeywordOutcomeSummary {
+  keyword: string;
+  collected: number;
+  target: number;
+  pagesScanned: number;
+  targetReached: boolean;
+  exhausted: boolean;
+  blocked: boolean;
+}
+
 interface ScrapeCompletedResult {
   status: "completed";
   targetNewJobs: number;
@@ -48,6 +58,10 @@ interface ScrapeCompletedResult {
   failed: number;
   durationMs: number;
   auditId: string;
+  targetPerKeyword: number;
+  keywordsHitTarget: number;
+  keywordsTotal: number;
+  perKeyword: KeywordOutcomeSummary[];
 }
 
 export interface ScrapeState {

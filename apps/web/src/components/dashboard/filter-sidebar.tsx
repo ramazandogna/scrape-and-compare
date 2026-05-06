@@ -1,7 +1,6 @@
 "use client";
 
-import { Lock } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
+import { Lock, Check, SlidersHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { FilterState } from "@/types/job";
@@ -14,11 +13,10 @@ import {
 } from "@/types/job";
 
 // ═══════════════════════════════════════════
-// FilterSidebar — Sol panel filtreleri
+// FilterSidebar — sol panel filtreleri (modern pill style)
 // ═══════════════════════════════════════════
-// Her filtre grubu radio-button pattern (tek seçim).
-// null = "Hepsi" / filtre yok.
-// Locked özellikler: Indeed, HN Jobs, Otomasyon
+// Radio davranışı korunuyor: tek seçim, null = "Hepsi".
+// Görsel: nokta+text yerine pill — her filtre tıklanabilir hissi veriyor.
 
 interface FilterSidebarProps {
   filters: FilterState;
@@ -28,105 +26,97 @@ interface FilterSidebarProps {
 export function FilterSidebar({ filters, onFilterChange }: FilterSidebarProps) {
   function updateFilter<K extends keyof FilterState>(
     key: K,
-    value: FilterState[K]
+    value: FilterState[K],
   ) {
     onFilterChange({ ...filters, [key]: value });
   }
 
   return (
-    <aside className="space-y-5">
-      {/* Platform */}
-      <FilterSection title="Platform">
-        <label className="flex items-center gap-2 px-2 py-1 text-sm">
-          <input
-            type="checkbox"
-            checked={true}
-            disabled
-            className="size-3.5 shrink-0 accent-primary"
-          />
-          <span>LinkedIn</span>
-        </label>
-        <LockedOption label="Indeed" />
-        <LockedOption label="HN Jobs" />
-      </FilterSection>
+    <aside className="space-y-3">
+      <div className="flex items-center gap-2 px-1 pb-1">
+        <SlidersHorizontal className="size-4 text-muted-foreground" />
+        <h2 className="text-sm font-semibold">Filtreler</h2>
+      </div>
 
-      <Separator />
+      <FilterCard title="Platform">
+        <div className="flex flex-wrap gap-1.5">
+          <PillOption label="LinkedIn" active disabled />
+          <LockedPill label="Indeed" />
+          <LockedPill label="HN Jobs" />
+        </div>
+      </FilterCard>
 
-      {/* Kıdem */}
-      <FilterSection title="Kıdem">
-        {SENIORITY_OPTIONS.map((opt) => (
-          <RadioOption
-            key={opt.label}
-            label={opt.label}
-            active={filters.seniorityLevel === opt.value}
-            onClick={() => updateFilter("seniorityLevel", opt.value)}
-          />
-        ))}
-      </FilterSection>
+      <FilterCard title="Kıdem">
+        <div className="flex flex-wrap gap-1.5">
+          {SENIORITY_OPTIONS.map((opt) => (
+            <PillOption
+              key={opt.label}
+              label={opt.label}
+              active={filters.seniorityLevel === opt.value}
+              onClick={() => updateFilter("seniorityLevel", opt.value)}
+            />
+          ))}
+        </div>
+      </FilterCard>
 
-      <Separator />
+      <FilterCard title="Çalışma Tipi">
+        <div className="flex flex-wrap gap-1.5">
+          {EMPLOYMENT_OPTIONS.map((opt) => (
+            <PillOption
+              key={opt.label}
+              label={opt.label}
+              active={filters.employmentType === opt.value}
+              onClick={() => updateFilter("employmentType", opt.value)}
+            />
+          ))}
+        </div>
+      </FilterCard>
 
-      {/* Çalışma Tipi */}
-      <FilterSection title="Çalışma Tipi">
-        {EMPLOYMENT_OPTIONS.map((opt) => (
-          <RadioOption
-            key={opt.label}
-            label={opt.label}
-            active={filters.employmentType === opt.value}
-            onClick={() => updateFilter("employmentType", opt.value)}
-          />
-        ))}
-      </FilterSection>
+      <FilterCard title="Çalışma Şekli">
+        <div className="flex flex-wrap gap-1.5">
+          {WORK_TYPE_OPTIONS.map((opt) => (
+            <PillOption
+              key={opt.label}
+              label={opt.label}
+              active={filters.workType === opt.value}
+              onClick={() => updateFilter("workType", opt.value)}
+            />
+          ))}
+        </div>
+      </FilterCard>
 
-      <Separator />
+      <FilterCard title="Maaş Aralığı">
+        <div className="flex flex-wrap gap-1.5">
+          {SALARY_OPTIONS.map((opt) => (
+            <PillOption
+              key={opt.label}
+              label={opt.label}
+              active={filters.minSalary === opt.value}
+              onClick={() => updateFilter("minSalary", opt.value)}
+            />
+          ))}
+        </div>
+      </FilterCard>
 
-      {/* Çalışma Şekli */}
-      <FilterSection title="Çalışma Şekli">
-        {WORK_TYPE_OPTIONS.map((opt) => (
-          <RadioOption
-            key={opt.label}
-            label={opt.label}
-            active={filters.workType === opt.value}
-            onClick={() => updateFilter("workType", opt.value)}
-          />
-        ))}
-      </FilterSection>
+      <FilterCard title="Eşleşme Skoru">
+        <div className="flex flex-wrap gap-1.5">
+          {SCORE_OPTIONS.map((opt) => (
+            <PillOption
+              key={opt.label}
+              label={opt.label}
+              active={filters.scoreStatus === opt.value}
+              onClick={() => updateFilter("scoreStatus", opt.value)}
+            />
+          ))}
+        </div>
+      </FilterCard>
 
-      <Separator />
-
-      {/* Maaş */}
-      <FilterSection title="Maaş Aralığı">
-        {SALARY_OPTIONS.map((opt) => (
-          <RadioOption
-            key={opt.label}
-            label={opt.label}
-            active={filters.minSalary === opt.value}
-            onClick={() => updateFilter("minSalary", opt.value)}
-          />
-        ))}
-      </FilterSection>
-
-      <Separator />
-
-      {/* Eşleşme Skoru */}
-      <FilterSection title="Eşleşme Skoru">
-        {SCORE_OPTIONS.map((opt) => (
-          <RadioOption
-            key={opt.label}
-            label={opt.label}
-            active={filters.scoreStatus === opt.value}
-            onClick={() => updateFilter("scoreStatus", opt.value)}
-          />
-        ))}
-      </FilterSection>
-
-      <Separator />
-
-      {/* Locked Otomasyon */}
-      <FilterSection title="Otomasyon">
-        <LockedOption label="Otomatik tarama" />
-        <LockedOption label="Otomatik başvur" />
-      </FilterSection>
+      <FilterCard title="Otomasyon">
+        <div className="flex flex-wrap gap-1.5">
+          <LockedPill label="Otomatik tarama" />
+          <LockedPill label="Otomatik başvur" />
+        </div>
+      </FilterCard>
     </aside>
   );
 }
@@ -135,7 +125,7 @@ export function FilterSidebar({ filters, onFilterChange }: FilterSidebarProps) {
 // Sub-components
 // ═══════════════════════════════════════════
 
-function FilterSection({
+function FilterCard({
   title,
   children,
 }: {
@@ -143,54 +133,53 @@ function FilterSection({
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-2">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+    <div className="rounded-xl border bg-card/60 p-3 shadow-xs ring-1 ring-foreground/[0.04]">
+      <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
         {title}
       </h3>
-      <div className="space-y-1">{children}</div>
+      {children}
     </div>
   );
 }
 
-function RadioOption({
+function PillOption({
   label,
   active,
+  disabled,
   onClick,
 }: {
   label: string;
   active: boolean;
-  onClick: () => void;
+  disabled?: boolean;
+  onClick?: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       className={cn(
-        "flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm transition-colors",
+        "inline-flex cursor-pointer items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
         active
-          ? "bg-primary/10 font-medium text-primary"
-          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          ? "border-violet-300 bg-gradient-to-r from-violet-100 to-fuchsia-100 text-violet-800 shadow-xs"
+          : "border-border bg-background text-muted-foreground hover:border-foreground/20 hover:bg-muted hover:text-foreground",
+        disabled && "cursor-not-allowed opacity-60 hover:border-border hover:bg-background",
       )}
     >
-      <span
-        className={cn(
-          "size-3 shrink-0 rounded-full border-2",
-          active ? "border-primary bg-primary" : "border-muted-foreground/40"
-        )}
-      />
+      {active && <Check className="size-3" />}
       {label}
     </button>
   );
 }
 
-function LockedOption({ label }: { label: string }) {
+function LockedPill({ label }: { label: string }) {
   return (
-    <div className="flex items-center gap-2 px-2 py-1 text-sm text-muted-foreground/50 cursor-not-allowed">
-      <Lock className="size-3.5 shrink-0" />
-      <span>{label}</span>
-      <Badge variant="outline" className="ml-auto text-[10px] opacity-50">
-        Yakında
+    <span className="inline-flex cursor-not-allowed items-center gap-1 rounded-full border border-dashed border-border/70 bg-muted/30 px-2.5 py-1 text-xs text-muted-foreground/70">
+      <Lock className="size-3" />
+      {label}
+      <Badge variant="outline" className="ml-1 h-4 border-amber-300/70 bg-amber-50 px-1 text-[9px] text-amber-700">
+        yakında
       </Badge>
-    </div>
+    </span>
   );
 }

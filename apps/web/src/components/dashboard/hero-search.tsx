@@ -180,8 +180,8 @@ export function HeroSearch({ onSearch, scrapeState, onScrapeReset, total }: Hero
 
       <div className="relative">
         <div className="inline-flex items-center gap-2 rounded-full border bg-background/70 px-3 py-1 text-[11px] font-medium text-muted-foreground backdrop-blur">
-          <span className="size-1.5 rounded-full bg-emerald-500 shadow-[0_0_0_3px] shadow-emerald-500/20" />
-          AI destekli iş arama · canlı LinkedIn
+          <span className="animate-soft-pulse size-1.5 rounded-full bg-emerald-500" />
+          AI destekli iş arama
         </div>
 
         <h1 className="mt-3 text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
@@ -268,6 +268,7 @@ export function HeroSearch({ onSearch, scrapeState, onScrapeReset, total }: Hero
 
             <Button
               type="submit"
+              variant="hero"
               disabled={isScraping || keywords.length === 0}
               className="h-11 gap-1.5 px-6 text-sm font-semibold sm:w-auto"
             >

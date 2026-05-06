@@ -9,8 +9,9 @@ import {
   CheckCircle2,
   AlertCircle,
   Heart,
-  Layers3,
   RefreshCcw,
+  SlidersHorizontal,
+  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,18 +21,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogCancel,
-  AlertDialogAction,
 } from "@/components/ui/alert-dialog";
 import { useScoring } from "@/hooks/use-scoring";
 import type { ScoringProgress, TriggerScoringInput } from "@/hooks/use-scoring";
+import { cn } from "@/lib/utils";
 
 // ═══════════════════════════════════════════
 // ScoringButton — AI puanlama tetikleme bileşeni
 // ═══════════════════════════════════════════
-// 4 state: idle → scoring (progress) → completed → (reset) idle
-// Tümü puanlanmışsa (unscoredCount=0) → onay dialog'u + 5s countdown
+// State Machine: idle → scoring → completed (veya error)
+// allScored ise: "Puanlama Seçenekleri" → modal açar (yeniden puanlama)
+// allScored değilse: "İlanları Puanla" → unscored akışını direkt tetikler
+//
+// autoTriggerSignal: dashboard scrape tamamlandığında bu prop'u değiştirir;
+// idle + unscoredCount > 0 ise unscored puanlamayı otomatik kuyruğa atar.
 
 interface ScoringButtonProps {
   userId: string | null;
@@ -42,6 +45,8 @@ interface ScoringButtonProps {
   onComplete?: () => void;
   /** Yeni batch puanlandığında çağrılır (scoredJobs sayısı iletilir) */
   onProgress?: (scoredJobs: number) => void;
+  /** Değiştiğinde idle + unscored ilan varsa otomatik puanlamayı başlatır */
+  autoTriggerSignal?: string | null;
 }
 
 export function ScoringButton({
@@ -50,6 +55,7 @@ export function ScoringButton({
   favoriteJobIds = [],
   onComplete,
   onProgress,
+  autoTriggerSignal,
 }: ScoringButtonProps) {
   const router = useRouter();
   const { status, progress, error, message, triggerScoring, reset } =
@@ -58,10 +64,15 @@ export function ScoringButton({
   const [showRescore, setShowRescore] = useState(false);
   const allScored = unscoredCount === 0;
 
-  /** Puanla butonuna tıklandığında: tümü puanlıysa onay dialog, değilse doğrudan tetikle */
   function handleScoreClick() {
     if (!userId) return;
-    setShowRescore(true);
+    if (allScored) {
+      // Tüm ilanlar puanlıysa yeniden puanlama scope dialog'u
+      setShowRescore(true);
+      return;
+    }
+    // Aksi halde direkt unscored akışını başlat — ekstra tıklama yok
+    void triggerScoring(userId, { scope: "unscored" });
   }
 
   async function handleTrigger(input: TriggerScoringInput) {
@@ -74,13 +85,7 @@ export function ScoringButton({
     setShowRescore(false);
   }
 
-  // ── useRef ile callback'leri sabit tut ──────────────────
-  // Neden useRef?
-  //   onComplete ve onProgress her render'da yeni fonksiyon referansı olabilir
-  //   (parent düz function kullanıyorsa, React Compiler memoize edemeyebilir).
-  //   useEffect dependency'sine koyarsan → her render'da effect ateşlenir → sonsuz döngü.
-  //   useRef ise: obje referansı ASLA DEĞİŞMEZ, .current her render'da güncellenir.
-  //   Böylece effect sadece gerçek veri değişikliğinde (scoredJobs, status) ateşlenir.
+  // ── Callbacks via ref (sonsuz döngü yok) ───────────────
   const onCompleteRef = useRef(onComplete);
   const onProgressRef = useRef(onProgress);
   useEffect(() => {
@@ -88,45 +93,56 @@ export function ScoringButton({
     onProgressRef.current = onProgress;
   });
 
-  // ── Callback: scoring tamamlandı → parent'a bildir ──
   useEffect(() => {
     if (status !== "completed") return;
     onCompleteRef.current?.();
     toast.success("Tüm ilanlar puanlandı!");
   }, [status]);
 
-  // ── Callback: yeni batch puanlandı → parent'a bildir ──
-  // scoredJobs > 0 kontrolü: deleteMany sonrası ilk 0 değerini yayma
-  // Dependency: sadece scoredJobs — onProgress ref olduğu için eklenmez
   const scoredJobs = progress?.scoredJobs ?? 0;
   useEffect(() => {
     if (scoredJobs > 0) onProgressRef.current?.(scoredJobs);
   }, [scoredJobs]);
 
-  // Error toast
   useEffect(() => {
     if (error) toast.error(error);
   }, [error]);
 
-  // Info toast (yeni ilan yok vb.)
   useEffect(() => {
     if (message) toast.info(message);
   }, [message]);
+
+  // ── Auto-trigger: scrape tamamlandığında dashboard signal yollar ──
+  // userId + unscored ilan varsa + status idle ise direkt başlat.
+  // Bilgilendirici toast atıyoruz; modaldan onay almıyoruz çünkü kullanıcı
+  // zaten "tara → puanla" akışına girmiş, onay tekrar tıklatma maliyeti.
+  const lastAutoSignalRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!autoTriggerSignal || !userId) return;
+    if (lastAutoSignalRef.current === autoTriggerSignal) return;
+    if (status !== "idle") return;
+    if (unscoredCount === 0) return;
+
+    lastAutoSignalRef.current = autoTriggerSignal;
+    toast.info(`${unscoredCount} yeni ilan AI ile puanlanıyor...`, {
+      duration: 4000,
+    });
+    void triggerScoring(userId, { scope: "unscored" });
+  }, [autoTriggerSignal, userId, unscoredCount, status, triggerScoring]);
 
   // Profil yoksa → disabled CTA
   if (!userId) {
     return (
       <Card>
         <CardContent className="flex items-center gap-3 py-4">
-          <Sparkles className="size-5 text-muted-foreground" />
+          <SparklesIcon />
           <div className="flex-1">
-            <p className="text-sm font-medium">AI Puanlama</p>
+            <p className="text-sm font-semibold">AI Puanlama</p>
             <p className="text-xs text-muted-foreground">
               Profil oluşturup ilanları puanlayın
             </p>
           </div>
           <Button disabled size="sm">
-            <Sparkles className="size-4" />
             İlanları Puanla
           </Button>
         </CardContent>
@@ -140,17 +156,16 @@ export function ScoringButton({
         <CardContent className="space-y-3 py-4">
           <div className="flex items-center gap-3">
             <StatusIcon status={status} />
-            <div className="flex-1">
-              <p className="text-sm font-medium">AI Puanlama</p>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold">AI Puanlama</p>
               <StatusMessage
                 status={status}
                 progress={progress}
                 error={error}
                 message={message}
               />
-              {/* Puanlanmamış ilan sayısı — idle'da göster */}
               {status === "idle" && unscoredCount > 0 && (
-                <p className="mt-0.5 text-xs italic text-amber-600">
+                <p className="mt-0.5 text-xs font-medium text-amber-600">
                   Puanlanmamış {unscoredCount} ilan var
                 </p>
               )}
@@ -161,42 +176,57 @@ export function ScoringButton({
               )}
             </div>
 
-            {/* Idle → Puanla butonu */}
             {status === "idle" && (
-              <Button size="sm" onClick={handleScoreClick}>
-                <Sparkles className="size-4" />
-                {allScored ? "Puanlama Seçenekleri" : "İlanları Puanla"}
+              <Button
+                size="sm"
+                variant={allScored ? "outline" : "default"}
+                onClick={handleScoreClick}
+                className="h-9 gap-1.5"
+              >
+                {allScored ? (
+                  <>
+                    <SlidersHorizontal className="size-4" />
+                    Puanlama Seçenekleri
+                  </>
+                ) : (
+                  <>
+                    <Zap className="size-4" />
+                    İlanları Puanla
+                  </>
+                )}
               </Button>
             )}
 
-            {/* Scoring → Loading spinner */}
             {status === "scoring" && (
-              <Button size="sm" disabled>
+              <Button size="sm" disabled className="h-9 gap-1.5">
                 <Loader2 className="size-4 animate-spin" />
                 Puanlanıyor...
               </Button>
             )}
 
-            {/* Completed → Sonuçları gör + dashboard'da kal */}
             {status === "completed" && (
               <Button
                 size="sm"
                 variant="secondary"
                 onClick={() => router.push("/matches")}
+                className="h-9"
               >
                 Eşleşmelere Git →
               </Button>
             )}
 
-            {/* Error → Tekrar dene */}
             {status === "error" && (
-              <Button size="sm" variant="destructive" onClick={reset}>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={reset}
+                className="h-9"
+              >
                 Tekrar Dene
               </Button>
             )}
           </div>
 
-          {/* Progress bar — sadece scoring sırasında */}
           {status === "scoring" && progress && (
             <ProgressBar progress={progress} />
           )}
@@ -209,23 +239,30 @@ export function ScoringButton({
           if (!open) handleDialogClose();
         }}
       >
-        <AlertDialogContent className="max-w-xl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Puanlama Kapsamını Seç</AlertDialogTitle>
-            <AlertDialogDescription>
-              Aynı kullanıcı için farklı kapsamlar farklı hız ve token maliyeti
-              üretir. Hız istiyorsan sadece gerekli slice&apos;ı puanla.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="grid gap-3">
+        <AlertDialogContent className="max-w-2xl gap-0 p-0">
+          <div className="space-y-1 border-b bg-gradient-to-br from-violet-50 via-background to-fuchsia-50 px-6 py-5">
+            <AlertDialogHeader className="space-y-1.5">
+              <AlertDialogTitle className="flex items-center gap-2 text-base">
+                <SlidersHorizontal className="size-4 text-violet-600" />
+                Puanlama Kapsamını Seç
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-xs leading-relaxed">
+                Farklı kapsamlar farklı hız ve token maliyeti üretir. Hız
+                istiyorsan sadece gerekli slice&apos;ı puanla.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+          </div>
+
+          <div className="grid gap-2 px-6 py-5">
             <ScopeCard
+              accent="emerald"
               title="Sadece puanlanmamış ilanlar"
               description={
                 unscoredCount > 0
                   ? `${unscoredCount} ilan için en hızlı ve en ucuz akış.`
                   : "Şu anda puanlanmamış ilan yok."
               }
-              icon={<Sparkles className="size-4" />}
+              icon={<Zap className="size-4" />}
               disabled={unscoredCount === 0}
               cta="Hızlı puanla"
               onSelect={() => {
@@ -233,6 +270,7 @@ export function ScoringButton({
               }}
             />
             <ScopeCard
+              accent="violet"
               title="Tüm ilanları yeniden puanla"
               description="Mevcut skorları temizleyip tüm ilanları güncel profile göre yeniden hesaplar. En yüksek maliyetli seçenek budur."
               icon={<RefreshCcw className="size-4" />}
@@ -242,6 +280,7 @@ export function ScoringButton({
               }}
             />
             <ScopeCard
+              accent="rose"
               title="Sadece favori ilanları puanla"
               description={
                 favoriteJobIds.length > 0
@@ -259,24 +298,51 @@ export function ScoringButton({
               }}
             />
           </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleDialogClose}>
-              Vazgeç
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                void handleTrigger({ scope: allScored ? "all" : "unscored" });
-              }}
+
+          <div className="flex items-center justify-end border-t bg-muted/30 px-6 py-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleDialogClose}
+              className="text-xs"
             >
-              <Layers3 className="size-4" />
-              Varsayılanı Çalıştır
-            </AlertDialogAction>
-          </AlertDialogFooter>
+              Vazgeç
+            </Button>
+          </div>
         </AlertDialogContent>
       </AlertDialog>
     </>
   );
 }
+
+// ═══════════════════════════════════════════
+// Sub-components
+// ═══════════════════════════════════════════
+
+function SparklesIcon() {
+  return (
+    <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-100 to-fuchsia-100 text-violet-600 ring-1 ring-violet-200/60">
+      <Sparkles className="size-4" />
+    </span>
+  );
+}
+
+const ACCENT_STYLES = {
+  emerald: {
+    border: "hover:border-emerald-300/70",
+    iconBg: "bg-emerald-50 text-emerald-700 ring-emerald-200/60",
+  },
+  violet: {
+    border: "hover:border-violet-300/70",
+    iconBg: "bg-violet-50 text-violet-700 ring-violet-200/60",
+  },
+  rose: {
+    border: "hover:border-rose-300/70",
+    iconBg: "bg-rose-50 text-rose-700 ring-rose-200/60",
+  },
+} as const;
+
+type ScopeAccent = keyof typeof ACCENT_STYLES;
 
 function ScopeCard({
   title,
@@ -284,6 +350,7 @@ function ScopeCard({
   icon,
   cta,
   disabled = false,
+  accent,
   onSelect,
 }: {
   title: string;
@@ -291,26 +358,41 @@ function ScopeCard({
   icon: ReactNode;
   cta: string;
   disabled?: boolean;
+  accent: ScopeAccent;
   onSelect: () => void;
 }) {
+  const styles = ACCENT_STYLES[accent];
   return (
-    <div className="rounded-xl border bg-muted/30 p-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1">
-          <p className="flex items-center gap-2 text-sm font-semibold">
+    <div
+      className={cn(
+        "rounded-xl border bg-card p-4 transition-colors",
+        !disabled && styles.border,
+        disabled && "opacity-60",
+      )}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-1 gap-3">
+          <span
+            className={cn(
+              "flex size-9 shrink-0 items-center justify-center rounded-lg ring-1",
+              styles.iconBg,
+            )}
+          >
             {icon}
-            {title}
-          </p>
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            {description}
-          </p>
+          </span>
+          <div className="space-y-1">
+            <p className="text-sm font-semibold leading-tight">{title}</p>
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              {description}
+            </p>
+          </div>
         </div>
         <Button
           size="sm"
           variant={disabled ? "outline" : "default"}
           disabled={disabled}
-          className="cursor-pointer"
           onClick={onSelect}
+          className="h-8 shrink-0"
         >
           {cta}
         </Button>
@@ -319,20 +401,28 @@ function ScopeCard({
   );
 }
 
-// ═══════════════════════════════════════════
-// Sub-components
-// ═══════════════════════════════════════════
-
 function StatusIcon({ status }: { status: string }) {
   switch (status) {
     case "scoring":
-      return <Loader2 className="size-5 animate-spin text-primary" />;
+      return (
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600 ring-1 ring-violet-200/60">
+          <Loader2 className="size-4 animate-spin" />
+        </span>
+      );
     case "completed":
-      return <CheckCircle2 className="size-5 text-green-600" />;
+      return (
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200/60">
+          <CheckCircle2 className="size-4" />
+        </span>
+      );
     case "error":
-      return <AlertCircle className="size-5 text-destructive" />;
+      return (
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-destructive/10 text-destructive ring-1 ring-destructive/20">
+          <AlertCircle className="size-4" />
+        </span>
+      );
     default:
-      return <Sparkles className="size-5 text-primary" />;
+      return <SparklesIcon />;
   }
 }
 
@@ -354,7 +444,7 @@ function StatusMessage({
           (progress.scoredJobs / progress.totalJobs) * progress.totalBatches,
         );
         const remainingBatches = progress.totalBatches - completedBatches;
-        const etaSeconds = remainingBatches * 20; // ~20s per batch (rate limit)
+        const etaSeconds = remainingBatches * 20;
         const etaMin = Math.ceil(etaSeconds / 60);
         return (
           <p className="text-xs text-muted-foreground">
@@ -372,7 +462,7 @@ function StatusMessage({
       );
     case "completed":
       return (
-        <p className="text-xs text-green-600">
+        <p className="text-xs text-emerald-600">
           Tüm ilanlar puanlandı! Sonuçlara yönlendiriliyorsunuz...
         </p>
       );
@@ -384,8 +474,7 @@ function StatusMessage({
       }
       return (
         <p className="text-xs text-muted-foreground">
-          Gelişmiş AI ile ilanları profilinize göre puanlayın ve en uygun
-          ilanları görün.
+          Profilini ilanlarla eşleştir, en uygun fırsatları yukarı çek.
         </p>
       );
   }
@@ -394,9 +483,9 @@ function StatusMessage({
 function ProgressBar({ progress }: { progress: ScoringProgress }) {
   return (
     <div className="space-y-1">
-      <div className="h-2 overflow-hidden rounded-full bg-muted">
+      <div className="h-1.5 overflow-hidden rounded-full bg-muted">
         <div
-          className="h-full rounded-full bg-primary transition-[width] duration-1000 ease-out"
+          className="h-full rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500 transition-[width] duration-1000 ease-out"
           style={{ width: `${progress.percentage}%` }}
         />
       </div>

@@ -184,6 +184,14 @@ export default function DashboardPage() {
             favoriteJobIds={favoriteJobIds.filter((jobId) => jobs.some((job) => job.id === jobId))}
             onComplete={handleScoringComplete}
             onProgress={handleScoringProgress}
+            // Scrape biter bitmez yeni unscored ilanları otomatik puanla.
+            // auditId her başarılı scrape'de değişir → ScoringButton içindeki
+            // useEffect bunu yakalayıp tek tıklama olmadan başlatır.
+            autoTriggerSignal={
+              scrapeState.phase === "completed"
+                ? scrapeState.result?.auditId ?? null
+                : null
+            }
           />
         </div>
       )}

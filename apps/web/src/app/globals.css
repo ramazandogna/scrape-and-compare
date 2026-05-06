@@ -128,3 +128,33 @@
     @apply font-sans;
   }
 }
+
+@layer utilities {
+  /* Sayfa içeriği yumuşakça belirsin — geçişlerde skeleton flash hissini azaltır */
+  .animate-page-in {
+    animation: page-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  @keyframes page-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Hafif kalp atışı — yormayan, sürekli atan ipucu */
+  .animate-soft-pulse {
+    animation: soft-pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes soft-pulse {
+    0%, 100% {
+      box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.45);
+    }
+    50% {
+      box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+    }
+  }
+}

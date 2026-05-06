@@ -8,6 +8,7 @@ import { CompanyAvatar } from "@/components/dashboard/company-avatar";
 import { SkillTags } from "@/components/dashboard/skill-tags";
 import { MatchSkills } from "@/components/dashboard/match-skills";
 import { formatSalary, timeAgo } from "@/lib/job-helpers";
+import { cn } from "@/lib/utils";
 import type { EnrichedJob } from "@/types/job";
 
 // ═══════════════════════════════════════════
@@ -59,14 +60,21 @@ export function JobCard({
               <button
                 type="button"
                 onClick={() => onToggleFavorite(job.id)}
-                className="inline-flex cursor-pointer items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:border-rose-300 hover:text-rose-600"
+                className={cn(
+                  "inline-flex cursor-pointer items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+                  isFavorite
+                    ? "border-rose-300 bg-rose-50 text-rose-600"
+                    : "border-border text-muted-foreground hover:border-rose-300 hover:bg-rose-50/40 hover:text-rose-600",
+                )}
                 title={isFavorite ? "Favoriden çıkar" : "İlanı favorilere ekle"}
               >
-                <Heart className={`size-3.5 ${isFavorite ? "fill-current text-rose-500" : ""}`} />
+                <Heart className={cn("size-3.5", isFavorite && "fill-current")} />
                 {isFavorite ? "Favoride" : "Favoriye Ekle"}
               </button>
             )}
-            <span className="text-xs text-muted-foreground">{job.source}</span>
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground/70">
+              {job.source}
+            </span>
           </div>
         </div>
 
@@ -74,11 +82,11 @@ export function JobCard({
         <div className="flex gap-3">
           <CompanyAvatar company={job.company} logoUrl={job.logoUrl} />
           <div className="min-w-0 flex-1">
-            <p className="text-sm text-muted-foreground">{job.company}</p>
-            <h3 className="truncate text-base font-semibold leading-tight">
+            <p className="text-xs font-medium text-muted-foreground">{job.company}</p>
+            <h3 className="truncate text-[15px] font-semibold leading-snug">
               {job.title}
             </h3>
-            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
               {job.location && (
                 <span className="inline-flex items-center gap-1">
                   <MapPin className="size-3" />
@@ -104,7 +112,7 @@ export function JobCard({
                 </span>
               )}
               {salary && (
-                <span className="inline-flex items-center gap-1">
+                <span className="inline-flex items-center gap-1 font-medium text-foreground">
                   <Banknote className="size-3" />
                   {salary}
                 </span>

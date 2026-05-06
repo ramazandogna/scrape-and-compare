@@ -92,7 +92,10 @@ export class ScraperService {
       location,
       searchConcurrency: config.searchConcurrency,
       parallelTabs: config.parallelTabs,
+      maxSearchPages: config.maxSearchPages,
+      maxJobsPerKeyword: config.maxJobsPerKeyword,
       maxDetailFetch: config.maxDetailFetch,
+      targetNewJobs: config.targetNewJobs,
       adaptiveDelay: keywords.length > 2 ? '1.5x' : '1x',
       auditId,
     });
@@ -144,8 +147,18 @@ export class ScraperService {
       const durationMs = Date.now() - startTime;
       this.printSummary(qualityJobs, errors, config, startTime, dbResult);
 
+      const discoveryMessage = this.buildDiscoveryMessage({
+        targetNewJobs: config.targetNewJobs,
+        totalJobs: jobs.length,
+        created: dbResult.created,
+        updated: dbResult.updated,
+      });
+
       return {
         status: 'completed' as const,
+        targetNewJobs: config.targetNewJobs,
+        targetReached: dbResult.created >= config.targetNewJobs,
+        discoveryMessage,
         totalJobs: jobs.length,
         filtered: enrichedJobs.length - qualityJobs.length,
         created: dbResult.created,
@@ -199,7 +212,13 @@ export class ScraperService {
         keywords,
         async (keyword, _itemIndex, slotIndex) => {
           const page = searchPool.pages[slotIndex]!;
-          const jobs = await fastParseSearchPage(page, keyword, location);
+          const jobs = await fastParseSearchPage(
+            page,
+            keyword,
+            location,
+            config.maxSearchPages,
+            config.maxJobsPerKeyword,
+          );
           // keyword tarama ilerlemesi: %0-50 aralığı
           const pct = Math.round(((_itemIndex + 1) / keywords.length) * 50);
           onProgress?.('SCANNING', `"${keyword}" tarandı (${_itemIndex + 1}/${keywords.length})`, pct);
@@ -337,5 +356,33 @@ export class ScraperService {
         url: job.link,
       });
     });
+  }
+
+  /** Yeni ilan hedefi için kullanıcıya anlaşılır durum notu üretir */
+  private buildDiscoveryMessage(input: {
+    targetNewJobs: number;
+    totalJobs: number;
+    created: number;
+    updated: number;
+  }): string {
+    const { targetNewJobs, totalJobs, created, updated } = input;
+
+    if (created >= targetNewJobs) {
+      return `Hedef tamam: ${created} yeni ilan bulundu.`;
+    }
+
+    if (totalJobs < targetNewJobs) {
+      return `Sadece ${totalJobs} ilan kaynağına erişildi; arama kriteri dar veya piyasada yeni ilan az olabilir.`;
+    }
+
+    if (created === 0 && updated > 0) {
+      return 'Yeni ilan bulunamadı; bu sonuçların çoğu sistemde zaten vardı ve güncellendi.';
+    }
+
+    if (created < targetNewJobs && updated > 0) {
+      return `${created} yeni ilan eklendi, ${updated} mevcut ilan güncellendi. Hedef ${targetNewJobs} yeni ilan için sistem denedi ancak yeterli yeni kayıt yoktu.`;
+    }
+
+    return `${targetNewJobs} yeni ilan hedeflendi, ${created} yeni ilan bulundu.`;
   }
 }

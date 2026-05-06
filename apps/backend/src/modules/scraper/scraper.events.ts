@@ -60,6 +60,8 @@ export class ScraperEventListener extends QueueEventsHost {
 
     logger.info(`[QueueEvent] Job tamamlandı: ${jobId}`, {
       jobId,
+      targetNewJobs: result?.targetNewJobs,
+      targetReached: result?.targetReached,
       totalJobs: result?.totalJobs,
       created: result?.created,
       updated: result?.updated,

@@ -90,19 +90,27 @@ function StatusMessage({ state }: { state: ScrapeState }) {
       if (state.result) {
         const filtered = state.result.filtered ?? 0;
         return (
-          <p>
-            Tamamlandı — <strong>{state.result.totalJobs}</strong> ilan bulundu,{" "}
-            <strong>{state.result.created}</strong> yeni eklendi,{" "}
-            <strong>{state.result.updated}</strong> güncellendi
-            {filtered > 0 && (
-              <span className="ml-1 text-xs text-amber-600" title="Açıklama veya skill içermeyen düşük kaliteli ilanlar otomatik elendi">
-                · {filtered} eksik ilan elenip kaydetmeden önce temizlendi ✨
+          <div>
+            <p>
+              Tamamlandı — <strong>{state.result.totalJobs}</strong> ilan bulundu,{" "}
+              <strong>{state.result.created}</strong> yeni eklendi,{" "}
+              <strong>{state.result.updated}</strong> güncellendi
+              {filtered > 0 && (
+                <span className="ml-1 text-xs text-amber-600" title="Açıklama veya skill içermeyen düşük kaliteli ilanlar otomatik elendi">
+                  · {filtered} eksik ilan elenip kaydetmeden önce temizlendi ✨
+                </span>
+              )}
+              <span className="ml-1 text-xs opacity-60">
+                ({(state.result.durationMs / 1000).toFixed(0)}s)
               </span>
-            )}
-            <span className="ml-1 text-xs opacity-60">
-              ({(state.result.durationMs / 1000).toFixed(0)}s)
-            </span>
-          </p>
+            </p>
+            <p className={cn(
+              "mt-0.5 text-[11px]",
+              state.result.targetReached ? "text-emerald-700" : "text-amber-700",
+            )}>
+              Hedef: {state.result.targetNewJobs} yeni ilan · {state.result.discoveryMessage}
+            </p>
+          </div>
         );
       }
       return <p>Scrape tamamlandı</p>;

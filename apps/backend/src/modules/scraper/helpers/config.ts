@@ -62,11 +62,13 @@ export const loadFastConfig = (
   return {
     headless: overrides?.headless ?? process.env['HEADLESS'] !== 'false',
     slowMo: overrides?.slowMo ?? Number(process.env['SLOW_MO'] ?? 0),
-    maxJobsPerKeyword: overrides?.maxJobsPerKeyword ?? Number(process.env['MAX_JOBS_PER_KEYWORD'] ?? 25),
+    maxJobsPerKeyword: overrides?.maxJobsPerKeyword ?? Number(process.env['MAX_JOBS_PER_KEYWORD'] ?? 80),
+    maxSearchPages: overrides?.maxSearchPages ?? Number(process.env['MAX_SEARCH_PAGES'] ?? 8),
     requestDelayMin: Math.round(baseDelayMin * delayMultiplier),
     requestDelayMax: Math.round(baseDelayMax * delayMultiplier),
     fetchDetails: overrides?.fetchDetails ?? process.env['FETCH_DETAILS'] !== 'false',
-    maxDetailFetch: overrides?.maxDetailFetch ?? Number(process.env['MAX_DETAIL_FETCH'] ?? 25),
+    maxDetailFetch: overrides?.maxDetailFetch ?? Number(process.env['MAX_DETAIL_FETCH'] ?? 80),
+    targetNewJobs: overrides?.targetNewJobs ?? Number(process.env['TARGET_NEW_JOBS'] ?? 50),
     parallelTabs: Number(process.env['PARALLEL_TABS'] ?? 5),
     searchConcurrency: Number(process.env['SEARCH_CONCURRENCY'] ?? 2),
   };

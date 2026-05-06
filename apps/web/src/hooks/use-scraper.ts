@@ -38,6 +38,9 @@ interface StatusResponse {
 
 interface ScrapeCompletedResult {
   status: "completed";
+  targetNewJobs: number;
+  targetReached: boolean;
+  discoveryMessage: string;
   totalJobs: number;
   filtered: number;
   created: number;

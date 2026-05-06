@@ -37,6 +37,7 @@ export const jobListingSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
   company: z.string().min(1),
+  logoUrl: z.string().url().nullable(),
   location: z.string(),
   salary: z.string().nullable(),
   salaryParsed: salaryParsedSchema.nullable(),
@@ -45,6 +46,7 @@ export const jobListingSchema = z.object({
   skills: z.array(extractedSkillSchema),
   seniorityLevel: z.string().nullable(),
   employmentType: z.string().nullable(),
+  workType: z.string().nullable(),
   link: z.string().url(),
   postedDate: z.string().nullable(),
   scrapedAt: z.string(),
@@ -75,10 +77,12 @@ export const scraperConfigSchema = z.object({
   headless: z.boolean(),
   slowMo: z.number().int().min(0),
   maxJobsPerKeyword: z.number().int().min(1).max(200),
+  maxSearchPages: z.number().int().min(1).max(20),
   requestDelayMin: z.number().int().min(0),
   requestDelayMax: z.number().int().min(0),
   fetchDetails: z.boolean(),
-  maxDetailFetch: z.number().int().min(1).max(100),
+  maxDetailFetch: z.number().int().min(1).max(200),
+  targetNewJobs: z.number().int().min(1).max(200),
 }).partial();
 
 /**

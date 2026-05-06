@@ -113,6 +113,8 @@ export interface ScraperConfig {
   slowMo: number;
   /** Her keyword için max iş ilanı sayısı */
   maxJobsPerKeyword: number;
+  /** Her keyword için kaç sonuç sayfası taranacağı */
+  maxSearchPages: number;
   /** Request arası minimum bekleme (ms) */
   requestDelayMin: number;
   /** Request arası maximum bekleme (ms) */
@@ -121,6 +123,8 @@ export interface ScraperConfig {
   fetchDetails: boolean;
   /** Detay çekilecek max ilan sayısı */
   maxDetailFetch: number;
+  /** Yeni ilan hedefi (başarılı scrape KPI) */
+  targetNewJobs: number;
 }
 
 // ═══════════════════════════════════════════

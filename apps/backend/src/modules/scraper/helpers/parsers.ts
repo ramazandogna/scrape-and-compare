@@ -24,13 +24,11 @@ import { sleep, randomBetween, logger } from '@/utils/helpers';
 // ═══════════════════════════════════════════
 
 /** LinkedIn search URL'i oluşturur */
-export const buildSearchUrl = (keyword: string, location: string): string => {
+export const buildSearchUrl = (keyword: string, location: string, start: number = 0): string => {
   const params = new URLSearchParams({
     keywords: keyword,
     location,
-    f_TPR: 'r604800',
-    position: '1',
-    pageNum: '0',
+    start: String(start),
   });
   return `https://www.linkedin.com/jobs/search/?${params.toString()}`;
 };
@@ -43,30 +41,76 @@ export const fastParseSearchPage = async (
   page: Page,
   keyword: string,
   location: string,
+  maxPages: number,
+  maxJobs: number,
 ): Promise<JobListing[]> => {
-  const url = buildSearchUrl(keyword, location);
-  logger.info(`[FAST] Aranıyor: "${keyword}" — ${location}`);
-
-  const startTime = Date.now();
-
-  await page.goto(url, {
-    waitUntil: 'domcontentloaded',
-    timeout: 15000,
+  logger.info(`[FAST] Aranıyor: "${keyword}" — ${location}`, {
+    maxPages,
+    maxJobs,
   });
 
-  const loadTime = Date.now() - startTime;
-  logger.info(`[FAST] Sayfa yüklendi: ${loadTime}ms`);
+  const collected: JobListing[] = [];
+  const seenLinks = new Set<string>();
+  const seenIds = new Set<string>();
 
-  if (await isPageBlocked(page)) {
-    logger.error('[FAST] LinkedIn bizi engelledi! (Captcha/AuthWall)');
-    return [];
+  for (let pageIndex = 0; pageIndex < maxPages; pageIndex++) {
+    const start = pageIndex * 25;
+    const url = buildSearchUrl(keyword, location, start);
+    const startedAt = Date.now();
+
+    await page.goto(url, {
+      waitUntil: 'domcontentloaded',
+      timeout: 15000,
+    });
+
+    const loadTime = Date.now() - startedAt;
+    logger.info(`[FAST] Sayfa yüklendi`, {
+      keyword,
+      pageIndex: pageIndex + 1,
+      loadTime,
+      start,
+    });
+
+    if (await isPageBlocked(page)) {
+      logger.error('[FAST] LinkedIn bizi engelledi! (Captcha/AuthWall)');
+      break;
+    }
+
+    const now = new Date().toISOString();
+    const jobs = await page.evaluate(parseJobCardsFromDom, now);
+
+    if (jobs.length === 0) {
+      logger.info(`[FAST] "${keyword}" için daha fazla sonuç bulunamadı`, {
+        pageIndex: pageIndex + 1,
+      });
+      break;
+    }
+
+    for (const job of jobs) {
+      if (seenLinks.has(job.link) || seenIds.has(job.id)) continue;
+      seenLinks.add(job.link);
+      seenIds.add(job.id);
+      collected.push(job);
+      if (collected.length >= maxJobs) break;
+    }
+
+    if (collected.length >= maxJobs) {
+      break;
+    }
+
+    if (jobs.length < 10) {
+      logger.info(`[FAST] "${keyword}" için sonuç sonuna yaklaşıldı`, {
+        pageIndex: pageIndex + 1,
+        parsed: jobs.length,
+      });
+      break;
+    }
+
+    await sleep(randomBetween(350, 850));
   }
 
-  const now = new Date().toISOString();
-  const jobs = await page.evaluate(parseJobCardsFromDom, now);
-
-  logger.success(`[FAST] "${keyword}" → ${jobs.length} job card parse edildi (${loadTime}ms)`);
-  return jobs;
+  logger.success(`[FAST] "${keyword}" → ${collected.length} unique job card parse edildi`);
+  return collected;
 };
 
 /** Captcha veya AuthWall kontrolü */
@@ -101,17 +145,25 @@ const parseJobCardsFromDom = (scrapedAt: string): JobListing[] => {
   };
 
   const readCardLogo = (card: Element): string | null => {
+    const looksLikeCompanyLogo = (url: string): boolean => {
+      const lower = url.toLowerCase();
+      return lower.includes('company-logo') || lower.includes('media.licdn.com/dms/image');
+    };
+
     const logoCandidates: Array<Element | null> = [
       card.querySelector('img[data-delayed-url*="company-logo"]'),
       card.querySelector('img[data-delayed-url][alt]'),
+      card.querySelector('img[src][alt]'),
       card.querySelector('.artdeco-entity-image[data-delayed-url]'),
       card.querySelector('img[src*="company-logo"]'),
       card.querySelector('img[src*="licdn.com"]'),
+      card.querySelector('img[data-delayed-url]'),
+      card.querySelector('img[src]'),
     ];
 
     for (const candidate of logoCandidates) {
       const logoUrl = extractUrl(candidate);
-      if (logoUrl) return logoUrl;
+      if (logoUrl && looksLikeCompanyLogo(logoUrl)) return logoUrl;
     }
 
     return null;
@@ -362,8 +414,12 @@ const parseDetailFromDom = () => {
 
   const logoCandidates = [
     document.querySelector('a[data-tracking-control-name="public_jobs_topcard_logo"] img[data-delayed-url]'),
+    document.querySelector('a[data-tracking-control-name="public_jobs_topcard_logo"] img[src]'),
     document.querySelector('.top-card-layout__card img[data-delayed-url*="company-logo"]'),
+    document.querySelector('.top-card-layout__card img[src*="company-logo"]'),
     document.querySelector('.sub-nav-cta__image[data-delayed-url*="company-logo"]'),
+    document.querySelector('.sub-nav-cta__image[src*="company-logo"]'),
+    document.querySelector('img[data-delayed-url*="company-logo"]'),
     document.querySelector('img[src*="company-logo"]'),
   ];
 
@@ -372,13 +428,13 @@ const parseDetailFromDom = () => {
     if (!candidate) continue;
     const delayed = candidate.getAttribute('data-delayed-url');
     if (delayed && delayed.startsWith('http')) {
-      detailLogoUrl = delayed;
+      detailLogoUrl = delayed.replace(/&amp;/g, '&');
       break;
     }
 
     const src = candidate.getAttribute('src');
     if (src && src.startsWith('http')) {
-      detailLogoUrl = src;
+      detailLogoUrl = src.replace(/&amp;/g, '&');
       break;
     }
   }

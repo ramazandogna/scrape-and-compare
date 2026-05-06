@@ -18,20 +18,20 @@ function getScoreTier(score: number) {
   if (score >= 80) return {
     colors: "border-fuchsia-400 bg-fuchsia-100 text-fuchsia-800",
     pulse: true,
-    tooltip: "Öncelikli ilan",
-    label: "Eşleşti",
+    tooltip: "Güçlü profilinle bu ilana şimdi başvur!",
+    label: "Çok uygun",
   };
   if (score >= MATCH_THRESHOLD) return {
     colors: "border-emerald-400 bg-emerald-100 text-emerald-800",
     pulse: false,
-    tooltip: "İyi eşleşme",
-    label: "Eşleşti",
+    tooltip: "Profilin bu ilanın gereksinimlerini karşılıyor",
+    label: "İyi eşleşme",
   };
   return {
     colors: "border-slate-300 bg-slate-100 text-slate-600",
     pulse: false,
-    tooltip: "Düşük eşleşme",
-    label: "Eşleşmedi",
+    tooltip: "Eksik beceriler geliştirilerek uygunluk artırılabilir",
+    label: "Kısmen uygun",
   };
 }
 

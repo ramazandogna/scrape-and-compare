@@ -88,12 +88,18 @@ function StatusMessage({ state }: { state: ScrapeState }) {
     }
     case "completed":
       if (state.result) {
+        const filtered = state.result.filtered ?? 0;
         return (
           <p>
             Tamamlandı — <strong>{state.result.totalJobs}</strong> ilan bulundu,{" "}
             <strong>{state.result.created}</strong> yeni eklendi,{" "}
             <strong>{state.result.updated}</strong> güncellendi
-            <span className="text-xs opacity-60 ml-1">
+            {filtered > 0 && (
+              <span className="ml-1 text-xs text-amber-600" title="Açıklama veya skill içermeyen düşük kaliteli ilanlar otomatik elendi">
+                · {filtered} eksik ilan elenip kaydetmeden önce temizlendi ✨
+              </span>
+            )}
+            <span className="ml-1 text-xs opacity-60">
               ({(state.result.durationMs / 1000).toFixed(0)}s)
             </span>
           </p>

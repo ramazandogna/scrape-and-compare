@@ -147,6 +147,7 @@ export class ScraperService {
       return {
         status: 'completed' as const,
         totalJobs: jobs.length,
+        filtered: enrichedJobs.length - qualityJobs.length,
         created: dbResult.created,
         updated: dbResult.updated,
         failed: dbResult.failed,

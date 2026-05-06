@@ -25,6 +25,7 @@ import type { ScrapeJobData, ScrapeJobCompleted, ScrapeJobProgress } from '@scra
 const MOCK_COMPLETED: ScrapeJobCompleted = {
   status: 'completed',
   totalJobs: 15,
+  filtered: 2,
   created: 10,
   updated: 3,
   failed: 2,
@@ -234,6 +235,7 @@ describe('Queue Payload Types', () => {
     const result: ScrapeJobCompleted = {
       status: 'completed',
       totalJobs: 50,
+      filtered: 5,
       created: 40,
       updated: 8,
       failed: 2,

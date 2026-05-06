@@ -52,6 +52,8 @@ export interface ScrapeJobCompleted {
   status: 'completed';
   /** Toplam bulunan iş ilanı sayısı */
   totalJobs: number;
+  /** Kalite filtresi ile çıkarılan ilan sayısı */
+  filtered: number;
   /** DB'ye yeni eklenen ilan sayısı */
   created: number;
   /** DB'de güncellenen ilan sayısı */

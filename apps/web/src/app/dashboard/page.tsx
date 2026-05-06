@@ -128,7 +128,10 @@ export default function DashboardPage() {
     const hasSkill = user.techStack.some(
       (tech) => tech.toLowerCase() === normalizedSkill.toLowerCase(),
     );
-    if (hasSkill) return false;
+    if (hasSkill) {
+      toast.info(`ℹ️ "${normalizedSkill}" zaten profilinde mevcut.`);
+      return false;
+    }
 
     const nextTechStack = [...user.techStack, normalizedSkill];
     const updated = await updateUser({ techStack: nextTechStack });

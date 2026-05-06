@@ -165,10 +165,10 @@ export function applyFilters(
     if (filters.workType && job.workType !== filters.workType) return false;
     if (filters.minSalary && (job.salaryMin ?? 0) < filters.minSalary)
       return false;
-    if (filters.scoreStatus === "matched" && (job.match?.score ?? -1) < 50) return false;
+    if (filters.scoreStatus === "matched" && (job.match?.score ?? -1) < 60) return false;
     if (filters.scoreStatus === "unmatched") {
       if (!job.match) return false;
-      if (job.match.score >= 50) return false;
+      if (job.match.score >= 60) return false;
     }
     if (filters.scoreStatus === "unscored" && job.match) return false;
     return true;

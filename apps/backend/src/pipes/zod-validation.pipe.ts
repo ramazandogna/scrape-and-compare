@@ -61,7 +61,10 @@ export class ZodValidationPipe implements PipeTransform {
     }
 
     if (this.isUrlEncodedJsonPayload(value)) {
-      return this.tryParseJsonText(Object.keys(value)[0]);
+      const key = Object.keys(value)[0];
+      if (key !== undefined) {
+        return this.tryParseJsonText(key);
+      }
     }
 
     return value;
@@ -93,7 +96,11 @@ export class ZodValidationPipe implements PipeTransform {
       return false;
     }
 
-    const [[key, entryValue]] = entries;
+    const firstEntry = entries[0];
+    if (!firstEntry) {
+      return false;
+    }
+    const [key, entryValue] = firstEntry;
     return key.trim().startsWith('{') && typeof entryValue === 'string';
   }
 }

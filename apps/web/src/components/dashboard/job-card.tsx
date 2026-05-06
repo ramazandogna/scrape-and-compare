@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ExternalLink, MapPin, Clock, Banknote, Calendar, Trash2, Briefcase, Wifi } from "lucide-react";
+import { ExternalLink, MapPin, Clock, Banknote, Calendar, Trash2, Briefcase, Wifi, Heart } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -21,9 +21,17 @@ interface JobCardProps {
   job: EnrichedJob;
   onRemove?: (jobId: string) => Promise<void>;
   onAddMissingSkill?: (skill: string) => Promise<boolean>;
+  isFavorite?: boolean;
+  onToggleFavorite?: (jobId: string) => boolean;
 }
 
-export function JobCard({ job, onRemove, onAddMissingSkill }: JobCardProps) {
+export function JobCard({
+  job,
+  onRemove,
+  onAddMissingSkill,
+  isFavorite = false,
+  onToggleFavorite,
+}: JobCardProps) {
   const salary = formatSalary(job.salaryMin, job.salaryMax, job.salaryCurrency);
   const posted = timeAgo(job.scrapedAt, job.postedDate);
   const [confirmRemove, setConfirmRemove] = useState(false);
@@ -34,7 +42,20 @@ export function JobCard({ job, onRemove, onAddMissingSkill }: JobCardProps) {
         {/* Score Badge — her ilanda eşleşti/eşleşmedi durumu */}
         <div className="flex items-center justify-between">
           <ScoreBadge score={job.match?.score} />
-          <span className="text-xs text-muted-foreground">{job.source}</span>
+          <div className="flex items-center gap-2">
+            {onToggleFavorite && (
+              <button
+                type="button"
+                onClick={() => onToggleFavorite(job.id)}
+                className="inline-flex cursor-pointer items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:border-rose-300 hover:text-rose-600"
+                title={isFavorite ? "Favoriden çıkar" : "İlanı favorilere ekle"}
+              >
+                <Heart className={`size-3.5 ${isFavorite ? "fill-current text-rose-500" : ""}`} />
+                {isFavorite ? "Favoride" : "Favoriye Ekle"}
+              </button>
+            )}
+            <span className="text-xs text-muted-foreground">{job.source}</span>
+          </div>
         </div>
 
         {/* Header: Avatar + Job Info */}
@@ -106,7 +127,7 @@ export function JobCard({ job, onRemove, onAddMissingSkill }: JobCardProps) {
             variant="ghost"
             size="sm"
             nativeButton={false}
-            className="shrink-0 text-xs"
+            className="shrink-0 cursor-pointer text-xs"
             render={
               <a
                 href={job.url}
@@ -128,14 +149,14 @@ export function JobCard({ job, onRemove, onAddMissingSkill }: JobCardProps) {
             <div className="flex flex-col gap-1">
               <button
                 onClick={() => { onRemove(job.id); setConfirmRemove(false); }}
-                className="flex size-6 items-center justify-center rounded-full bg-red-600 text-white shadow-md transition-transform hover:scale-110"
+                className="flex size-6 cursor-pointer items-center justify-center rounded-full bg-red-600 text-white shadow-md transition-transform hover:scale-110"
                 title="Evet, kaldır"
               >
                 <Trash2 className="size-3.5" />
               </button>
               <button
                 onClick={() => setConfirmRemove(false)}
-                className="flex size-6 items-center justify-center rounded-full bg-gray-300 text-gray-700 shadow-md transition-transform hover:scale-110"
+                className="flex size-6 cursor-pointer items-center justify-center rounded-full bg-gray-300 text-gray-700 shadow-md transition-transform hover:scale-110"
                 title="Vazgeç"
               >
                 ✕
@@ -144,7 +165,7 @@ export function JobCard({ job, onRemove, onAddMissingSkill }: JobCardProps) {
           ) : (
             <button
               onClick={() => setConfirmRemove(true)}
-              className="flex size-6 items-center justify-center rounded-full bg-red-100 text-red-400 shadow-sm transition-all hover:bg-red-600 hover:text-white hover:shadow-md opacity-0 group-hover/card:opacity-100"
+              className="flex size-6 cursor-pointer items-center justify-center rounded-full bg-red-100 text-red-400 opacity-0 shadow-sm transition-all group-hover/card:opacity-100 hover:bg-red-600 hover:text-white hover:shadow-md"
               title="Bu ilanı kaldır"
             >
               <Trash2 className="size-3.5" />

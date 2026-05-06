@@ -170,9 +170,28 @@ export type BatchScoringResult = z.infer<typeof batchScoringResultSchema>;
 /**
  * POST /api/matcher/score body — hangi kullanıcı için puanlama yapılacak.
  */
-export const matcherScoreInputSchema = z.object({
+const matcherScoreBaseSchema = z.object({
   userId: z.string().uuid('Geçerli bir UUID olmalı'),
 });
+
+const matcherScoreAllSchema = matcherScoreBaseSchema.extend({
+  scope: z.literal('all'),
+});
+
+const matcherScoreUnscoredSchema = matcherScoreBaseSchema.extend({
+  scope: z.literal('unscored'),
+});
+
+const matcherScoreSelectedSchema = matcherScoreBaseSchema.extend({
+  scope: z.literal('selected'),
+  jobIds: z.array(z.string().uuid('Geçerli bir jobId olmalı')).min(1),
+});
+
+export const matcherScoreInputSchema = z.discriminatedUnion('scope', [
+  matcherScoreAllSchema,
+  matcherScoreUnscoredSchema,
+  matcherScoreSelectedSchema,
+]);
 
 export type MatcherScoreInput = z.infer<typeof matcherScoreInputSchema>;
 

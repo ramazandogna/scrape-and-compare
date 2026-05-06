@@ -22,7 +22,8 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@/database/prisma.service';
 import { GeminiService } from './gemini.service';
 import { batchScoringResultSchema } from '@scrape/shared';
-import type { BatchScoringResult, SingleScoringResult, MatcherUserProfile, MatcherJobSummary } from '@scrape/shared';
+import type { BatchScoringResult, SingleScoringResult, MatcherUserProfile, MatcherJobSummary, MatcherScoreInput } from '@scrape/shared';
+export type { MatcherScoreInput as MatcherScoreRequest };
 import { logger } from '@/utils/helpers';
 
 const MAX_PROMPT_SKILLS = 8;
@@ -41,6 +42,8 @@ export interface BatchScoreResult {
   failed: string[];
   totalJobs: number;
 }
+
+type MatcherScoreRequest = MatcherScoreInput;
 
 // ═══════════════════════════════════════════
 // SERVICE
@@ -122,13 +125,10 @@ export class MatcherService {
    * Kullanıcı "İlanları puanla" dediğinde mevcut tüm ilanlarını tekrar puanlayabilir.
    * Bu sayede eski kayıtlar da güncel profile göre yeniden hesaplanır.
    */
-  async getUserJobsForScoring(userId: string): Promise<MatcherJobSummary[]> {
+  async getUserJobsForScoring(input: MatcherScoreRequest): Promise<MatcherJobSummary[]> {
+    const where = this.buildScoringWhere(input);
     const jobs = await this.prisma.jobListing.findMany({
-      where: {
-        userJobs: {
-          some: { userId },
-        },
-      },
+      where,
       select: {
         id: true,
         title: true,
@@ -146,6 +146,34 @@ export class MatcherService {
       ...job,
       skills: this.extractSkillNames(job.skills),
     }));
+  }
+
+  private buildScoringWhere(input: MatcherScoreRequest) {
+    const baseWhere = {
+      userJobs: {
+        some: { userId: input.userId },
+      },
+    };
+
+    if (input.scope === 'all') {
+      return baseWhere;
+    }
+
+    if (input.scope === 'unscored') {
+      return {
+        ...baseWhere,
+        matchResults: {
+          none: { userId: input.userId },
+        },
+      };
+    }
+
+    return {
+      ...baseWhere,
+      id: {
+        in: input.jobIds,
+      },
+    };
   }
 
   /**

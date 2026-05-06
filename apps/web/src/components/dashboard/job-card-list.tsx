@@ -17,6 +17,8 @@ interface JobCardListProps {
   onPageChange: (page: number) => void;
   onRemoveJob?: (jobId: string) => Promise<void>;
   onAddMissingSkill?: (skill: string) => Promise<boolean>;
+  isFavorite?: (jobId: string) => boolean;
+  onToggleFavorite?: (jobId: string) => boolean;
 }
 
 export function JobCardList({
@@ -26,6 +28,8 @@ export function JobCardList({
   onPageChange,
   onRemoveJob,
   onAddMissingSkill,
+  isFavorite,
+  onToggleFavorite,
 }: JobCardListProps) {
   const { items, page, totalPages, total } = paginatedJobs;
 
@@ -47,6 +51,8 @@ export function JobCardList({
               job={job}
               onRemove={onRemoveJob}
               onAddMissingSkill={onAddMissingSkill}
+              isFavorite={isFavorite?.(job.id) ?? false}
+              onToggleFavorite={onToggleFavorite}
             />
           ))}
         </div>

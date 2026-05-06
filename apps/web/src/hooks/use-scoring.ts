@@ -20,9 +20,17 @@ import type { MatchResultDto, PaginatedResponse } from "@/types/job";
 
 type ScoringStatus = "idle" | "scoring" | "completed" | "error";
 
+export type ScoringScope = "all" | "unscored" | "selected";
+
+export type TriggerScoringInput =
+  | { scope: "all" }
+  | { scope: "unscored" }
+  | { scope: "selected"; jobIds: string[] };
+
 interface ScoreTriggerResponse {
   message: string;
   userId: string;
+  scope: ScoringScope;
   totalJobs: number;
   totalBatches: number;
   batchSize: number;
@@ -33,7 +41,7 @@ interface UseScoringReturn {
   progress: ScoringProgress | null;
   error: string | null;
   message: string | null;
-  triggerScoring: (userId: string) => Promise<void>;
+  triggerScoring: (userId: string, input: TriggerScoringInput) => Promise<void>;
   reset: () => void;
 }
 
@@ -183,7 +191,7 @@ export function useScoring(): UseScoringReturn {
 
   /** Puanlamayı tetikle + polling başlat */
   const triggerScoring = useCallback(
-    async (userId: string) => {
+    async (userId: string, input: TriggerScoringInput) => {
       // Zaten scoring varsa tekrar tetikleme (F5 koruması)
       if (status === "scoring") return;
 
@@ -195,7 +203,7 @@ export function useScoring(): UseScoringReturn {
       try {
         const res = await apiFetch<ScoreTriggerResponse>("/matcher/score", {
           method: "POST",
-          body: JSON.stringify({ userId }),
+          body: JSON.stringify({ userId, ...input }),
         });
 
         if (res.totalJobs === 0) {

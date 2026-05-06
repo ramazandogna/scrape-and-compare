@@ -148,7 +148,7 @@ export const SALARY_OPTIONS = [
 
 export const SCORE_OPTIONS = [
   { label: "Hepsi", value: "all" },
-  { label: "Eşleşti (>=50)", value: "matched" },
-  { label: "Eşleşmedi (0-49)", value: "unmatched" },
+  { label: "Eşleşti (>=60)", value: "matched" },
+  { label: "Eşleşmedi (0-59)", value: "unmatched" },
   { label: "Puanlanamadı", value: "unscored" },
 ] as const;

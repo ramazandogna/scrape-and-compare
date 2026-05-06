@@ -52,6 +52,7 @@ import { logger } from '@/utils/helpers';
 interface ScoreTriggerResponse {
   message: string;
   userId: string;
+  scope: MatcherScoreInput['scope'];
   totalJobs: number;
   totalBatches: number;
   batchSize: number;
@@ -177,12 +178,13 @@ export class MatcherController implements OnModuleInit {
       throw new NotFoundException(`User bulunamadı: ${body.userId}`);
     }
 
-    const jobsToScore = await this.matcherService.getUserJobsForScoring(body.userId);
+    const jobsToScore = await this.matcherService.getUserJobsForScoring(body);
 
     if (jobsToScore.length === 0) {
       return {
-        message: 'Puanlanacak ilan yok',
+        message: this.getEmptyScopeMessage(body.scope),
         userId: body.userId,
+        scope: body.scope,
         totalJobs: 0,
         totalBatches: 0,
         batchSize: MATCHER_DEFAULTS.BATCH_SIZE,
@@ -237,12 +239,40 @@ export class MatcherController implements OnModuleInit {
     );
 
     return {
-      message: `${String(jobsToScore.length)} ilan ${String(batches.length)} batch halinde kuyruğa eklendi`,
+      message: this.buildQueuedMessage(body.scope, jobsToScore.length, batches.length),
       userId: body.userId,
+      scope: body.scope,
       totalJobs: jobsToScore.length,
       totalBatches: batches.length,
       batchSize,
     };
+  }
+
+  private getEmptyScopeMessage(scope: MatcherScoreInput['scope']): string {
+    if (scope === 'selected') {
+      return 'Seçilen favori ilanlar arasında puanlanacak kayıt yok';
+    }
+
+    if (scope === 'unscored') {
+      return 'Puanlanmamış ilan yok';
+    }
+
+    return 'Puanlanacak ilan yok';
+  }
+
+  private buildQueuedMessage(
+    scope: MatcherScoreInput['scope'],
+    totalJobs: number,
+    totalBatches: number,
+  ): string {
+    const prefix =
+      scope === 'selected'
+        ? 'Seçilen favori ilanlar'
+        : scope === 'unscored'
+          ? 'Puanlanmamış ilanlar'
+          : 'İlanlar';
+
+    return `${prefix}: ${String(totalJobs)} kayıt ${String(totalBatches)} batch halinde kuyruğa eklendi`;
   }
 
   /**

@@ -6,6 +6,7 @@ import { useJobs } from "@/hooks/use-jobs";
 import { useMatchResults } from "@/hooks/use-match-results";
 import { useScraper } from "@/hooks/use-scraper";
 import { useUser } from "@/hooks/use-user";
+import { useFavoriteJobs } from "@/hooks/use-favorite-jobs";
 import { HeroSearch } from "@/components/dashboard/hero-search";
 import { FilterSidebar } from "@/components/dashboard/filter-sidebar";
 import { JobCardList } from "@/components/dashboard/job-card-list";
@@ -34,6 +35,7 @@ export default function DashboardPage() {
   const { jobs, total, fetchJobs, clearJobs, removeJob } = useJobs();
   const { matches, fetchMatches } = useMatchResults();
   const { state: scrapeState, startScrape, reset: resetScrape } = useScraper();
+  const { favoriteJobIds, isFavorite, toggleFavorite } = useFavoriteJobs(user?.id ?? null);
 
   const [filters, setFilters] = useState<FilterState>(INITIAL_FILTERS);
   const [sort, setSort] = useState<SortState>(INITIAL_SORT);
@@ -175,6 +177,7 @@ export default function DashboardPage() {
           <ScoringButton
             userId={user.id}
             unscoredCount={unscoredCount}
+            favoriteJobIds={favoriteJobIds.filter((jobId) => jobs.some((job) => job.id === jobId))}
             onComplete={handleScoringComplete}
             onProgress={handleScoringProgress}
           />
@@ -199,6 +202,8 @@ export default function DashboardPage() {
           onPageChange={handlePageChange}
           onRemoveJob={handleRemoveJob}
           onAddMissingSkill={handleAddMissingSkill}
+          isFavorite={isFavorite}
+          onToggleFavorite={toggleFavorite}
         />
 
         {/* Sağ: Sidebar */}

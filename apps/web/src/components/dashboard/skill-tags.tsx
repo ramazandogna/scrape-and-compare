@@ -44,6 +44,7 @@ export function SkillTags({ skills, maxVisible = 4 }: SkillTagsProps) {
       {remaining > 0 && (
         <Popover>
           <PopoverTrigger
+            nativeButton={false}
             className="cursor-pointer"
             render={
               <Badge

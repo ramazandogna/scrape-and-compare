@@ -51,8 +51,11 @@ const RETRY_DELAY_MS = 15_000;
 /** 503 / 429 gibi kapasite hataları için bekleme süresi (ms) */
 const CAPACITY_RETRY_DELAY_MS = 30_000;
 
-/** Varsayılan fallback model — birincil model 503 verdiğinde kullanılır */
-const FALLBACK_MODEL = 'gemini-2.5-flash-lite';
+/** Varsayılan overload fallback modeli — 503/429 için kullanılır */
+const DEFAULT_OVERLOAD_FALLBACK_MODEL = 'gemini-2.5-flash-lite';
+
+/** Varsayılan quota fallback modeli — sadece kota bittiğinde kullanılır */
+const DEFAULT_QUOTA_FALLBACK_MODEL = 'gemini-3.1-flash-lite';
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -62,8 +65,15 @@ function sleep(ms: number): Promise<void> {
 function detectErrorType(message: string): '503' | '429' | '429_zero_quota' | 'other' {
   if (message.includes('503')) return '503';
   if (message.includes('429')) {
-    // limit: 0 → bu model API key'de hiç yok, retry anlamsız
-    if (message.includes('limit: 0')) return '429_zero_quota';
+    // limit: 0 / quota exceeded / RESOURCE_EXHAUSTED → model kotası bitmiş
+    if (
+      message.includes('limit: 0')
+      || message.includes('RESOURCE_EXHAUSTED')
+      || message.toLowerCase().includes('quota')
+      || message.toLowerCase().includes('exceeded')
+    ) {
+      return '429_zero_quota';
+    }
     return '429';
   }
   return 'other';
@@ -91,9 +101,13 @@ function parseRetryDelay(message: string, fallbackMs: number): number {
 @Injectable()
 export class GeminiService {
   private readonly primaryModel: GenerativeModel;
-  private readonly fallbackModel: GenerativeModel | null;
+  private readonly overloadFallbackModel: GenerativeModel | null;
+  private readonly quotaFallbackModel: GenerativeModel | null;
   private readonly primaryModelName: string;
-  private readonly fallbackModelName: string;
+  private readonly overloadFallbackModelName: string;
+  private readonly quotaFallbackModelName: string;
+  private readonly primary503Retries: number;
+  private readonly fallback503Retries: number;
 
   constructor() {
     const apiKey = process.env['GEMINI_API_KEY'];
@@ -103,7 +117,18 @@ export class GeminiService {
     }
 
     this.primaryModelName = process.env['GEMINI_MODEL'] ?? 'gemini-2.0-flash';
-    this.fallbackModelName = process.env['GEMINI_FALLBACK_MODEL'] ?? FALLBACK_MODEL;
+    this.overloadFallbackModelName =
+      process.env['GEMINI_FALLBACK_MODEL'] ?? DEFAULT_OVERLOAD_FALLBACK_MODEL;
+    this.quotaFallbackModelName =
+      process.env['GEMINI_QUOTA_FALLBACK_MODEL'] ?? DEFAULT_QUOTA_FALLBACK_MODEL;
+    this.primary503Retries = this.parseRetryCount(
+      process.env['GEMINI_PRIMARY_503_RETRIES'],
+      1,
+    );
+    this.fallback503Retries = this.parseRetryCount(
+      process.env['GEMINI_FALLBACK_503_RETRIES'],
+      MAX_503_RETRIES,
+    );
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const generationConfig = {
@@ -116,18 +141,34 @@ export class GeminiService {
       generationConfig,
     });
 
-    // Fallback model sadece birincilden farklıysa oluştur
-    if (this.fallbackModelName !== this.primaryModelName) {
-      this.fallbackModel = genAI.getGenerativeModel({
-        model: this.fallbackModelName,
+    // Overload fallback modeli (503/429) sadece birincilden farklıysa oluştur.
+    if (this.overloadFallbackModelName !== this.primaryModelName) {
+      this.overloadFallbackModel = genAI.getGenerativeModel({
+        model: this.overloadFallbackModelName,
         generationConfig,
       });
     } else {
-      this.fallbackModel = null;
+      this.overloadFallbackModel = null;
+    }
+
+    // Quota fallback modeli (429_zero_quota) birincilden farklıysa oluştur.
+    if (this.quotaFallbackModelName !== this.primaryModelName) {
+      this.quotaFallbackModel = genAI.getGenerativeModel({
+        model: this.quotaFallbackModelName,
+        generationConfig,
+      });
+    } else {
+      this.quotaFallbackModel = null;
     }
 
     logger.info(
-      { primary: this.primaryModelName, fallback: this.fallbackModel ? this.fallbackModelName : 'yok' },
+      {
+        primary: this.primaryModelName,
+        overloadFallback: this.overloadFallbackModel ? this.overloadFallbackModelName : 'yok',
+        quotaFallback: this.quotaFallbackModel ? this.quotaFallbackModelName : 'yok',
+        primary503Retries: this.primary503Retries,
+        fallback503Retries: this.fallback503Retries,
+      },
       '[GEMINI] Servis başlatıldı',
     );
   }
@@ -142,25 +183,60 @@ export class GeminiService {
    */
   async generateJSON<T>(prompt: string, schema: ZodSchema<T>): Promise<GeminiResult<T>> {
     // 1. Birincil model ile dene
-    const primaryResult = await this.tryWithRetries(this.primaryModel, this.primaryModelName, prompt, schema);
+    const primaryResult = await this.tryWithRetries(
+      this.primaryModel,
+      this.primaryModelName,
+      prompt,
+      schema,
+      this.primary503Retries,
+    );
 
     if (primaryResult.status === 'success') {
       return primaryResult;
     }
 
-    // 2. Birincil başarısızsa + fallback model varsa → fallback dene
-    //    503 (overloaded), 429 (rate limit), hepsi fallback'e yönlendirilir
-    if (this.fallbackModel && primaryResult.error.code === 'API_ERROR') {
+    // 2. Birincil başarısızsa hata tipine göre doğru fallback'i dene.
+    if (primaryResult.error.code === 'API_ERROR') {
       const errorType = detectErrorType(primaryResult.error.message);
 
-      // limit:0 → fallback da aynı key'le çalıştığı için farklı model, farklı kota
-      // 503, 429 → birincil model müsait değil, fallback denenecek
-      if (errorType === '503' || errorType === '429' || errorType === '429_zero_quota') {
+      // 429_zero_quota: sadece kota fallback modeline geç.
+      if (errorType === '429_zero_quota' && this.quotaFallbackModel) {
         logger.warn(
-          { primary: this.primaryModelName, fallback: this.fallbackModelName, errorType },
-          '[GEMINI] Birincil model başarısız → fallback modele geçiliyor',
+          {
+            primary: this.primaryModelName,
+            fallback: this.quotaFallbackModelName,
+            errorType,
+            reason: 'quota_exhausted',
+          },
+          '[GEMINI] Birincil model kotası tükendi → quota fallback modele geçiliyor',
         );
-        return this.tryWithRetries(this.fallbackModel, this.fallbackModelName, prompt, schema);
+        return this.tryWithRetries(
+          this.quotaFallbackModel,
+          this.quotaFallbackModelName,
+          prompt,
+          schema,
+          this.fallback503Retries,
+        );
+      }
+
+      // 503/429: kapasite/rate problemi → overload fallback modeline geç.
+      if ((errorType === '503' || errorType === '429') && this.overloadFallbackModel) {
+        logger.warn(
+          {
+            primary: this.primaryModelName,
+            fallback: this.overloadFallbackModelName,
+            errorType,
+            reason: 'capacity_or_rate_limit',
+          },
+          '[GEMINI] Birincil model başarısız → overload fallback modele geçiliyor',
+        );
+        return this.tryWithRetries(
+          this.overloadFallbackModel,
+          this.overloadFallbackModelName,
+          prompt,
+          schema,
+          this.fallback503Retries,
+        );
       }
     }
 
@@ -182,10 +258,11 @@ export class GeminiService {
     modelName: string,
     prompt: string,
     schema: ZodSchema<T>,
+    max503Retries: number,
   ): Promise<GeminiResult<T>> {
     let lastError: GeminiError | null = null;
     let got503 = false;
-    const maxAttempts = MAX_503_RETRIES; // en kötü ihtimale göre
+    const maxAttempts = max503Retries;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       const result = await this.attemptGeneration(model, prompt, schema, attempt, modelName);
@@ -224,7 +301,7 @@ export class GeminiService {
           : RETRY_DELAY_MS;
 
       logger.warn(
-        { attempt, maxAttempts: got503 ? MAX_503_RETRIES : MAX_RETRIES, error: result.error.code, errorType, delayMs: delay, model: modelName },
+        { attempt, maxAttempts: got503 ? max503Retries : MAX_RETRIES, error: result.error.code, errorType, delayMs: delay, model: modelName },
         `[GEMINI] ${String(delay / 1000)}s sonra yeniden deneniyor`,
       );
       await sleep(delay);
@@ -324,5 +401,15 @@ export class GeminiService {
       return fenceMatch[1].trim();
     }
     return text.trim();
+  }
+
+  /**
+   * Retry count env değerini güvenli şekilde parse eder.
+   */
+  private parseRetryCount(value: string | undefined, fallback: number): number {
+    if (!value) return fallback;
+    const parsed = Number.parseInt(value, 10);
+    if (Number.isNaN(parsed)) return fallback;
+    return Math.min(5, Math.max(1, parsed));
   }
 }

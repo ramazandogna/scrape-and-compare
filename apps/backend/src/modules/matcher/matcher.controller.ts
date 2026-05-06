@@ -111,8 +111,26 @@ export class MatcherController implements OnModuleInit {
    */
   async onModuleInit(): Promise<void> {
     try {
-      // drain: waiting + delayed job'ları siler (completed/failed'a dokunmaz)
+      // 1) waiting + delayed job'ları temizle
       await this.matcherQueue.drain();
+
+      // 2) completed/failed job geçmişini temizle (stale telemetry birikmesin)
+      await this.matcherQueue.clean(0, 10_000, 'completed');
+      await this.matcherQueue.clean(0, 10_000, 'failed');
+
+      // 3) active job kaldıysa bu eski session kalıntısıdır; force temizle
+      const afterCleanCounts = await this.matcherQueue.getJobCounts();
+      if ((afterCleanCounts.active ?? 0) > 0) {
+        logger.warn(
+          { queue: QUEUE_NAMES.MATCHER, active: afterCleanCounts.active },
+          '[MATCHER] Stale active job bulundu — kuyruk force temizleniyor',
+        );
+
+        // QueueEvents/Worker restart sonrası lock'u düşmüş active job'lar
+        // stuck/stalled event üretebilir; bu nedenle startup'ta temizliyoruz.
+        await this.matcherQueue.obliterate({ force: true });
+      }
+
       const jobCounts = await this.matcherQueue.getJobCounts();
       logger.info(
         { queue: QUEUE_NAMES.MATCHER, remaining: jobCounts },

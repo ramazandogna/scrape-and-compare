@@ -64,6 +64,34 @@ export interface ScrapeJobCompleted {
   durationMs: number;
   /** İlişkili ScraperAudit kaydının ID'si */
   auditId: string;
+  /** Her keyword için hedeflenen yeni ilan sayısı (smart pagination) */
+  targetPerKeyword: number;
+  /** Hedefine ulaşan keyword sayısı */
+  keywordsHitTarget: number;
+  /** Toplam keyword sayısı */
+  keywordsTotal: number;
+  /** Her keyword için hedef vs gerçek detay raporu */
+  perKeyword: KeywordScrapeOutcome[];
+}
+
+/**
+ * Tek bir keyword için scrape sonucu özeti — UI'da "hedefini tutturdun mu?"
+ * cevabı için kullanılır.
+ */
+export interface KeywordScrapeOutcome {
+  keyword: string;
+  /** Bu keyword için toplanan unique ilan sayısı */
+  collected: number;
+  /** Hedeflenen ilan sayısı */
+  target: number;
+  /** Gezilen sayfa sayısı (LinkedIn pagination) */
+  pagesScanned: number;
+  /** Hedefe ulaşıldı mı? */
+  targetReached: boolean;
+  /** LinkedIn bu keyword için sonuç döndürmeyi durdurdu mu? */
+  exhausted: boolean;
+  /** Block/captcha vb. nedenle hiç sonuç alınamadı mı? */
+  blocked: boolean;
 }
 
 /**

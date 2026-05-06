@@ -33,13 +33,12 @@ import { PrismaService } from '@/database/prisma.service';
 import { randomBetween, logger } from '@/utils/helpers';
 import {
   createPagePool,
-  fastParseSearchPage,
+  paginatedSearchScan,
   parallelFetchDetails,
   loadFastConfig,
   generateOutputFilename,
   enrichJobsWithExtractors,
   filterLowQualityJobs,
-  deduplicateJobs,
   upsertJobs,
   createAudit,
   transitionAudit,
@@ -51,6 +50,22 @@ import {
   extractFulfilled,
   extractRejected,
 } from './helpers';
+import type { PaginatedSearchOutcome } from './helpers';
+
+interface KeywordSearchData {
+  keyword: string;
+  outcome: PaginatedSearchOutcome;
+}
+
+interface KeywordOutcome {
+  keyword: string;
+  collected: number;
+  target: number;
+  pagesScanned: number;
+  targetReached: boolean;
+  exhausted: boolean;
+  blocked: boolean;
+}
 import type { FastScraperConfig } from './helpers';
 import type { Prisma } from '@scrape/database';
 import { ScraperStatus } from '@scrape/database';
@@ -105,7 +120,7 @@ export class ScraperService {
 
       onProgress?.('SCANNING', `${keywords.length} keyword taranıyor...`, 0);
 
-      const { jobs, errors } = await this.executeScrape(keywords, location, config, onProgress);
+      const { jobs, errors, perKeyword } = await this.executeScrape(keywords, location, config, onProgress);
       await updateAuditFound(this.prisma, auditId, jobs.length);
 
       // SCANNING → EXTRACTING
@@ -144,6 +159,9 @@ export class ScraperService {
       const durationMs = Date.now() - startTime;
       this.printSummary(qualityJobs, errors, config, startTime, dbResult);
 
+      const targetPerKeyword = config.targetPerKeyword;
+      const keywordsHitTarget = perKeyword.filter((entry) => entry.targetReached).length;
+
       return {
         status: 'completed' as const,
         totalJobs: jobs.length,
@@ -153,6 +171,10 @@ export class ScraperService {
         failed: dbResult.failed,
         durationMs,
         auditId,
+        targetPerKeyword,
+        keywordsHitTarget,
+        keywordsTotal: keywords.length,
+        perKeyword,
       };
     } catch (err) {
       // Herhangi bir adımda beklenmeyen hata → FAILED
@@ -176,8 +198,11 @@ export class ScraperService {
   ): Promise<{
     jobs: JobListing[];
     errors: Array<{ keyword: string; error: ScraperErrorLegacy }>;
+    perKeyword: KeywordOutcome[];
   }> {
     const context = await this.browserService.launch(config);
+    // Aynı job'ı birden fazla keyword bulunca tekrar saymayalım — set'ler tüm
+    // keyword'ler arası paylaşılır.
     const seenIds = new Set<string>();
     const seenLinks = new Set<string>();
 
@@ -186,6 +211,8 @@ export class ScraperService {
       logger.info('ADIM 1: Search sayfaları taranıyor...', {
         keywords: keywords.length,
         concurrency: config.searchConcurrency,
+        targetPerKeyword: config.targetPerKeyword,
+        maxSearchPages: config.maxSearchPages,
       });
 
       // Her concurrent slot için ayrı bir search page oluştur
@@ -197,13 +224,40 @@ export class ScraperService {
 
       const searchResults = await runConcurrent(
         keywords,
-        async (keyword, _itemIndex, slotIndex) => {
+        async (keyword, _itemIndex, slotIndex): Promise<KeywordSearchData> => {
           const page = searchPool.pages[slotIndex]!;
-          const jobs = await fastParseSearchPage(page, keyword, location);
-          // keyword tarama ilerlemesi: %0-50 aralığı
+          const outcome = await paginatedSearchScan(
+            page,
+            keyword,
+            location,
+            {
+              target: config.targetPerKeyword,
+              maxPages: config.maxSearchPages,
+              onPageFetched: (event) => {
+                // sayfa başına ilerleme: %0-50 aralığı, keyword sayısına ve hedef sayfaya bölünür
+                const denom = keywords.length * config.maxSearchPages;
+                const numerator = _itemIndex * config.maxSearchPages + event.pageIndex;
+                const pct = Math.min(50, Math.round((numerator / denom) * 50));
+                onProgress?.(
+                  'SCANNING',
+                  `"${keyword}" — sayfa ${event.pageIndex}: ${event.collected}/${event.target} ilan`,
+                  pct,
+                );
+              },
+            },
+            seenIds,
+            seenLinks,
+          );
+
+          // keyword tarama ilerlemesi: %0-50 aralığı (en azından bu keyword tamamlandı)
           const pct = Math.round(((_itemIndex + 1) / keywords.length) * 50);
-          onProgress?.('SCANNING', `"${keyword}" tarandı (${_itemIndex + 1}/${keywords.length})`, pct);
-          return jobs;
+          onProgress?.(
+            'SCANNING',
+            `"${keyword}" tarandı (${outcome.jobs.length}/${config.targetPerKeyword})`,
+            pct,
+          );
+
+          return { keyword, outcome };
         },
         {
           concurrency: config.searchConcurrency,
@@ -217,10 +271,19 @@ export class ScraperService {
       // Sonuçları topla — fulfilled olanlardan job'ları, rejected olanlardan error'ları çıkar
       const allJobs: JobListing[] = [];
       const errors: Array<{ keyword: string; error: ScraperErrorLegacy }> = [];
+      const perKeyword: KeywordOutcome[] = [];
 
       for (const result of extractFulfilled(searchResults)) {
-        const newJobs = deduplicateJobs(result.data, config.maxJobsPerKeyword, seenIds, seenLinks);
-        allJobs.push(...newJobs);
+        allJobs.push(...result.data.outcome.jobs);
+        perKeyword.push({
+          keyword: result.data.keyword,
+          collected: result.data.outcome.jobs.length,
+          target: config.targetPerKeyword,
+          pagesScanned: result.data.outcome.pagesScanned,
+          targetReached: result.data.outcome.targetReached,
+          exhausted: result.data.outcome.exhausted,
+          blocked: result.data.outcome.blocked,
+        });
       }
 
       for (const result of extractRejected(searchResults)) {
@@ -228,9 +291,20 @@ export class ScraperService {
           keyword: result.item,
           error: { code: 'PARSING_FAILED', selector: 'search', html: result.error },
         });
+        perKeyword.push({
+          keyword: result.item,
+          collected: 0,
+          target: config.targetPerKeyword,
+          pagesScanned: 0,
+          targetReached: false,
+          exhausted: false,
+          blocked: true,
+        });
       }
 
-      logger.info(`Search tamamlandı — ${allJobs.length} unique job bulundu`);
+      logger.info(`Search tamamlandı — ${allJobs.length} unique job bulundu`, {
+        perKeyword: perKeyword.map((k) => `${k.keyword}: ${k.collected}/${k.target} (${k.pagesScanned}p)`),
+      });
 
       // ADIM 2: Detail sayfalarını paralel çek
       if (config.fetchDetails && allJobs.length > 0) {
@@ -248,7 +322,7 @@ export class ScraperService {
         await detailPool.close();
       }
 
-      return { jobs: allJobs, errors };
+      return { jobs: allJobs, errors, perKeyword };
     } finally {
       await this.browserService.close();
     }

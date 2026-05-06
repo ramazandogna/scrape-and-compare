@@ -20,6 +20,17 @@ export interface FastScraperConfig extends ScraperConfig {
   parallelTabs: number;
   /** Search fazında aynı anda kaç keyword taranacak (default: 2) */
   searchConcurrency: number;
+  /**
+   * Her keyword için hedeflenen unique ilan sayısı.
+   * LinkedIn guest API tek sayfada ~25 kart döndürdüğü için pagination
+   * yapmadan bu hedefe ulaşmak çoğu zaman mümkün değil.
+   */
+  targetPerKeyword: number;
+  /**
+   * Her keyword için tek bir scrape job'ında en fazla kaç sayfa gezilebilir.
+   * Hem LinkedIn rate limitine saygı duymak hem de toplam süreyi sınırlamak için.
+   */
+  maxSearchPages: number;
 }
 
 // ═══════════════════════════════════════════
@@ -59,16 +70,26 @@ export const loadFastConfig = (
   const baseDelayMax = overrides?.requestDelayMax ?? Number(process.env['REQUEST_DELAY_MAX'] ?? 1500);
   const delayMultiplier = keywordCount > 2 ? 1.5 : 1;
 
+  const targetPerKeyword = Number(process.env['TARGET_NEW_JOBS_PER_KEYWORD'] ?? 50);
+  const maxSearchPages = Number(process.env['MAX_SEARCH_PAGES_PER_KEYWORD'] ?? 5);
+  // Detay çekimi varsayılan olarak target × keyword sayısına ölçeklenir.
+  // .env veya override öncelikli kalır — operatör fazla yüklenmek istemezse düşürebilir.
+  const detailDefault = Math.max(targetPerKeyword * keywordCount, 25);
+
   return {
     headless: overrides?.headless ?? process.env['HEADLESS'] !== 'false',
     slowMo: overrides?.slowMo ?? Number(process.env['SLOW_MO'] ?? 0),
-    maxJobsPerKeyword: overrides?.maxJobsPerKeyword ?? Number(process.env['MAX_JOBS_PER_KEYWORD'] ?? 25),
+    // maxJobsPerKeyword artık dış kontrat — pagination toplam toplama hedefini
+    // targetPerKeyword belirler, ama eski deduplicateJobs çağrıları için tutuyoruz.
+    maxJobsPerKeyword: overrides?.maxJobsPerKeyword ?? Number(process.env['MAX_JOBS_PER_KEYWORD'] ?? targetPerKeyword),
     requestDelayMin: Math.round(baseDelayMin * delayMultiplier),
     requestDelayMax: Math.round(baseDelayMax * delayMultiplier),
     fetchDetails: overrides?.fetchDetails ?? process.env['FETCH_DETAILS'] !== 'false',
-    maxDetailFetch: overrides?.maxDetailFetch ?? Number(process.env['MAX_DETAIL_FETCH'] ?? 25),
+    maxDetailFetch: overrides?.maxDetailFetch ?? Number(process.env['MAX_DETAIL_FETCH'] ?? detailDefault),
     parallelTabs: Number(process.env['PARALLEL_TABS'] ?? 5),
     searchConcurrency: Number(process.env['SEARCH_CONCURRENCY'] ?? 2),
+    targetPerKeyword,
+    maxSearchPages,
   };
 };
 

@@ -52,6 +52,8 @@ Scraper:
 - Resource blocking ile hizli SSR parse
 - Paralel tab havuzu
 - Retry + adaptive backoff
+- Smart-target pagination — keyword basina hedef yeni ilan (default 50) tutturulana kadar sayfa gezilir
+- Per-keyword sonuc raporu (hedefini tutturdu mu, kac sayfa tarandi)
 - Skill extraction + salary parsing
 - ScraperAudit state machine kayitlari
 
@@ -164,7 +166,9 @@ Root .env.example dosyasinda aktif olarak kullanilan ana degiskenler:
 - REDIS_PORT
 - HEADLESS
 - SLOW_MO
-- MAX_JOBS_PER_KEYWORD
+- TARGET_NEW_JOBS_PER_KEYWORD (default 50 — smart pagination hedefi)
+- MAX_SEARCH_PAGES_PER_KEYWORD (default 5 — guvenlik tavani)
+- MAX_JOBS_PER_KEYWORD (legacy cap — default = TARGET_NEW_JOBS_PER_KEYWORD)
 - REQUEST_DELAY_MIN
 - REQUEST_DELAY_MAX
 - KEYWORDS

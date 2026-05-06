@@ -14,6 +14,12 @@ export {
   fastParseDetailPage,
   isPageBlocked,
   parallelFetchDetails,
+  paginatedSearchScan,
+} from './parsers';
+export type {
+  PaginatedSearchOptions,
+  PaginatedSearchOutcome,
+  PaginatedSearchPageEvent,
 } from './parsers';
 
 // Config, enrichment, deduplication

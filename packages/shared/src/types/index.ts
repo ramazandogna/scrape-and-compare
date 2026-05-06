@@ -36,6 +36,7 @@ export type {
   ScrapeJobFailed,
   ScrapeJobResult,
   ScrapeJobProgress,
+  KeywordScrapeOutcome,
   MatcherUserProfile,
   MatcherJobSummary,
   MatcherJobData,

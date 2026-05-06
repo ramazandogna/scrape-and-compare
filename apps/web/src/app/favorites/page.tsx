@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Heart } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { JobCard } from "@/components/dashboard/job-card";
+import { JobListSkeleton } from "@/components/dashboard/job-list-skeleton";
 import { ScoringButton } from "@/components/scoring/scoring-button";
 import { useFavoriteJobs } from "@/hooks/use-favorite-jobs";
 import { useJobs } from "@/hooks/use-jobs";
@@ -15,16 +16,26 @@ import { useUser } from "@/hooks/use-user";
 import { enrichJobsWithMatches } from "@/lib/job-helpers";
 
 export default function FavoritesPage() {
-  const { user, updateUser } = useUser();
+  const { user, isLoading: userLoading, updateUser } = useUser();
   const { jobs, fetchJobs, removeJob } = useJobs();
   const { matches, fetchMatches } = useMatchResults();
   const { favoriteJobIds, isFavorite, toggleFavorite } = useFavoriteJobs(user?.id ?? null);
+  const [hasFetched, setHasFetched] = useState(false);
 
   useEffect(() => {
     if (!user?.id) return;
-    void fetchJobs(user.id);
-    void fetchMatches(user.id);
+    let cancelled = false;
+    void Promise.all([fetchJobs(user.id), fetchMatches(user.id)]).finally(() => {
+      if (!cancelled) setHasFetched(true);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [fetchJobs, fetchMatches, user?.id]);
+
+  // user yüklenene + ilk fetch dönene kadar skeleton göster.
+  // Aksi halde "favori yok" boş durumu bir an parlayıp sonra liste geliyor.
+  const isHydrating = userLoading || (user !== null && !hasFetched);
 
   const favoriteJobs = useMemo(() => {
     const favoriteSet = new Set(favoriteJobIds);
@@ -111,7 +122,13 @@ export default function FavoritesPage() {
         )}
       </div>
 
-      {!user && (
+      {isHydrating && (
+        <div className="mt-6">
+          <JobListSkeleton count={3} />
+        </div>
+      )}
+
+      {!isHydrating && !user && (
         <Card className="mt-6">
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
             Favorileri görmek için önce bir kullanıcı seç.
@@ -119,7 +136,7 @@ export default function FavoritesPage() {
         </Card>
       )}
 
-      {user && favoriteJobs.length === 0 && (
+      {!isHydrating && user && favoriteJobs.length === 0 && (
         <Card className="mt-6 border-dashed">
           <CardContent className="space-y-3 py-12 text-center">
             <p className="text-lg font-medium">Henüz favori ilan yok</p>
@@ -131,7 +148,7 @@ export default function FavoritesPage() {
         </Card>
       )}
 
-      {user && favoriteJobs.length > 0 && (
+      {!isHydrating && user && favoriteJobs.length > 0 && (
         <div className="mt-6 space-y-3">
           {favoriteJobs.map((job) => (
             <JobCard

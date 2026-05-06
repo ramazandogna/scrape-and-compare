@@ -120,6 +120,14 @@ export function HeroSearch({ onSearch, scrapeState, onScrapeReset, total }: Hero
     return LOCATION_ALIASES[normalized] ?? trimmed;
   }
 
+  function addKeyword(raw: string): void {
+    const normalized = normalizeKeyword(raw);
+    if (!normalized) return;
+    if (keywords.includes(normalized)) return;
+    if (keywords.length >= MAX_KEYWORDS) return;
+    setKeywords((prev) => [...prev, normalized]);
+  }
+
   function addKeywordsFromInput(): string[] {
     const rawChunks = keywordInput.split(",");
     const normalizedChunks = rawChunks
@@ -162,117 +170,146 @@ export function HeroSearch({ onSearch, scrapeState, onScrapeReset, total }: Hero
     return isLocationFocused && locationSuggestions.length > 0 && !isScraping;
   }
 
+  const popularKeywords = ["frontend developer", "react developer", "node.js", "fullstack", "devops"];
+
   return (
-    <div className="rounded-xl border bg-linear-to-br from-primary/5 to-primary/10 p-6 sm:p-8">
-      <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-        İş ilanlarını tara
-      </h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        LinkedIn&apos;den canlı olarak ilanları çek, yapay zeka ile eşleştir
-      </p>
+    <div className="relative overflow-hidden rounded-3xl border border-primary/10 bg-gradient-to-br from-primary/8 via-background to-fuchsia-500/5 p-6 shadow-sm sm:p-10">
+      {/* Soft glow orbs — saf dekoratif */}
+      <div className="pointer-events-none absolute -right-16 -top-16 size-56 rounded-full bg-primary/10 blur-3xl" aria-hidden />
+      <div className="pointer-events-none absolute -bottom-20 -left-12 size-56 rounded-full bg-fuchsia-400/10 blur-3xl" aria-hidden />
 
-      <form onSubmit={handleSubmit} onKeyDown={handleFormKeyDown} className="mt-5 flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-muted-foreground">Anahtar kelimeler</p>
-          <p className="text-xs font-medium text-emerald-700">{keywords.length}/{MAX_KEYWORDS}</p>
+      <div className="relative">
+        <div className="inline-flex items-center gap-2 rounded-full border bg-background/70 px-3 py-1 text-[11px] font-medium text-muted-foreground backdrop-blur">
+          <span className="size-1.5 rounded-full bg-emerald-500 shadow-[0_0_0_3px] shadow-emerald-500/20" />
+          AI destekli iş arama · canlı LinkedIn
         </div>
 
-        {keywords.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {keywords.map((keyword) => (
-              <Badge key={keyword} variant="secondary" className="gap-1.5 pr-1">
-                {keyword}
-                <button
-                  type="button"
-                  onClick={() => removeKeyword(keyword)}
-                  disabled={isScraping}
-                  className="rounded-sm p-0.5 text-muted-foreground transition hover:text-foreground disabled:opacity-50"
-                  aria-label={`${keyword} anahtar kelimesini sil`}
-                >
-                  <X className="size-3" />
-                </button>
-              </Badge>
-            ))}
-          </div>
-        )}
+        <h1 className="mt-3 text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
+          Hangi rolü{" "}
+          <span className="bg-gradient-to-r from-primary to-fuchsia-500 bg-clip-text text-transparent">
+            arıyorsun?
+          </span>
+        </h1>
+        <p className="mt-2 max-w-xl text-sm text-muted-foreground sm:text-[15px]">
+          3 anahtar kelime, bir lokasyon — gerisini biz hallederiz. Ortalama her tarama
+          ~50 yeni ilan + AI ile profil eşleşmesi.
+        </p>
 
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={keywordInput}
-              onChange={(e) => setKeywordInput(e.target.value)}
-              onKeyDown={handleKeywordKeyDown}
-              onBlur={addKeywordsFromInput}
-              placeholder="Keyword yazıp Enter'a bas (orn: frontend developer)"
-              className="h-9 pl-8 text-sm placeholder:text-[13px]"
-              disabled={isScraping || keywords.length >= MAX_KEYWORDS}
-            />
-          </div>
-
-          <div className="relative sm:w-64">
-            <MapPin className="absolute left-2.5 top-1/2 z-10 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              onFocus={() => setIsLocationFocused(true)}
-              onBlur={() => {
-                setTimeout(() => {
-                  setIsLocationFocused(false);
-                }, 120);
-              }}
-              placeholder="Lokasyon secin veya yazin"
-              className="h-9 pl-8 text-sm placeholder:text-[13px]"
-              disabled={isScraping}
-            />
-
-            {shouldShowLocationSuggestions() && (
-              <div className="absolute z-20 mt-1 max-h-60 w-full overflow-y-auto rounded-md border bg-popover p-1 shadow-md">
-                {locationSuggestions.map((suggestion) => (
+        <form onSubmit={handleSubmit} onKeyDown={handleFormKeyDown} className="mt-5 space-y-3">
+          {keywords.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {keywords.map((keyword) => (
+                <Badge key={keyword} variant="secondary" className="gap-1.5 pr-1">
+                  {keyword}
                   <button
-                    key={suggestion}
                     type="button"
-                    onMouseDown={(event) => {
-                      event.preventDefault();
-                      handleLocationSelect(suggestion);
-                    }}
-                    className="w-full rounded-sm px-2 py-1.5 text-left text-sm text-popover-foreground transition hover:bg-accent"
+                    onClick={() => removeKeyword(keyword)}
+                    disabled={isScraping}
+                    className="cursor-pointer rounded-sm p-0.5 text-muted-foreground transition hover:text-foreground disabled:opacity-50"
+                    aria-label={`${keyword} anahtar kelimesini sil`}
                   >
-                    {suggestion}
+                    <X className="size-3" />
                   </button>
-                ))}
-              </div>
-            )}
+                </Badge>
+              ))}
+            </div>
+          )}
+
+          <div className="flex flex-col gap-2 rounded-2xl border bg-background/95 p-2 shadow-sm backdrop-blur sm:flex-row sm:items-center">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={keywordInput}
+                onChange={(e) => setKeywordInput(e.target.value)}
+                onKeyDown={handleKeywordKeyDown}
+                onBlur={addKeywordsFromInput}
+                placeholder="Rol veya teknoloji yaz, Enter'a bas"
+                className="h-11 border-0 pl-9 text-sm shadow-none focus-visible:ring-0"
+                disabled={isScraping || keywords.length >= MAX_KEYWORDS}
+              />
+            </div>
+
+            <div className="hidden h-8 w-px bg-border sm:block" />
+
+            <div className="relative sm:w-60">
+              <MapPin className="absolute left-3 top-1/2 z-10 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                onFocus={() => setIsLocationFocused(true)}
+                onBlur={() => {
+                  setTimeout(() => {
+                    setIsLocationFocused(false);
+                  }, 120);
+                }}
+                placeholder="Lokasyon (örn: Istanbul)"
+                className="h-11 border-0 pl-9 text-sm shadow-none focus-visible:ring-0"
+                disabled={isScraping}
+              />
+
+              {shouldShowLocationSuggestions() && (
+                <div className="absolute z-20 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border bg-popover p-1 shadow-lg">
+                  {locationSuggestions.map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      type="button"
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        handleLocationSelect(suggestion);
+                      }}
+                      className="w-full cursor-pointer rounded-md px-2 py-1.5 text-left text-sm text-popover-foreground transition hover:bg-accent"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <Button
+              type="submit"
+              disabled={isScraping || keywords.length === 0}
+              className="h-11 gap-1.5 px-6 text-sm font-semibold sm:w-auto"
+            >
+              {isScraping ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Taranıyor
+                </>
+              ) : (
+                <>
+                  <Search className="size-4" />
+                  Tara
+                </>
+              )}
+            </Button>
           </div>
 
-          <Button type="submit" disabled={isScraping || keywords.length === 0} className="sm:w-28">
-            {isScraping ? (
-              <>
-                <Loader2 className="size-4 animate-spin" />
-                Taranıyor
-              </>
-            ) : (
-              "Tara"
-            )}
-          </Button>
-        </div>
+          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+            <span className="text-muted-foreground">Popüler:</span>
+            {popularKeywords.map((kw) => (
+              <button
+                key={kw}
+                type="button"
+                disabled={isScraping || keywords.length >= MAX_KEYWORDS || keywords.includes(kw)}
+                onClick={() => addKeyword(kw)}
+                className="cursor-pointer rounded-full border bg-background/60 px-2.5 py-1 text-[11px] text-muted-foreground transition hover:border-primary/40 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {kw}
+              </button>
+            ))}
+            <span className="ml-auto text-[11px] text-muted-foreground">
+              {keywords.length}/{MAX_KEYWORDS} keyword
+            </span>
+          </div>
+        </form>
 
-        <p className="text-xs text-muted-foreground">
-          En fazla {MAX_KEYWORDS} keyword ekleyebilirsiniz. Enter veya virgul ile etiket olarak eklenir.
+        <ScrapeStatus state={scrapeState} onDismiss={onScrapeReset} />
+
+        <p className="mt-4 text-[11px] text-muted-foreground">
+          <span className="font-medium text-foreground">{total}</span> ilan havuzda · 200+ lokasyon · ~50 yeni ilan/tarama hedefi
         </p>
-        <p className="text-xs text-muted-foreground">
-          Lokasyon alaninda LinkedIn odakli 200+ lokasyon arasinda filtreleyerek secim yapabilirsiniz.
-        </p>
-      </form>
-
-      {/* Scrape durumu */}
-      <ScrapeStatus state={scrapeState} onDismiss={onScrapeReset} />
-
-      {/* Toplam ilan sayısı */}
-      <p className="mt-3 text-xs text-muted-foreground">
-        <span className="font-medium text-foreground">{total}</span> ilan
-        havuzda
-      </p>
+      </div>
     </div>
   );
 }

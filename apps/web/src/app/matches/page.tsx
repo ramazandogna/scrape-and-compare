@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Sparkles, TrendingUp, Target, LayoutDashboard } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { JobCard } from "@/components/dashboard/job-card";
+import { JobListSkeleton } from "@/components/dashboard/job-list-skeleton";
 import { ScoringButton } from "@/components/scoring/scoring-button";
 import { useFavoriteJobs } from "@/hooks/use-favorite-jobs";
 import { useJobs } from "@/hooks/use-jobs";
@@ -21,16 +22,25 @@ import { enrichJobsWithMatches } from "@/lib/job-helpers";
 const MATCH_THRESHOLD = 60;
 
 export default function MatchesPage() {
-  const { user, updateUser } = useUser();
+  const { user, isLoading: userLoading, updateUser } = useUser();
   const { jobs, fetchJobs, removeJob } = useJobs();
   const { matches, fetchMatches } = useMatchResults();
   const { isFavorite, toggleFavorite } = useFavoriteJobs(user?.id ?? null);
+  const [hasFetched, setHasFetched] = useState(false);
 
   useEffect(() => {
     if (!user?.id) return;
-    void fetchJobs(user.id);
-    void fetchMatches(user.id);
+    let cancelled = false;
+    void Promise.all([fetchJobs(user.id), fetchMatches(user.id)]).finally(() => {
+      if (!cancelled) setHasFetched(true);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [fetchJobs, fetchMatches, user?.id]);
+
+  // Boş durumun bir an parlayıp sonra liste gelmesini engelle.
+  const isHydrating = userLoading || (user !== null && !hasFetched);
 
   const matchedJobs = useMemo(() => {
     return enrichJobsWithMatches(jobs, matches)
@@ -131,8 +141,15 @@ export default function MatchesPage() {
         )}
       </div>
 
+      {/* Hidrasyon — kullanıcı + ilanlar henüz yüklenmedi */}
+      {isHydrating && (
+        <div className="mt-6">
+          <JobListSkeleton count={3} />
+        </div>
+      )}
+
       {/* Kullanıcı yok */}
-      {!user && (
+      {!isHydrating && !user && (
         <Card className="mt-6">
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
             Eşleşmeleri görmek için önce bir kullanıcı profili oluştur.
@@ -141,7 +158,7 @@ export default function MatchesPage() {
       )}
 
       {/* Eşleşme yok — hiç puanlanmamış */}
-      {user && matchedJobs.length === 0 && matches.length === 0 && (
+      {!isHydrating && user && matchedJobs.length === 0 && matches.length === 0 && (
         <Card className="mt-6 border-dashed">
           <CardContent className="space-y-3 py-12 text-center">
             <Sparkles className="mx-auto size-10 text-muted-foreground/40" />
@@ -158,7 +175,7 @@ export default function MatchesPage() {
       )}
 
       {/* Puanlama var ama threshold altında */}
-      {user && matchedJobs.length === 0 && matches.length > 0 && (
+      {!isHydrating && user && matchedJobs.length === 0 && matches.length > 0 && (
         <Card className="mt-6 border-dashed">
           <CardContent className="space-y-3 py-12 text-center">
             <Target className="mx-auto size-10 text-muted-foreground/40" />
@@ -176,7 +193,7 @@ export default function MatchesPage() {
       )}
 
       {/* Eşleşme listesi */}
-      {user && matchedJobs.length > 0 && (
+      {!isHydrating && user && matchedJobs.length > 0 && (
         <div className="mt-6 space-y-3">
           {matchedJobs.map((job) => (
             <JobCard

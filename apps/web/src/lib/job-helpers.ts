@@ -54,20 +54,28 @@ export function getInitial(name: string): string {
 
 /**
  * Maaş aralığını insan dostu formata çevirir.
- * formatSalary(150000, 200000, "TRY") → "150k - 200k TRY"
- * formatSalary(null, null, null)       → null
+ *
+ * Backend her ilan için maaşı **aylık TRY** olarak normalize edip saklıyor
+ * (`salary.parser.ts → normalizeToMonthlyTRY`). Bu yüzden UI tek bir standart
+ * birim gösterir: "150k - 200k ₺/ay". Currency parametresi geriye dönük uyum
+ * için kabul edilir ama gösterimde kullanılmaz.
+ *
+ * formatSalary(150000, 200000)  → "150k - 200k ₺/ay"
+ * formatSalary(null, null)      → null
  */
 export function formatSalary(
   min: number | null,
   max: number | null,
-  currency: string | null
+  // currency parametresi DB'den orijinal para birimini iletir;
+  // değer zaten aylık TRY'ye normalize edildiği için sadece imza uyumu için tutuluyor.
+  _currency?: string | null,
 ): string | null {
   if (!min && !max) return null;
   const fmt = (n: number) => (n >= 1000 ? `${Math.round(n / 1000)}k` : `${n}`);
-  const cur = currency ?? "TRY";
-  if (min && max) return `${fmt(min)} - ${fmt(max)} ${cur}`;
-  if (min) return `${fmt(min)}+ ${cur}`;
-  if (max) return `≤${fmt(max)} ${cur}`;
+  const suffix = "₺/ay";
+  if (min && max) return `${fmt(min)} - ${fmt(max)} ${suffix}`;
+  if (min) return `${fmt(min)}+ ${suffix}`;
+  if (max) return `≤${fmt(max)} ${suffix}`;
   return null;
 }
 

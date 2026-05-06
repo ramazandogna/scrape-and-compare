@@ -109,25 +109,32 @@ const parseJobCardsFromDom = (scrapedAt: string): JobListing[] => {
   };
 
   const readCardLogo = (card: Element): string | null => {
-    const looksLikeCompanyLogo = (url: string): boolean => {
+    // Tracking pixel ve emoji/avatar gibi gürültüyü ele.
+    const isUsableImage = (url: string): boolean => {
       const lower = url.toLowerCase();
-      return lower.includes('company-logo') || lower.includes('media.licdn.com/dms/image');
+      if (lower.includes('ghost-person') || lower.includes('default-anonymous')) return false;
+      if (lower.includes('emoji') || lower.includes('static.licdn.com/aero-v1')) return false;
+      // licdn.com domeni veya company-logo path'i = LinkedIn şirket logosu
+      return (
+        lower.includes('licdn.com') ||
+        lower.includes('company-logo') ||
+        lower.includes('media.licdn.com')
+      );
     };
 
     const logoCandidates: Array<Element | null> = [
       card.querySelector('img[data-delayed-url*="company-logo"]'),
+      card.querySelector('img[src*="company-logo"]'),
+      card.querySelector('.artdeco-entity-image[data-delayed-url]'),
+      card.querySelector('img[data-delayed-url*="licdn.com"]'),
+      card.querySelector('img[src*="licdn.com"]'),
       card.querySelector('img[data-delayed-url][alt]'),
       card.querySelector('img[src][alt]'),
-      card.querySelector('.artdeco-entity-image[data-delayed-url]'),
-      card.querySelector('img[src*="company-logo"]'),
-      card.querySelector('img[src*="licdn.com"]'),
-      card.querySelector('img[data-delayed-url]'),
-      card.querySelector('img[src]'),
     ];
 
     for (const candidate of logoCandidates) {
       const logoUrl = extractUrl(candidate);
-      if (logoUrl && looksLikeCompanyLogo(logoUrl)) return logoUrl;
+      if (logoUrl && isUsableImage(logoUrl)) return logoUrl;
     }
 
     return null;

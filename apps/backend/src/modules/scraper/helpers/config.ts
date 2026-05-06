@@ -105,6 +105,17 @@ export const enrichJobsWithExtractors = (jobs: JobListing[]): JobListing[] =>
     return { ...job, skills, salaryParsed };
   });
 
+/**
+ * Düşük kaliteli ilanları filtreler.
+ *
+ * Kural: description YOK ve hiç main skill çıkarılamamış ilan değersizdir.
+ * Bu ilanlar ne aratılabilir ne de AI tarafından puanlanabilir.
+ */
+export const filterLowQualityJobs = (jobs: JobListing[]): JobListing[] =>
+  jobs.filter(
+    (job) => job.description || job.skills.some((s) => s.isMain),
+  );
+
 // ═══════════════════════════════════════════
 // DEDUPLICATION
 // ═══════════════════════════════════════════

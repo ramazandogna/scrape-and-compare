@@ -38,6 +38,7 @@ import {
   loadFastConfig,
   generateOutputFilename,
   enrichJobsWithExtractors,
+  filterLowQualityJobs,
   deduplicateJobs,
   upsertJobs,
   createAudit,
@@ -112,9 +113,16 @@ export class ScraperService {
 
       onProgress?.('EXTRACTING', `${jobs.length} ilan zenginleştiriliyor...`, 80);
       const enrichedJobs = enrichJobsWithExtractors(jobs);
+      const qualityJobs = filterLowQualityJobs(enrichedJobs);
+
+      if (enrichedJobs.length !== qualityJobs.length) {
+        logger.info(
+          `[QUALITY] ${enrichedJobs.length - qualityJobs.length} düşük kaliteli ilan filtrelendi (description yok + skill yok)`,
+        );
+      }
 
       // ADIM 4: DB'ye kaydet (upsert — varsa güncelle, yoksa oluştur)
-      const dbResult = await upsertJobs(this.prisma, enrichedJobs, {
+      const dbResult = await upsertJobs(this.prisma, qualityJobs, {
         userId,
         auditId,
       });
@@ -131,10 +139,10 @@ export class ScraperService {
       });
 
       // ADIM 5: JSON çıktısı (debug/backup — ileride kaldırılabilir)
-      this.writeOutput(enrichedJobs, errors, keywords, location);
+      this.writeOutput(qualityJobs, errors, keywords, location);
 
       const durationMs = Date.now() - startTime;
-      this.printSummary(enrichedJobs, errors, config, startTime, dbResult);
+      this.printSummary(qualityJobs, errors, config, startTime, dbResult);
 
       return {
         status: 'completed' as const,

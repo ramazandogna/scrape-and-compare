@@ -23,6 +23,7 @@ export {
   loadFastConfig,
   generateOutputFilename,
   enrichJobsWithExtractors,
+  filterLowQualityJobs,
   deduplicateJobs,
 } from './config';
 export type { FastScraperConfig } from './config';

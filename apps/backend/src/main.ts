@@ -45,6 +45,30 @@ const bootstrap = async (): Promise<void> => {
   const port = process.env['PORT'] ?? 3000;
   await app.listen(port);
 
+  // --watch modunda Node.js SIGTERM ile süreci yeniden başlatır.
+  // enableShutdownHooks olmadan HTTP server portu serbest bırakmaz
+  // → bir sonraki başlatmada EADDRINUSE hatası alınır.
+  app.enableShutdownHooks();
+
+  // Node.js 18.2+ — tüm açık socket'ları kapatır, port hemen serbest kalır
+  const httpServer = app.getHttpServer() as import('http').Server;
+  const closeConnections = (): void => {
+    if (typeof httpServer.closeAllConnections === 'function') {
+      httpServer.closeAllConnections();
+    }
+  };
+
+  process.once('SIGTERM', async () => {
+    closeConnections();
+    await app.close();
+  });
+
+  process.once('SIGINT', async () => {
+    closeConnections();
+    await app.close();
+    process.exit(0);
+  });
+
   logger.success(`Backend çalışıyor: http://localhost:${String(port)}/api`);
   logger.info('BullMQ Worker aktif — Redis kuyruğu dinleniyor');
 };

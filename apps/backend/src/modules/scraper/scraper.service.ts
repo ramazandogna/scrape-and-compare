@@ -107,7 +107,10 @@ export class ScraperService {
       location,
       searchConcurrency: config.searchConcurrency,
       parallelTabs: config.parallelTabs,
+      maxSearchPages: config.maxSearchPages,
+      maxJobsPerKeyword: config.maxJobsPerKeyword,
       maxDetailFetch: config.maxDetailFetch,
+      targetNewJobs: config.targetNewJobs,
       adaptiveDelay: keywords.length > 2 ? '1.5x' : '1x',
       auditId,
     });
@@ -161,9 +164,18 @@ export class ScraperService {
 
       const targetPerKeyword = config.targetPerKeyword;
       const keywordsHitTarget = perKeyword.filter((entry) => entry.targetReached).length;
+      const discoveryMessage = this.buildDiscoveryMessage({
+        targetNewJobs: config.targetNewJobs,
+        totalJobs: jobs.length,
+        created: dbResult.created,
+        updated: dbResult.updated,
+      });
 
       return {
         status: 'completed' as const,
+        targetNewJobs: config.targetNewJobs,
+        targetReached: dbResult.created >= config.targetNewJobs,
+        discoveryMessage,
         totalJobs: jobs.length,
         filtered: enrichedJobs.length - qualityJobs.length,
         created: dbResult.created,
@@ -411,5 +423,33 @@ export class ScraperService {
         url: job.link,
       });
     });
+  }
+
+  /** Yeni ilan hedefi için kullanıcıya anlaşılır durum notu üretir */
+  private buildDiscoveryMessage(input: {
+    targetNewJobs: number;
+    totalJobs: number;
+    created: number;
+    updated: number;
+  }): string {
+    const { targetNewJobs, totalJobs, created, updated } = input;
+
+    if (created >= targetNewJobs) {
+      return `Hedef tamam: ${created} yeni ilan bulundu.`;
+    }
+
+    if (totalJobs < targetNewJobs) {
+      return `Sadece ${totalJobs} ilan kaynağına erişildi; arama kriteri dar veya piyasada yeni ilan az olabilir.`;
+    }
+
+    if (created === 0 && updated > 0) {
+      return 'Yeni ilan bulunamadı; bu sonuçların çoğu sistemde zaten vardı ve güncellendi.';
+    }
+
+    if (created < targetNewJobs && updated > 0) {
+      return `${created} yeni ilan eklendi, ${updated} mevcut ilan güncellendi. Hedef ${targetNewJobs} yeni ilan için sistem denedi ancak yeterli yeni kayıt yoktu.`;
+    }
+
+    return `${targetNewJobs} yeni ilan hedeflendi, ${created} yeni ilan bulundu.`;
   }
 }

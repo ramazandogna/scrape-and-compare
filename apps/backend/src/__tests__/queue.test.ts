@@ -24,6 +24,9 @@ import type { ScrapeJobData, ScrapeJobCompleted, ScrapeJobProgress } from '@scra
 /** Mock ScrapeJobCompleted sonucu — başarılı scrape */
 const MOCK_COMPLETED: ScrapeJobCompleted = {
   status: 'completed',
+  targetNewJobs: 50,
+  targetReached: false,
+  discoveryMessage: 'Sadece 15 ilan kaynağına erişildi; arama kriteri dar veya piyasada yeni ilan az olabilir.',
   totalJobs: 15,
   filtered: 2,
   created: 10,
@@ -234,6 +237,9 @@ describe('Queue Payload Types', () => {
   it('ScrapeJobCompleted discriminated union — status: completed', () => {
     const result: ScrapeJobCompleted = {
       status: 'completed',
+      targetNewJobs: 50,
+      targetReached: false,
+      discoveryMessage: '40 yeni ilan eklendi, 8 mevcut ilan güncellendi. Hedef 50 yeni ilan için sistem denedi ancak yeterli yeni kayıt yoktu.',
       totalJobs: 50,
       filtered: 5,
       created: 40,

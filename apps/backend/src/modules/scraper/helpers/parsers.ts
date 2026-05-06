@@ -35,9 +35,6 @@ export const buildSearchUrl = (
   const params = new URLSearchParams({
     keywords: keyword,
     location,
-    f_TPR: 'r604800',
-    position: '1',
-    pageNum: '0',
   });
   if (start > 0) params.set('start', String(start));
   return `https://www.linkedin.com/jobs/search/?${params.toString()}`;
@@ -112,17 +109,25 @@ const parseJobCardsFromDom = (scrapedAt: string): JobListing[] => {
   };
 
   const readCardLogo = (card: Element): string | null => {
+    const looksLikeCompanyLogo = (url: string): boolean => {
+      const lower = url.toLowerCase();
+      return lower.includes('company-logo') || lower.includes('media.licdn.com/dms/image');
+    };
+
     const logoCandidates: Array<Element | null> = [
       card.querySelector('img[data-delayed-url*="company-logo"]'),
       card.querySelector('img[data-delayed-url][alt]'),
+      card.querySelector('img[src][alt]'),
       card.querySelector('.artdeco-entity-image[data-delayed-url]'),
       card.querySelector('img[src*="company-logo"]'),
       card.querySelector('img[src*="licdn.com"]'),
+      card.querySelector('img[data-delayed-url]'),
+      card.querySelector('img[src]'),
     ];
 
     for (const candidate of logoCandidates) {
       const logoUrl = extractUrl(candidate);
-      if (logoUrl) return logoUrl;
+      if (logoUrl && looksLikeCompanyLogo(logoUrl)) return logoUrl;
     }
 
     return null;
@@ -482,8 +487,12 @@ const parseDetailFromDom = () => {
 
   const logoCandidates = [
     document.querySelector('a[data-tracking-control-name="public_jobs_topcard_logo"] img[data-delayed-url]'),
+    document.querySelector('a[data-tracking-control-name="public_jobs_topcard_logo"] img[src]'),
     document.querySelector('.top-card-layout__card img[data-delayed-url*="company-logo"]'),
+    document.querySelector('.top-card-layout__card img[src*="company-logo"]'),
     document.querySelector('.sub-nav-cta__image[data-delayed-url*="company-logo"]'),
+    document.querySelector('.sub-nav-cta__image[src*="company-logo"]'),
+    document.querySelector('img[data-delayed-url*="company-logo"]'),
     document.querySelector('img[src*="company-logo"]'),
   ];
 
@@ -492,13 +501,13 @@ const parseDetailFromDom = () => {
     if (!candidate) continue;
     const delayed = candidate.getAttribute('data-delayed-url');
     if (delayed && delayed.startsWith('http')) {
-      detailLogoUrl = delayed;
+      detailLogoUrl = delayed.replace(/&amp;/g, '&');
       break;
     }
 
     const src = candidate.getAttribute('src');
     if (src && src.startsWith('http')) {
-      detailLogoUrl = src;
+      detailLogoUrl = src.replace(/&amp;/g, '&');
       break;
     }
   }

@@ -113,6 +113,17 @@ function StatusMessage({ state }: { state: ScrapeState }) {
               </span>
             </p>
 
+            {state.result.discoveryMessage && (
+              <p
+                className={cn(
+                  "text-[11px]",
+                  state.result.targetReached ? "text-emerald-700" : "text-amber-700",
+                )}
+              >
+                {state.result.discoveryMessage}
+              </p>
+            )}
+
             {target > 0 && totalKw > 0 && (
               <p className="text-[11px] opacity-80">
                 Hedef: keyword başına {target} yeni ilan · {hit}/{totalKw} keyword

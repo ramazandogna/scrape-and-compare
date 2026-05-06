@@ -50,6 +50,12 @@ export interface ScrapeJobData {
  */
 export interface ScrapeJobCompleted {
   status: 'completed';
+  /** Bu scrape koşusunda hedeflenen yeni ilan sayısı */
+  targetNewJobs: number;
+  /** Hedefe ulaşıldı mı? */
+  targetReached: boolean;
+  /** Hedefe ulaşılamadıysa kullanıcıya açıklayıcı not */
+  discoveryMessage: string;
   /** Toplam bulunan iş ilanı sayısı */
   totalJobs: number;
   /** Kalite filtresi ile çıkarılan ilan sayısı */

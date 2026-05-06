@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { Heart } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { JobCard } from "@/components/dashboard/job-card";
 import { ScoringButton } from "@/components/scoring/scoring-button";
@@ -126,9 +126,7 @@ export default function FavoritesPage() {
             <p className="text-sm text-muted-foreground">
               Dashboard&apos;daki kalp butonuyla ilgini çeken ilanları burada biriktirebilirsin.
             </p>
-            <Button asChild className="cursor-pointer">
-              <Link href="/dashboard">Dashboard&apos;a dön</Link>
-            </Button>
+            <Link href="/dashboard" className={buttonVariants({ className: "cursor-pointer" })}>Dashboard&apos;a dön</Link>
           </CardContent>
         </Card>
       )}

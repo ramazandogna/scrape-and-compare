@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { Sparkles, TrendingUp, Target, LayoutDashboard } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { JobCard } from "@/components/dashboard/job-card";
 import { ScoringButton } from "@/components/scoring/scoring-button";
@@ -149,12 +149,10 @@ export default function MatchesPage() {
             <p className="text-sm text-muted-foreground">
               Dashboard&apos;dan ilanları tara ve &quot;İlanları Puanla&quot; ile AI analizi başlat.
             </p>
-            <Button asChild className="cursor-pointer">
-              <Link href="/dashboard">
-                <LayoutDashboard className="size-4" />
-                Dashboard&apos;a git
-              </Link>
-            </Button>
+            <Link href="/dashboard" className={buttonVariants({ className: "cursor-pointer" })}>
+              <LayoutDashboard className="size-4" />
+              Dashboard&apos;a git
+            </Link>
           </CardContent>
         </Card>
       )}
@@ -170,12 +168,8 @@ export default function MatchesPage() {
               Profilini güncelleyip yeniden puanlayabilirsin.
             </p>
             <div className="flex justify-center gap-2">
-              <Button variant="outline" asChild className="cursor-pointer">
-                <Link href="/profile">Profili güncelle</Link>
-              </Button>
-              <Button asChild className="cursor-pointer">
-                <Link href="/dashboard">Dashboard&apos;a git</Link>
-              </Button>
+              <Link href="/profile" className={buttonVariants({ variant: "outline", className: "cursor-pointer" })}>Profili güncelle</Link>
+              <Link href="/dashboard" className={buttonVariants({ className: "cursor-pointer" })}>Dashboard&apos;a git</Link>
             </div>
           </CardContent>
         </Card>

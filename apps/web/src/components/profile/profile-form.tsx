@@ -14,53 +14,44 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { TagInput } from "@/components/profile/tag-input";
-import type { UserDto, CreateUserInput } from "@/hooks/use-user";
+import type { UserDto, UpdateUserInput } from "@/hooks/use-user";
 
 interface ProfileFormProps {
-  user: UserDto | null;
-  onSave: (input: CreateUserInput) => Promise<UserDto | null>;
-  onUpdate: (input: Partial<CreateUserInput>) => Promise<UserDto | null>;
+  user: UserDto;
+  onUpdate: (input: UpdateUserInput) => Promise<UserDto | null>;
   error: string | null;
 }
 
 /**
- * Profil oluşturma / düzenleme formu.
- * Parent key={user?.id ?? "new"} ile render eder — user değişince
- * React component'ı unmount/remount ederek state'i sıfırlar.
- * Bu sayede useEffect içinde setState yapmaya gerek kalmaz.
+ * Profil düzenleme formu — auth ile birlikte oluşturma akışı /sign-up'a taşındı.
+ * Bu form sadece mevcut kullanıcının bilgilerini günceller.
  */
-export function ProfileForm({ user, onSave, onUpdate, error }: ProfileFormProps) {
-  const [email, setEmail] = useState(user?.email ?? "");
-  const [name, setName] = useState(user?.name ?? "");
-  const [techStack, setTechStack] = useState<string[]>(user?.techStack ?? []);
-  const [experienceYears, setExperienceYears] = useState(user?.experienceYears ?? 0);
-  const [preferredRoles, setPreferredRoles] = useState<string[]>(user?.preferredRoles ?? []);
-  const [preferredLocations, setPreferredLocations] = useState<string[]>(user?.preferredLocations ?? []);
+export function ProfileForm({ user, onUpdate, error }: ProfileFormProps) {
+  const [email, setEmail] = useState(user.email);
+  const [name, setName] = useState(user.name);
+  const [techStack, setTechStack] = useState<string[]>(user.techStack);
+  const [experienceYears, setExperienceYears] = useState(user.experienceYears);
+  const [preferredRoles, setPreferredRoles] = useState<string[]>(user.preferredRoles);
+  const [preferredLocations, setPreferredLocations] = useState<string[]>(user.preferredLocations);
   const [isSaving, setIsSaving] = useState(false);
-
-  const isEditMode = user !== null;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setIsSaving(true);
 
-    const input: CreateUserInput = {
+    const result = await onUpdate({
       email,
       name,
       techStack,
       experienceYears,
       preferredRoles,
       preferredLocations,
-    };
-
-    const result = isEditMode ? await onUpdate(input) : await onSave(input);
+    });
 
     setIsSaving(false);
 
     if (result) {
-      toast.success(
-        isEditMode ? "Profil güncellendi!" : "Profil oluşturuldu!"
-      );
+      toast.success("Profil güncellendi");
     }
   }
 
@@ -74,12 +65,10 @@ export function ProfileForm({ user, onSave, onUpdate, error }: ProfileFormProps)
       <div className="border-b bg-gradient-to-br from-violet-50 via-background to-fuchsia-50 px-6 py-5">
         <CardHeader className="p-0">
           <CardTitle className="text-base font-semibold">
-            {isEditMode ? "Profili Düzenle" : "Profil Oluştur"}
+            Profili Düzenle
           </CardTitle>
           <CardDescription className="text-xs">
-            {isEditMode
-              ? "Bilgilerini güncelle, daha doğru eşleşmeler al."
-              : "Yeteneklerini gir — AI sana en uygun ilanları bulsun."}
+            Bilgilerini güncelle, daha doğru eşleşmeler al.
           </CardDescription>
         </CardHeader>
       </div>
@@ -165,15 +154,11 @@ export function ProfileForm({ user, onSave, onUpdate, error }: ProfileFormProps)
           <div className="flex justify-end pt-2">
             <Button
               type="submit"
-              variant={isEditMode ? "default" : "hero"}
+              variant="default"
               disabled={isSaving}
               className="h-10 px-5 text-sm font-semibold"
             >
-              {isSaving
-                ? "Kaydediliyor..."
-                : isEditMode
-                  ? "Güncelle"
-                  : "Profili oluştur"}
+              {isSaving ? "Kaydediliyor..." : "Güncelle"}
             </Button>
           </div>
         </form>

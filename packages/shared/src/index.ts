@@ -55,6 +55,10 @@ export {
   matcherScoreInputSchema,
   createUserSchema,
   updateUserSchema,
+  signupSchema,
+  loginSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
   type LlmSkillExtraction,
   type ScrapeJobDataInput,
   type JobsQueryInput,
@@ -63,6 +67,10 @@ export {
   type MatcherScoreInput,
   type CreateUserInput,
   type UpdateUserInput,
+  type SignupInput,
+  type LoginInput,
+  type ForgotPasswordInput,
+  type ResetPasswordInput,
 } from './schemas/index';
 
 // Constants

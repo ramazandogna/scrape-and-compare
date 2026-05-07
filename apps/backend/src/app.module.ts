@@ -18,10 +18,12 @@ import { ScraperModule } from '@/modules/scraper/scraper.module';
 import { JobsModule } from '@/modules/jobs/jobs.module';
 import { MatcherModule } from '@/modules/matcher/matcher.module';
 import { UsersModule } from '@/modules/users/users.module';
+import { AuthModule } from '@/modules/auth/auth.module';
 
 @Module({
   imports: [
     DatabaseModule,
+    AuthModule,
 
     /**
      * BullModule.forRoot() — Redis bağlantı konfigürasyonu.

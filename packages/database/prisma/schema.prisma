@@ -67,6 +67,11 @@ model User {
   id                 String   @id @default(uuid())
   email              String   @unique
   name               String
+  /// bcrypt hash — legacy seed user'lar için nullable, auth ile gelenler set eder
+  passwordHash       String?
+  /// Forgot-password akışı için tek-kullanımlık reset token
+  passwordResetToken   String?   @unique
+  passwordResetExpires DateTime?
   techStack          String[] /// Bildiği teknolojiler: ["React", "TypeScript", ...]
   experienceYears    Int      @default(0)
   preferredRoles     String[] /// ["Frontend Developer", "Fullstack Engineer"]

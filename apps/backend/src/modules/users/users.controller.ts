@@ -1,100 +1,70 @@
 /**
  * Users Controller — Kullanıcı profil REST API.
  *
+ * Auth ile birlikte tüm endpoint'ler korunuyor — kullanıcı sadece kendi
+ * profiline erişebilir. POST /users akışı /api/auth/signup'a taşındı.
+ *
  * Endpoint'ler:
- *   POST  /api/users     → Yeni kullanıcı oluştur
- *   GET   /api/users/:id → Kullanıcı bilgisi getir
- *   PATCH /api/users/:id → Kullanıcı güncelle
- *
- * Validation:
- *   Body → ZodValidationPipe ile create/update schema'dan geçer.
- *   URL params (id) → ParseUUIDPipe ile UUID formatı doğrulanır.
- *
- * Neden DELETE yok?
- *   MVP'de kullanıcı silme özelliği planlanmadı.
- *   İleride gerekirse eklemek 5 satır iş.
+ *   GET   /api/users        → Sadece current user'ı array içinde döner
+ *   GET   /api/users/:id    → :id current user değilse 403
+ *   PATCH /api/users/:id    → :id current user değilse 403
  */
 
 import {
   Controller,
-  Post,
   Get,
   Patch,
   Body,
   Param,
   ParseUUIDPipe,
-  HttpCode,
-  HttpStatus,
+  ForbiddenException,
 } from '@nestjs/common';
-import { createUserSchema, updateUserSchema } from '@scrape/shared';
-import type { CreateUserInput, UpdateUserInput } from '@scrape/shared';
+import { updateUserSchema } from '@scrape/shared';
+import type { UpdateUserInput } from '@scrape/shared';
 import { ZodValidationPipe } from '@/pipes/zod-validation.pipe';
 import { UsersService } from './users.service';
 import type { UserDto } from './users.service';
+import { CurrentUser } from '@/modules/auth/current-user.decorator';
+import type { AuthenticatedUser } from '@/modules/auth/auth.types';
 
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   /**
-   * POST /api/users — Yeni kullanıcı oluştur.
-   *
-   * Body: { email, name, techStack?, experienceYears?, preferredRoles?, preferredLocations? }
-   *
-   * Response: 201 Created + UserDto
-   * Hata: 400 (validation) | 409 (email zaten var)
-   *
-   * @HttpCode(201) — NestJS POST default'u zaten 201, ama açıkça belirtmek
-   * kodun niyetini daha okunabilir kılar.
-   */
-  @Post()
-  @HttpCode(HttpStatus.CREATED)
-  async create(@Body(new ZodValidationPipe(createUserSchema)) body: CreateUserInput): Promise<UserDto> {
-    return this.usersService.create(body);
-  }
-
-  /**
-   * GET /api/users — Tüm kullanıcıları listele.
+   * GET /api/users — Frontend'in legacy "kullanıcı listesi" akışı için
+   * geriye uyumlu kalır; sadece current user'ı tek-elemanlı dizide döner.
    */
   @Get()
-  async findAll(): Promise<UserDto[]> {
-    return this.usersService.findAll();
+  async findAll(@CurrentUser() user: AuthenticatedUser): Promise<UserDto[]> {
+    const me = await this.usersService.findById(user.id);
+    return [me];
   }
 
-  /**
-   * GET /api/users/:id — Kullanıcı bilgisi getir.
-   *
-   * ParseUUIDPipe: URL'deki :id parametresinin gerçek UUID formatında
-   * olduğunu doğrular. "abc123" gibi geçersiz ID'ler 400 döner.
-   *
-   * Response: 200 OK + UserDto
-   * Hata: 400 (geçersiz UUID) | 404 (kullanıcı yok)
-   */
+  /** GET /api/users/:id — sadece kendi profiline erişim. */
   @Get(':id')
   async findById(
     @Param('id', new ParseUUIDPipe()) id: string,
+    @CurrentUser() user: AuthenticatedUser,
   ): Promise<UserDto> {
+    ensureOwnership(id, user.id);
     return this.usersService.findById(id);
   }
 
-  /**
-   * PATCH /api/users/:id — Kullanıcı güncelle.
-   *
-   * PATCH vs PUT farkı:
-   *   - PUT: "Tüm kaynağı değiştir" — TÜM alanlar zorunlu
-   *   - PATCH: "Sadece gönderilenleri güncelle" — kısmi güncelleme
-   *
-   * Frontend sadece { techStack: ["React"] } gönderebilir,
-   * geriye kalan alanlar DB'deki değerlerini korur.
-   *
-   * Response: 200 OK + güncellenmiş UserDto
-   * Hata: 400 (validation/uuid) | 404 (kullanıcı yok) | 409 (email çakışması)
-   */
+  /** PATCH /api/users/:id — sadece kendi profilini güncelleyebilir. */
   @Patch(':id')
   async update(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body(new ZodValidationPipe(updateUserSchema)) body: UpdateUserInput,
+    @CurrentUser() user: AuthenticatedUser,
   ): Promise<UserDto> {
+    ensureOwnership(id, user.id);
     return this.usersService.update(id, body);
+  }
+}
+
+function ensureOwnership(targetId: string, currentId: string): void {
+  if (targetId !== currentId) {
+    throw new ForbiddenException('Sadece kendi profiline erişebilirsin');
   }
 }

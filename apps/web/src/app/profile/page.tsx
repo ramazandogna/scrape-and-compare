@@ -4,27 +4,24 @@ import { useEffect } from "react";
 import { UserCircle2 } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
 import { useJobs } from "@/hooks/use-jobs";
-import { UserSelector } from "@/components/profile/user-selector";
 import { ProfileForm } from "@/components/profile/profile-form";
 import { ProfileSummary } from "@/components/profile/profile-summary";
 import { ClearJobsButton } from "@/components/profile/clear-jobs-button";
 
 // ═══════════════════════════════════════════
-// ProfilePage — kullanıcı profili (CRUD + özet)
+// ProfilePage — kullanıcı profili (düzenle + özet)
 // ═══════════════════════════════════════════
-// AI puanlama buradan kaldırıldı — Dashboard'da scrape sonrası otomatik
-// tetikleniyor; profil sayfası tek-amaçlı: kim olduğunu söyle.
+// AuthGate buraya gelmeden önce login zorunlu kıldığı için user her zaman var.
 
 export default function ProfilePage() {
-  const { user, users, isLoading, error, createUser, updateUser, selectUser } =
-    useUser();
+  const { user, isLoading, error, updateUser } = useUser();
   const { total: jobCount, fetchJobs } = useJobs();
 
   useEffect(() => {
     if (user?.id) fetchJobs(user.id);
   }, [user?.id, fetchJobs]);
 
-  if (isLoading) {
+  if (isLoading || !user) {
     return (
       <div className="mx-auto max-w-3xl space-y-4 px-4 py-8">
         <div className="animate-pulse space-y-4">
@@ -52,23 +49,11 @@ export default function ProfilePage() {
         </p>
       </div>
 
-      <UserSelector
-        users={users}
-        selectedUserId={user?.id ?? null}
-        onSelect={selectUser}
-      />
+      <ProfileForm key={user.id} user={user} onUpdate={updateUser} error={error} />
 
-      <ProfileForm
-        key={user?.id ?? "new"}
-        user={user}
-        onSave={createUser}
-        onUpdate={updateUser}
-        error={error}
-      />
+      <ProfileSummary user={user} />
 
-      {user && <ProfileSummary user={user} />}
-
-      {user && <ClearJobsButton userId={user.id} jobCount={jobCount} />}
+      <ClearJobsButton userId={user.id} jobCount={jobCount} />
     </div>
   );
 }

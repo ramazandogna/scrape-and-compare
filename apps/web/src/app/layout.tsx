@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
-import { Header } from "@/components/layout/header";
-import { Footer } from "@/components/layout/footer";
-import { PageTransition } from "@/components/layout/page-transition";
+import { AppShell } from "@/components/layout/app-shell";
+import { AuthProvider } from "@/contexts/auth-context";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -33,12 +32,10 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
-        <Header />
-        <main className="flex-1">
-          <PageTransition>{children}</PageTransition>
-        </main>
-        <Footer />
-        <Toaster richColors position="top-right" />
+        <AuthProvider>
+          <AppShell>{children}</AppShell>
+          <Toaster richColors position="top-right" />
+        </AuthProvider>
       </body>
     </html>
   );

@@ -19,20 +19,25 @@
 
 import 'reflect-metadata';
 import 'dotenv/config';
+import cookieParser from 'cookie-parser';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from '@/app.module';
 import { GlobalExceptionFilter } from '@/filters/global-exception.filter';
 import { logger } from '@/utils/helpers';
 
 const bootstrap = async (): Promise<void> => {
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: false,
   });
 
   // Global prefix — tüm route'lar /api altında
   app.setGlobalPrefix('api');
 
-  // CORS — Next.js frontend'in API'ye erişimi için
+  // Cookie parser — auth_token cookie'sini req.cookies'e parse eder
+  app.use(cookieParser());
+
+  // CORS — Next.js frontend'in API'ye erişimi için (httpOnly cookie credentials)
   app.enableCors({
     origin: process.env['CORS_ORIGIN'] ?? 'http://localhost:3001',
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],

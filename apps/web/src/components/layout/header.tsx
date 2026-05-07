@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+import { LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/auth-context";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard" },
@@ -13,6 +15,14 @@ const NAV_ITEMS = [
 
 export function Header() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, status, logout } = useAuth();
+  const isAuthed = status === "authenticated" && user !== null;
+
+  async function handleLogout() {
+    await logout();
+    router.replace("/sign-in");
+  }
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-xl supports-backdrop-filter:bg-background/55">
@@ -53,6 +63,24 @@ export function Header() {
               </Link>
             );
           })}
+
+          {isAuthed && (
+            <>
+              <span className="mx-2 hidden h-5 w-px bg-border sm:block" />
+              <span className="hidden text-xs text-muted-foreground sm:inline-flex">
+                {user.name}
+              </span>
+              <button
+                type="button"
+                onClick={() => void handleLogout()}
+                title="Çıkış yap"
+                className="ml-1 inline-flex cursor-pointer items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-rose-50 hover:text-rose-600"
+              >
+                <LogOut className="size-3.5" />
+                <span className="hidden sm:inline">Çıkış</span>
+              </button>
+            </>
+          )}
         </nav>
       </div>
     </header>

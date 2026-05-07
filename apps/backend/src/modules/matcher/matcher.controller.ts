@@ -28,6 +28,7 @@ import {
   HttpStatus,
   UsePipes,
   NotFoundException,
+  ForbiddenException,
   type OnModuleInit,
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
@@ -42,6 +43,8 @@ import type { MatcherScoreInput, JobsQueryInput, MatcherJobData } from '@scrape/
 import { ZodValidationPipe } from '@/pipes/zod-validation.pipe';
 import { MatcherService } from './matcher.service';
 import { PrismaService } from '@/database/prisma.service';
+import { CurrentUser } from '@/modules/auth/current-user.decorator';
+import type { AuthenticatedUser } from '@/modules/auth/auth.types';
 import { logger } from '@/utils/helpers';
 
 // ═══════════════════════════════════════════
@@ -162,7 +165,14 @@ export class MatcherController implements OnModuleInit {
   @Post('score')
   @HttpCode(HttpStatus.ACCEPTED)
   @UsePipes(new ZodValidationPipe(matcherScoreInputSchema))
-  async triggerScoring(@Body() body: MatcherScoreInput): Promise<ScoreTriggerResponse> {
+  async triggerScoring(
+    @Body() body: MatcherScoreInput,
+    @CurrentUser() authUser: AuthenticatedUser,
+  ): Promise<ScoreTriggerResponse> {
+    if (body.userId !== authUser.id) {
+      throw new ForbiddenException('Sadece kendi ilanlarını puanlayabilirsin');
+    }
+
     const user = await this.prisma.user.findUnique({
       where: { id: body.userId },
       select: {
@@ -285,7 +295,11 @@ export class MatcherController implements OnModuleInit {
   async getResults(
     @Param('userId') userId: string,
     @Query(new ZodValidationPipe(jobsQuerySchema)) query: JobsQueryInput,
+    @CurrentUser() authUser: AuthenticatedUser,
   ): Promise<MatchResultsResponse> {
+    if (userId !== authUser.id) {
+      throw new ForbiddenException('Sadece kendi sonuçlarını görüntüleyebilirsin');
+    }
     const { page, limit } = query;
 
     const userExists = await this.prisma.user.findUnique({

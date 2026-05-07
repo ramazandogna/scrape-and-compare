@@ -14,12 +14,24 @@
  * İş mantığı (filtreleme, pagination, silme) JobsService'de yaşar.
  */
 
-import { Controller, Get, Delete, Param, Query, UsePipes, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Delete,
+  Param,
+  Query,
+  UsePipes,
+  HttpCode,
+  HttpStatus,
+  ForbiddenException,
+} from '@nestjs/common';
 import { jobsQuerySchema } from '@scrape/shared';
 import type { JobsQueryInput } from '@scrape/shared';
 import { ZodValidationPipe } from '@/pipes/zod-validation.pipe';
 import { JobsService } from './jobs.service';
 import type { PaginatedJobs } from './jobs.service';
+import { CurrentUser } from '@/modules/auth/current-user.decorator';
+import type { AuthenticatedUser } from '@/modules/auth/auth.types';
 
 @Controller('jobs')
 export class JobsController {
@@ -42,8 +54,12 @@ export class JobsController {
    */
   @Get()
   @UsePipes(new ZodValidationPipe(jobsQuerySchema))
-  async findAll(@Query() query: JobsQueryInput): Promise<PaginatedJobs> {
-    return this.jobsService.findAll(query);
+  async findAll(
+    @Query() query: JobsQueryInput,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<PaginatedJobs> {
+    // userId her zaman current user'dan — frontend body/query'den gelirse override edilir.
+    return this.jobsService.findAll({ ...query, userId: user.id });
   }
 
   /**
@@ -60,13 +76,14 @@ export class JobsController {
   @HttpCode(HttpStatus.OK)
   async removeAllUserJobs(
     @Param('userId') userId: string,
+    @CurrentUser() user: AuthenticatedUser,
   ): Promise<{ removedJobs: number; removedMatches: number }> {
+    ensureOwnership(userId, user.id);
     return this.jobsService.removeAllUserJobs(userId);
   }
 
   /**
    * DELETE /api/jobs/user/:userId/job/:jobId — Tekil ilanı kullanıcıdan kaldır.
-   *
    * Sadece UserJobListing + MatchResult silinir, JobListing kalır.
    */
   @Delete('user/:userId/job/:jobId')
@@ -74,7 +91,15 @@ export class JobsController {
   async removeUserJob(
     @Param('userId') userId: string,
     @Param('jobId') jobId: string,
+    @CurrentUser() user: AuthenticatedUser,
   ): Promise<{ removed: boolean }> {
+    ensureOwnership(userId, user.id);
     return this.jobsService.removeUserJob(userId, jobId);
+  }
+}
+
+function ensureOwnership(targetUserId: string, currentUserId: string): void {
+  if (targetUserId !== currentUserId) {
+    throw new ForbiddenException('Sadece kendi ilanların üzerinde işlem yapabilirsin');
   }
 }

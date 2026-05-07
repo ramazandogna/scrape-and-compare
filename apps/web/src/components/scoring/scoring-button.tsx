@@ -239,8 +239,8 @@ export function ScoringButton({
           if (!open) handleDialogClose();
         }}
       >
-        <AlertDialogContent className="max-w-2xl gap-0 p-0">
-          <div className="space-y-1 border-b bg-gradient-to-br from-violet-50 via-background to-fuchsia-50 px-6 py-5">
+        <AlertDialogContent className="max-w-3xl gap-0 p-0">
+          <div className="space-y-1 border-b bg-gradient-to-br from-violet-50 via-background to-fuchsia-50 px-7 py-6">
             <AlertDialogHeader className="space-y-1.5">
               <AlertDialogTitle className="flex items-center gap-2 text-base">
                 <SlidersHorizontal className="size-4 text-violet-600" />
@@ -253,7 +253,7 @@ export function ScoringButton({
             </AlertDialogHeader>
           </div>
 
-          <div className="grid gap-2 px-6 py-5">
+          <div className="grid gap-3 px-7 py-6">
             <ScopeCard
               accent="emerald"
               title="Sadece puanlanmamış ilanlar"
@@ -299,7 +299,7 @@ export function ScoringButton({
             />
           </div>
 
-          <div className="flex items-center justify-end border-t bg-muted/30 px-6 py-3">
+          <div className="flex items-center justify-end border-t bg-muted/30 px-7 py-3.5">
             <Button
               variant="ghost"
               size="sm"

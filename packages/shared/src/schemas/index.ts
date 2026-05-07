@@ -244,3 +244,36 @@ export type CreateUserInput = z.infer<typeof createUserSchema>;
 export const updateUserSchema = createUserSchema.partial();
 
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
+
+// ═══════════════════════════════════════════
+// AUTH SCHEMAS
+// ═══════════════════════════════════════════
+
+const passwordSchema = z
+  .string()
+  .min(8, 'Şifre en az 8 karakter olmalı')
+  .max(72, 'Şifre çok uzun (max 72 karakter)');
+
+export const signupSchema = z.object({
+  email: z.string().trim().email('Geçerli bir email adresi giriniz'),
+  name: z.string().trim().min(1, 'İsim boş olamaz').max(100),
+  password: passwordSchema,
+});
+export type SignupInput = z.infer<typeof signupSchema>;
+
+export const loginSchema = z.object({
+  email: z.string().trim().email('Geçerli bir email adresi giriniz'),
+  password: z.string().min(1, 'Şifre gerekli'),
+});
+export type LoginInput = z.infer<typeof loginSchema>;
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().trim().email('Geçerli bir email adresi giriniz'),
+});
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(10, 'Geçersiz token'),
+  password: passwordSchema,
+});
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;

@@ -39,6 +39,8 @@ import type { Queue } from 'bullmq';
 import type { ScrapeJobData, ScrapeJobResult, ScrapeJobProgress } from '@scrape/shared';
 import { QUEUE_NAMES, scrapeJobDataSchema } from '@scrape/shared';
 import { ZodValidationPipe } from '@/pipes/zod-validation.pipe';
+import { CurrentUser } from '@/modules/auth/current-user.decorator';
+import type { AuthenticatedUser } from '@/modules/auth/auth.types';
 import { logger } from '@/utils/helpers';
 
 // ═══════════════════════════════════════════
@@ -105,8 +107,13 @@ export class ScraperController {
   @Post('trigger')
   @HttpCode(HttpStatus.ACCEPTED)
   @UsePipes(new ZodValidationPipe(scrapeJobDataSchema))
-  async trigger(@Body() body: ScrapeJobData): Promise<TriggerResponse> {
-    const job = await this.scrapeQueue.add('scrape', body, {
+  async trigger(
+    @Body() body: ScrapeJobData,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<TriggerResponse> {
+    // userId her zaman auth'tan gelir — body'deki override edilir.
+    const payload: ScrapeJobData = { ...body, userId: user.id };
+    const job = await this.scrapeQueue.add('scrape', payload, {
       /**
        * removeOnComplete: Tamamlanan job'ları Redis'ten sil (bellek tasarrufu).
        * Son 100 tamamlanan job'ı tut — status sorgusu için lazım.

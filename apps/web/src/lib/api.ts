@@ -14,6 +14,8 @@ export async function apiFetch<T>(
   const url = `${API_BASE_URL}${endpoint}`;
 
   const response = await fetch(url, {
+    // Auth cookie'sini dahil et — backend AuthGuard token'ı buradan okuyor.
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       ...options?.headers,

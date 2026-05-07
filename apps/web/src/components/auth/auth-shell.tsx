@@ -28,7 +28,7 @@ export function AuthShell({
   topRight,
 }: AuthShellProps) {
   return (
-    <div className="relative min-h-[calc(100vh-3.5rem)] w-full bg-gradient-to-br from-violet-50 via-background to-fuchsia-50 px-4 py-8 sm:px-6 lg:py-12">
+    <div className="relative flex min-h-screen w-full items-center justify-center bg-gradient-to-br from-violet-50 via-background to-fuchsia-50 px-4 py-6 sm:px-6 sm:py-10">
       {/* Soft glow orbs */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -left-24 top-12 size-72 rounded-full bg-violet-200/40 blur-3xl" />

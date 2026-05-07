@@ -32,7 +32,6 @@ import {
   HttpCode,
   HttpStatus,
   NotFoundException,
-  UsePipes,
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';

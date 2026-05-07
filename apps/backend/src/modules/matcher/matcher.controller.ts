@@ -26,7 +26,6 @@ import {
   Query,
   HttpCode,
   HttpStatus,
-  UsePipes,
   NotFoundException,
   ForbiddenException,
   type OnModuleInit,

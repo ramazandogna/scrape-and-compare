@@ -104,7 +104,7 @@ export function MatchSkills({
         type="button"
         size="xs"
         variant="outline"
-        className="h-5 cursor-pointer gap-1 rounded-4xl px-2 text-[11px] text-muted-foreground hover:border-primary/40 hover:text-foreground"
+        className="h-6 cursor-pointer gap-1 rounded-full px-2 text-[11px] font-medium text-muted-foreground transition-all duration-150 active:scale-95 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
         title="Bu beceri için ne yapmak istediğini seç"
         onClick={() => {
           openSkillDialog(skill);
@@ -119,12 +119,12 @@ export function MatchSkills({
 
   return (
     <>
-      <div className="flex flex-wrap gap-1">
+      <div className="flex flex-wrap gap-1.5">
         {visibleMatched.map((s) => (
           <Badge
             key={`m-${s}`}
             variant="default"
-            className="gap-1 bg-green-100 text-[11px] text-green-700 hover:bg-green-100"
+            className="gap-1 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 ring-1 ring-emerald-200/60 hover:bg-emerald-50"
           >
             <CheckCircle className="size-3" />
             {s}
@@ -140,7 +140,7 @@ export function MatchSkills({
               render={
                 <Badge
                   variant="outline"
-                  className="cursor-pointer text-[11px] text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                  className="cursor-pointer px-2 py-0.5 text-[11px] text-muted-foreground transition-colors hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
                 >
                   +{hiddenCount} daha
                 </Badge>
@@ -152,7 +152,7 @@ export function MatchSkills({
                   <Badge
                     key={`hm-${skill}`}
                     variant="default"
-                    className="gap-1 bg-green-100 text-[11px] text-green-700 hover:bg-green-100"
+                    className="gap-1 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 ring-1 ring-emerald-200/60 hover:bg-emerald-50"
                   >
                     <CheckCircle className="size-3" />
                     {skill}

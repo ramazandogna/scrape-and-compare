@@ -363,41 +363,41 @@ function ScopeCard({
 }) {
   const styles = ACCENT_STYLES[accent];
   return (
-    <div
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onSelect}
       className={cn(
-        "rounded-xl border bg-card p-4 transition-colors",
+        "group/scope flex w-full cursor-pointer flex-col items-start gap-3 rounded-xl border bg-card p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-sm sm:flex-row sm:items-center sm:gap-4",
         !disabled && styles.border,
-        disabled && "opacity-60",
+        disabled && "cursor-not-allowed opacity-60 hover:translate-y-0 hover:shadow-none",
       )}
     >
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex flex-1 gap-3">
-          <span
-            className={cn(
-              "flex size-9 shrink-0 items-center justify-center rounded-lg ring-1",
-              styles.iconBg,
-            )}
-          >
-            {icon}
-          </span>
-          <div className="space-y-1">
-            <p className="text-sm font-semibold leading-tight">{title}</p>
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              {description}
-            </p>
-          </div>
-        </div>
-        <Button
-          size="sm"
-          variant={disabled ? "outline" : "default"}
-          disabled={disabled}
-          onClick={onSelect}
-          className="h-8 shrink-0"
-        >
-          {cta}
-        </Button>
+      <span
+        className={cn(
+          "flex size-10 shrink-0 items-center justify-center rounded-xl ring-1 transition-transform group-hover/scope:scale-105",
+          styles.iconBg,
+        )}
+      >
+        {icon}
+      </span>
+      <div className="min-w-0 flex-1 space-y-0.5">
+        <p className="text-sm font-semibold leading-snug">{title}</p>
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          {description}
+        </p>
       </div>
-    </div>
+      <span
+        className={cn(
+          "inline-flex h-8 shrink-0 items-center justify-center rounded-md px-3 text-xs font-medium transition-colors",
+          disabled
+            ? "border border-border text-muted-foreground"
+            : "bg-foreground text-background group-hover/scope:bg-foreground/90",
+        )}
+      >
+        {cta}
+      </span>
+    </button>
   );
 }
 

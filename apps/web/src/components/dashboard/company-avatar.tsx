@@ -1,6 +1,29 @@
 import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
-import { getAvatarColor, getInitial } from "@/lib/job-helpers";
+import { getInitial } from "@/lib/job-helpers";
+
+// Şirket adı bazlı deterministik gradient — kart ile uyumlu, modern look.
+// Aynı şirket her zaman aynı gradient'i alır (hash-based).
+const GRADIENT_PALETTE = [
+  "from-violet-500 to-fuchsia-500",
+  "from-blue-500 to-indigo-500",
+  "from-emerald-500 to-teal-500",
+  "from-orange-500 to-rose-500",
+  "from-amber-500 to-orange-500",
+  "from-cyan-500 to-blue-500",
+  "from-rose-500 to-pink-500",
+  "from-indigo-500 to-violet-500",
+  "from-teal-500 to-cyan-500",
+  "from-fuchsia-500 to-pink-500",
+] as const;
+
+function pickGradient(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return GRADIENT_PALETTE[Math.abs(hash) % GRADIENT_PALETTE.length]!;
+}
 
 // ═══════════════════════════════════════════
 // CompanyAvatar — Şirket logosu veya renkli baş harf
@@ -56,8 +79,8 @@ export function CompanyAvatar({
   size = "md",
   className,
 }: CompanyAvatarProps) {
-  const colorClasses = getAvatarColor(company);
   const initial = getInitial(company);
+  const gradient = pickGradient(company);
 
   const candidates = useMemo(() => {
     const list: string[] = [];
@@ -70,13 +93,14 @@ export function CompanyAvatar({
   }, [company, logoUrl]);
 
   const [candidateIndex, setCandidateIndex] = useState(0);
-  const sizeClass = size === "sm" ? "size-8" : "size-10";
+  const sizeClass = size === "sm" ? "size-9" : "size-11";
+  const textSize = size === "sm" ? "text-sm" : "text-base";
 
   if (candidateIndex < candidates.length) {
     return (
       <div
         className={cn(
-          "flex shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white border border-border/50",
+          "relative flex shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border/50 bg-white shadow-xs",
           sizeClass,
           className,
         )}
@@ -87,24 +111,29 @@ export function CompanyAvatar({
           key={candidates[candidateIndex]}
           src={candidates[candidateIndex]}
           alt={company}
-          className="size-full object-contain p-0.5"
+          className="size-full object-contain p-1"
           onError={() => setCandidateIndex((i) => i + 1)}
         />
       </div>
     );
   }
 
+  // Logo bulunamadı → gradient + harf fallback
+  // Kartla uyumlu: rounded-xl (kartla aynı corner radius), shadow-xs, ring.
   return (
     <div
       className={cn(
-        "flex shrink-0 items-center justify-center rounded-lg font-bold",
-        size === "sm" ? "size-8 text-sm" : "size-10 text-base",
-        colorClasses,
+        "relative flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br font-semibold text-white shadow-xs ring-1 ring-white/20",
+        gradient,
+        sizeClass,
+        textSize,
         className,
       )}
       aria-hidden="true"
     >
-      {initial}
+      {/* Üst gloss efekti — premium hissi */}
+      <span className="absolute inset-0 rounded-xl bg-gradient-to-tr from-white/20 via-transparent to-transparent" />
+      <span className="relative">{initial}</span>
     </div>
   );
 }

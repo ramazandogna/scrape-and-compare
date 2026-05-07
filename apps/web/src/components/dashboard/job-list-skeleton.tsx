@@ -6,7 +6,7 @@ interface JobListSkeletonProps {
 
 export function JobListSkeleton({ count = 3 }: JobListSkeletonProps) {
   return (
-    <div className="space-y-3" aria-hidden="true">
+    <div className="animate-skeleton-in space-y-3" aria-hidden="true">
       {Array.from({ length: count }).map((_, i) => (
         <Card key={i} className="overflow-hidden">
           <CardContent className="space-y-3">

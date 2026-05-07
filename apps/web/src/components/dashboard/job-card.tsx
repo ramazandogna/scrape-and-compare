@@ -50,7 +50,7 @@ export function JobCard({
   }
 
   return (
-    <Card className="group/card relative overflow-visible transition-shadow hover:shadow-md">
+    <Card className="group/card relative overflow-visible border-border/70 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-violet-200/70 hover:shadow-md">
       <CardContent className="space-y-3">
         {/* Score Badge — her ilanda eşleşti/eşleşmedi durumu */}
         <div className="flex items-center justify-between">
@@ -72,7 +72,7 @@ export function JobCard({
                 {isFavorite ? "Favoride" : "Favoriye Ekle"}
               </button>
             )}
-            <span className="text-[11px] uppercase tracking-wider text-muted-foreground/70">
+            <span className="inline-flex items-center rounded-md bg-muted/50 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/80">
               {job.source}
             </span>
           </div>
@@ -164,35 +164,51 @@ export function JobCard({
         </div>
       </CardContent>
 
-      {/* Sil butonu — kartın sağ kenarında, hover'da belirginleşir */}
+      {/* Sil butonu — kartın sağ kenarında, hover'da belirginleşir.
+          confirm state: yumuşak swap (translate + opacity) ile, çat diye değil. */}
       {onRemove && (
         <div className="absolute -right-3 top-1/2 z-10 -translate-y-1/2">
-          {confirmRemove ? (
-            <div className="flex flex-col gap-1">
+          <div className="relative size-7">
+            <button
+              onClick={() => setConfirmRemove(true)}
+              title="Bu ilanı kaldır"
+              className={cn(
+                "absolute inset-0 flex cursor-pointer items-center justify-center rounded-full bg-rose-50 text-rose-500 shadow-sm ring-1 ring-rose-200/60 transition-all duration-200 ease-out hover:bg-rose-500 hover:text-white hover:shadow-md active:scale-90",
+                confirmRemove
+                  ? "pointer-events-none -translate-y-1 scale-90 opacity-0"
+                  : "translate-y-0 opacity-0 group-hover/card:opacity-100",
+              )}
+            >
+              <Trash2 className="size-3.5" />
+            </button>
+
+            <div
+              className={cn(
+                "absolute inset-x-0 -top-3 flex flex-col items-center gap-1 transition-all duration-200 ease-out",
+                confirmRemove
+                  ? "translate-y-0 opacity-100"
+                  : "pointer-events-none -translate-y-1 opacity-0",
+              )}
+            >
               <button
-                onClick={() => { onRemove(job.id); setConfirmRemove(false); }}
-                className="flex size-6 cursor-pointer items-center justify-center rounded-full bg-red-600 text-white shadow-md transition-transform hover:scale-110"
+                onClick={() => {
+                  onRemove(job.id);
+                  setConfirmRemove(false);
+                }}
+                className="flex size-7 cursor-pointer items-center justify-center rounded-full bg-rose-500 text-white shadow-md ring-1 ring-rose-300 transition-transform duration-200 hover:scale-110 active:scale-95"
                 title="Evet, kaldır"
               >
                 <Trash2 className="size-3.5" />
               </button>
               <button
                 onClick={() => setConfirmRemove(false)}
-                className="flex size-6 cursor-pointer items-center justify-center rounded-full bg-gray-300 text-gray-700 shadow-md transition-transform hover:scale-110"
+                className="flex size-7 cursor-pointer items-center justify-center rounded-full bg-white text-muted-foreground shadow-sm ring-1 ring-border transition-transform duration-200 hover:scale-110 active:scale-95"
                 title="Vazgeç"
               >
                 ✕
               </button>
             </div>
-          ) : (
-            <button
-              onClick={() => setConfirmRemove(true)}
-              className="flex size-6 cursor-pointer items-center justify-center rounded-full bg-red-100 text-red-400 opacity-0 shadow-sm transition-all group-hover/card:opacity-100 hover:bg-red-600 hover:text-white hover:shadow-md"
-              title="Bu ilanı kaldır"
-            >
-              <Trash2 className="size-3.5" />
-            </button>
-          )}
+          </div>
         </div>
       )}
     </Card>

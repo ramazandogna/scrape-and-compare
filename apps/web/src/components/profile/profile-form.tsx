@@ -70,17 +70,19 @@ export function ProfileForm({ user, onSave, onUpdate, error }: ProfileFormProps)
   }, [error]);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-xl">
-          {isEditMode ? "Profili Düzenle" : "Profil Oluştur"}
-        </CardTitle>
-        <CardDescription>
-          {isEditMode
-            ? "Bilgilerinizi güncelleyin, daha doğru eşleşmeler alın."
-            : "Yeteneklerinizi girin, AI size en uygun ilanları bulsun."}
-        </CardDescription>
-      </CardHeader>
+    <Card className="overflow-hidden">
+      <div className="border-b bg-gradient-to-br from-violet-50 via-background to-fuchsia-50 px-6 py-5">
+        <CardHeader className="p-0">
+          <CardTitle className="text-base font-semibold">
+            {isEditMode ? "Profili Düzenle" : "Profil Oluştur"}
+          </CardTitle>
+          <CardDescription className="text-xs">
+            {isEditMode
+              ? "Bilgilerini güncelle, daha doğru eşleşmeler al."
+              : "Yeteneklerini gir — AI sana en uygun ilanları bulsun."}
+          </CardDescription>
+        </CardHeader>
+      </div>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Email + Name — yan yana */}
@@ -160,13 +162,20 @@ export function ProfileForm({ user, onSave, onUpdate, error }: ProfileFormProps)
           </div>
 
           {/* Submit */}
-          <Button type="submit" disabled={isSaving} className="w-full sm:w-auto">
-            {isSaving
-              ? "Kaydediliyor..."
-              : isEditMode
-                ? "💾 Güncelle"
-                : "💾 Kaydet"}
-          </Button>
+          <div className="flex justify-end pt-2">
+            <Button
+              type="submit"
+              variant={isEditMode ? "default" : "hero"}
+              disabled={isSaving}
+              className="h-10 px-5 text-sm font-semibold"
+            >
+              {isSaving
+                ? "Kaydediliyor..."
+                : isEditMode
+                  ? "Güncelle"
+                  : "Profili oluştur"}
+            </Button>
+          </div>
         </form>
       </CardContent>
     </Card>

@@ -6,6 +6,21 @@ import { Pagination } from "@/components/dashboard/pagination";
 import type { EnrichedJob, SortState } from "@/types/job";
 import type { PaginationResult } from "@/lib/job-helpers";
 
+// Tailwind purge static class'ları görsün — dinamik template string yerine
+// statik array kullanıyoruz.
+const STAGGER_CLASSES = [
+  "stagger-1",
+  "stagger-2",
+  "stagger-3",
+  "stagger-4",
+  "stagger-5",
+  "stagger-6",
+  "stagger-7",
+  "stagger-8",
+  "stagger-9",
+  "stagger-10",
+] as const;
+
 // ═══════════════════════════════════════════
 // JobCardList — Orta sütun: SortBar + kartlar + pagination
 // ═══════════════════════════════════════════
@@ -44,16 +59,22 @@ export function JobCardList({
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {items.map((job) => (
-            <JobCard
+        // page'i key'e koyuyoruz — sayfa değişiminde kartlar remount olup
+        // staggered enter animasyonunu yeniden tetikler.
+        <div key={`p-${page}`} className="space-y-3">
+          {items.map((job, idx) => (
+            <div
               key={job.id}
-              job={job}
-              onRemove={onRemoveJob}
-              onAddMissingSkill={onAddMissingSkill}
-              isFavorite={isFavorite?.(job.id) ?? false}
-              onToggleFavorite={onToggleFavorite}
-            />
+              className={`animate-card-in ${STAGGER_CLASSES[Math.min(idx, STAGGER_CLASSES.length - 1)]}`}
+            >
+              <JobCard
+                job={job}
+                onRemove={onRemoveJob}
+                onAddMissingSkill={onAddMissingSkill}
+                isFavorite={isFavorite?.(job.id) ?? false}
+                onToggleFavorite={onToggleFavorite}
+              />
+            </div>
           ))}
         </div>
       )}

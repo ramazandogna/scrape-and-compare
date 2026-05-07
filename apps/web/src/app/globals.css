@@ -132,17 +132,61 @@
 @layer utilities {
   /* Sayfa içeriği yumuşakça belirsin — geçişlerde skeleton flash hissini azaltır */
   .animate-page-in {
-    animation: page-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+    animation: page-in 320ms cubic-bezier(0.22, 1, 0.36, 1);
   }
   @keyframes page-in {
     from {
       opacity: 0;
-      transform: translateY(4px);
+      transform: translateY(8px);
     }
     to {
       opacity: 1;
       transform: translateY(0);
     }
+  }
+
+  /* Kart listesi için staggered entrance — her kart ardışık 40ms gecikmeyle gelir */
+  .animate-card-in {
+    animation: card-in 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  @keyframes card-in {
+    from {
+      opacity: 0;
+      transform: translateY(12px) scale(0.985);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+  .stagger-1 { animation-delay: 40ms; }
+  .stagger-2 { animation-delay: 80ms; }
+  .stagger-3 { animation-delay: 120ms; }
+  .stagger-4 { animation-delay: 160ms; }
+  .stagger-5 { animation-delay: 200ms; }
+  .stagger-6 { animation-delay: 240ms; }
+  .stagger-7 { animation-delay: 280ms; }
+  .stagger-8 { animation-delay: 320ms; }
+  .stagger-9 { animation-delay: 360ms; }
+  .stagger-10 { animation-delay: 400ms; }
+
+  /* Tıklama animasyonu — checkbox/filter/badge için micro-bump */
+  .animate-press {
+    animation: press 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes press {
+    0% { transform: scale(1); }
+    40% { transform: scale(0.92); }
+    100% { transform: scale(1); }
+  }
+
+  /* Skeleton'lar için yumuşak fade-out — content swap'inde flash hissi azalır */
+  .animate-skeleton-in {
+    animation: skeleton-in 280ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  @keyframes skeleton-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 
   /* Hafif kalp atışı — yormayan, sürekli atan ipucu */

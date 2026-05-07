@@ -173,10 +173,13 @@ export function HeroSearch({ onSearch, scrapeState, onScrapeReset, total }: Hero
   const popularKeywords = ["frontend developer", "react developer", "node.js", "fullstack", "devops"];
 
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-primary/10 bg-gradient-to-br from-primary/8 via-background to-fuchsia-500/5 p-6 shadow-sm sm:p-10">
-      {/* Soft glow orbs — saf dekoratif */}
-      <div className="pointer-events-none absolute -right-16 -top-16 size-56 rounded-full bg-primary/10 blur-3xl" aria-hidden />
-      <div className="pointer-events-none absolute -bottom-20 -left-12 size-56 rounded-full bg-fuchsia-400/10 blur-3xl" aria-hidden />
+    <div className="relative rounded-3xl border border-primary/10 bg-gradient-to-br from-primary/8 via-background to-fuchsia-500/5 p-6 shadow-sm sm:p-10">
+      {/* Glow orb'ları KENDİ overflow-hidden konteynerinde tut, böylece dış
+          kart taşan dropdown'ı (lokasyon listesi) kırpmaz. */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-3xl">
+        <div className="absolute -right-16 -top-16 size-56 rounded-full bg-primary/10 blur-3xl" aria-hidden />
+        <div className="absolute -bottom-20 -left-12 size-56 rounded-full bg-fuchsia-400/10 blur-3xl" aria-hidden />
+      </div>
 
       <div className="relative">
         <div className="inline-flex items-center gap-2 rounded-full border bg-background/70 px-3 py-1 text-[11px] font-medium text-muted-foreground backdrop-blur">

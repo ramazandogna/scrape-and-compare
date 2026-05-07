@@ -149,16 +149,22 @@ export default function FavoritesPage() {
       )}
 
       {!isHydrating && user && favoriteJobs.length > 0 && (
-        <div className="mt-6 space-y-3">
-          {favoriteJobs.map((job) => (
-            <JobCard
+        <div className="animate-page-in mt-6 space-y-3">
+          {favoriteJobs.map((job, idx) => (
+            <div
               key={job.id}
-              job={job}
-              onRemove={handleRemoveJob}
-              onAddMissingSkill={handleAddMissingSkill}
-              isFavorite={isFavorite(job.id)}
-              onToggleFavorite={toggleFavorite}
-            />
+              className={`animate-card-in ${
+                ["stagger-1","stagger-2","stagger-3","stagger-4","stagger-5","stagger-6","stagger-7","stagger-8"][Math.min(idx, 7)]
+              }`}
+            >
+              <JobCard
+                job={job}
+                onRemove={handleRemoveJob}
+                onAddMissingSkill={handleAddMissingSkill}
+                isFavorite={isFavorite(job.id)}
+                onToggleFavorite={toggleFavorite}
+              />
+            </div>
           ))}
         </div>
       )}

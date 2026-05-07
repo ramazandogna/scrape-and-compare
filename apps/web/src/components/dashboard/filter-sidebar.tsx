@@ -1,10 +1,12 @@
 "use client";
 
-import { Lock, Check, SlidersHorizontal } from "lucide-react";
+import { Lock, Check, SlidersHorizontal, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { FilterState } from "@/types/job";
 import {
+  INITIAL_FILTERS,
   SENIORITY_OPTIONS,
   EMPLOYMENT_OPTIONS,
   WORK_TYPE_OPTIONS,
@@ -31,11 +33,25 @@ export function FilterSidebar({ filters, onFilterChange }: FilterSidebarProps) {
     onFilterChange({ ...filters, [key]: value });
   }
 
+  // Aktif filtre sayısı — varsayılana eşit olmayan her filtre 1 sayılır.
+  // Header'da chip olarak gösterip "Temizle" butonunu koşullu açıyoruz.
+  const activeCount =
+    (filters.seniorityLevel !== INITIAL_FILTERS.seniorityLevel ? 1 : 0) +
+    (filters.employmentType !== INITIAL_FILTERS.employmentType ? 1 : 0) +
+    (filters.workType !== INITIAL_FILTERS.workType ? 1 : 0) +
+    (filters.minSalary !== INITIAL_FILTERS.minSalary ? 1 : 0) +
+    (filters.scoreStatus !== INITIAL_FILTERS.scoreStatus ? 1 : 0);
+
   return (
     <aside className="space-y-3">
       <div className="flex items-center gap-2 px-1 pb-1">
         <SlidersHorizontal className="size-4 text-muted-foreground" />
         <h2 className="text-sm font-semibold">Filtreler</h2>
+        {activeCount > 0 && (
+          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 px-1.5 text-[10px] font-semibold text-white">
+            {activeCount}
+          </span>
+        )}
       </div>
 
       <FilterCard title="Platform">
@@ -117,6 +133,22 @@ export function FilterSidebar({ filters, onFilterChange }: FilterSidebarProps) {
           <LockedPill label="Otomatik başvur" />
         </div>
       </FilterCard>
+
+      {/* Sticky alt bar — aktif filtre varsa "Temizle" görünür, yoksa sönük */}
+      <div className="sticky bottom-2 mt-2">
+        <Button
+          variant={activeCount > 0 ? "outline" : "ghost"}
+          size="sm"
+          disabled={activeCount === 0}
+          onClick={() => onFilterChange(INITIAL_FILTERS)}
+          className="h-9 w-full gap-2 text-xs"
+        >
+          <X className="size-3.5" />
+          {activeCount > 0
+            ? `${activeCount} filtreyi temizle`
+            : "Temizlenecek filtre yok"}
+        </Button>
+      </div>
     </aside>
   );
 }
@@ -159,14 +191,22 @@ function PillOption({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "inline-flex cursor-pointer items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+        "group/pill inline-flex cursor-pointer items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-all duration-200 ease-out active:scale-95",
         active
           ? "border-violet-300 bg-gradient-to-r from-violet-100 to-fuchsia-100 text-violet-800 shadow-xs"
           : "border-border bg-background text-muted-foreground hover:border-foreground/20 hover:bg-muted hover:text-foreground",
         disabled && "cursor-not-allowed opacity-60 hover:border-border hover:bg-background",
       )}
     >
-      {active && <Check className="size-3" />}
+      {/* width transition + scale: aktif olunca check yumuşakça açılır */}
+      <span
+        className={cn(
+          "inline-flex items-center overflow-hidden transition-all duration-200",
+          active ? "w-3 opacity-100" : "w-0 opacity-0",
+        )}
+      >
+        <Check className="size-3" />
+      </span>
       {label}
     </button>
   );

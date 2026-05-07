@@ -1,12 +1,12 @@
 "use client";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 // ═══════════════════════════════════════════
 // Pagination — Client-side sayfalama kontrolü
 // ═══════════════════════════════════════════
+// Aktif sayfa: violet→fuchsia gradient (site CTA paleti ile uyumlu).
 
 interface PaginationProps {
   page: number;
@@ -17,52 +17,78 @@ interface PaginationProps {
 export function Pagination({ page, totalPages, onPageChange }: PaginationProps) {
   if (totalPages <= 1) return null;
 
-  /** Görünür sayfa numaralarını hesapla (max 5 sayfa göster) */
   const pages = getVisiblePages(page, totalPages);
 
   return (
-    <nav className="flex items-center justify-center gap-1" aria-label="Sayfalama">
-      <Button
-        variant="ghost"
-        size="icon-sm"
+    <nav
+      className="mt-4 flex items-center justify-center gap-1.5"
+      aria-label="Sayfalama"
+    >
+      <ArrowButton
+        direction="prev"
         disabled={page <= 1}
         onClick={() => onPageChange(page - 1)}
-        aria-label="Önceki sayfa"
-      >
-        <ChevronLeft className="size-4" />
-      </Button>
+      />
 
       {pages.map((p, i) =>
         p === "..." ? (
-          <span key={`ellipsis-${i}`} className="px-1 text-sm text-muted-foreground">
-            ...
+          <span
+            key={`ellipsis-${i}`}
+            className="px-1 text-sm text-muted-foreground"
+          >
+            …
           </span>
         ) : (
-          <Button
+          <button
             key={p}
-            variant={p === page ? "secondary" : "ghost"}
-            size="sm"
+            type="button"
             onClick={() => onPageChange(p)}
+            disabled={p === page}
             className={cn(
-              "min-w-8",
-              p === page && "pointer-events-none font-bold"
+              "inline-flex h-8 min-w-8 cursor-pointer items-center justify-center rounded-lg px-2 text-sm font-medium transition-all duration-200 ease-out active:scale-95",
+              p === page
+                ? "pointer-events-none bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-sm shadow-fuchsia-500/30"
+                : "border border-transparent bg-background text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground",
             )}
           >
             {p}
-          </Button>
-        )
+          </button>
+        ),
       )}
 
-      <Button
-        variant="ghost"
-        size="icon-sm"
+      <ArrowButton
+        direction="next"
         disabled={page >= totalPages}
         onClick={() => onPageChange(page + 1)}
-        aria-label="Sonraki sayfa"
-      >
-        <ChevronRight className="size-4" />
-      </Button>
+      />
     </nav>
+  );
+}
+
+function ArrowButton({
+  direction,
+  disabled,
+  onClick,
+}: {
+  direction: "prev" | "next";
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  const Icon = direction === "prev" ? ChevronLeft : ChevronRight;
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      aria-label={direction === "prev" ? "Önceki sayfa" : "Sonraki sayfa"}
+      className={cn(
+        "inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border text-muted-foreground transition-all duration-200 ease-out active:scale-95",
+        "hover:border-foreground/20 hover:bg-muted hover:text-foreground",
+        "disabled:cursor-not-allowed disabled:border-border/40 disabled:text-muted-foreground/40 disabled:hover:bg-transparent",
+      )}
+    >
+      <Icon className="size-4" />
+    </button>
   );
 }
 
@@ -72,7 +98,7 @@ export function Pagination({ page, totalPages, onPageChange }: PaginationProps) 
  */
 function getVisiblePages(
   current: number,
-  total: number
+  total: number,
 ): (number | "...")[] {
   if (total <= 5) {
     return Array.from({ length: total }, (_, i) => i + 1);

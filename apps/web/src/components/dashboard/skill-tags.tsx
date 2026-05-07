@@ -31,12 +31,12 @@ export function SkillTags({ skills, maxVisible = 4 }: SkillTagsProps) {
   const hiddenSkills = sorted.slice(maxVisible);
 
   return (
-    <div className="flex flex-wrap gap-1">
+    <div className="flex flex-wrap gap-1.5">
       {visible.map((skill) => (
         <Badge
           key={skill.name}
           variant={skill.isMain ? "secondary" : "outline"}
-          className="text-[11px]"
+          className="px-2 py-0.5 text-[11px] font-medium"
         >
           {skill.name}
         </Badge>
@@ -49,23 +49,23 @@ export function SkillTags({ skills, maxVisible = 4 }: SkillTagsProps) {
             render={
               <Badge
                 variant="outline"
-                className="text-[11px] text-muted-foreground hover:bg-muted"
+                className="px-2 py-0.5 text-[11px] text-muted-foreground transition-colors hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
               >
                 +{remaining}
               </Badge>
             }
           />
           <PopoverContent
-            className="w-auto max-w-64 p-3"
+            className="w-auto max-w-72 p-3"
             side="top"
             align="start"
           >
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-wrap gap-1.5">
               {hiddenSkills.map((skill) => (
                 <Badge
                   key={skill.name}
                   variant={skill.isMain ? "secondary" : "outline"}
-                  className="text-[11px]"
+                  className="px-2 py-0.5 text-[11px] font-medium"
                 >
                   {skill.name}
                 </Badge>

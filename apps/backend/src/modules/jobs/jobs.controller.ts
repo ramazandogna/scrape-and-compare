@@ -20,7 +20,6 @@ import {
   Delete,
   Param,
   Query,
-  UsePipes,
   HttpCode,
   HttpStatus,
   ForbiddenException,
@@ -53,9 +52,11 @@ export class JobsController {
    *   - limit=500 → 400 Bad Request (max 100)
    */
   @Get()
-  @UsePipes(new ZodValidationPipe(jobsQuerySchema))
   async findAll(
-    @Query() query: JobsQueryInput,
+    // Pipe'ı @Query'e bağlıyoruz — method-level @UsePipes tüm parametreleri
+    // (CurrentUser dahil) zod'dan geçirmeye çalışırdı ve user objesini siler;
+    // sonuç olarak user.id undefined olur ve filtre uygulanmazdı.
+    @Query(new ZodValidationPipe(jobsQuerySchema)) query: JobsQueryInput,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<PaginatedJobs> {
     // userId her zaman current user'dan — frontend body/query'den gelirse override edilir.

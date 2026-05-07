@@ -164,9 +164,10 @@ export class MatcherController implements OnModuleInit {
    */
   @Post('score')
   @HttpCode(HttpStatus.ACCEPTED)
-  @UsePipes(new ZodValidationPipe(matcherScoreInputSchema))
   async triggerScoring(
-    @Body() body: MatcherScoreInput,
+    // Method-level @UsePipes CurrentUser objesini de zod'dan geçirir ve siler;
+    // pipe'ı param-level @Body'e bağladık.
+    @Body(new ZodValidationPipe(matcherScoreInputSchema)) body: MatcherScoreInput,
     @CurrentUser() authUser: AuthenticatedUser,
   ): Promise<ScoreTriggerResponse> {
     if (body.userId !== authUser.id) {

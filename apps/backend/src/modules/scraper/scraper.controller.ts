@@ -106,9 +106,9 @@ export class ScraperController {
    */
   @Post('trigger')
   @HttpCode(HttpStatus.ACCEPTED)
-  @UsePipes(new ZodValidationPipe(scrapeJobDataSchema))
   async trigger(
-    @Body() body: ScrapeJobData,
+    // Pipe parametreye bağlanır — method-level @UsePipes CurrentUser'ı bozardı.
+    @Body(new ZodValidationPipe(scrapeJobDataSchema)) body: ScrapeJobData,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<TriggerResponse> {
     // userId her zaman auth'tan gelir — body'deki override edilir.

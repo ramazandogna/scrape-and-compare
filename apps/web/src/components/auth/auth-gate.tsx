@@ -34,6 +34,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   const isPublic = PUBLIC_ROUTES.has(pathname);
+  const isAuthRoute = REDIRECT_AUTHED_AWAY.has(pathname);
 
   useEffect(() => {
     if (status === "checking") return;
@@ -44,20 +45,27 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    if (status === "authenticated" && REDIRECT_AUTHED_AWAY.has(pathname)) {
+    if (status === "authenticated" && isAuthRoute) {
       router.replace("/dashboard");
     }
-  }, [status, isPublic, pathname, router]);
+  }, [status, isPublic, isAuthRoute, pathname, router]);
 
-  // Public sayfalar için (login/register) checking sırasında bile children'ı
-  // göster — auth zaten gerekmiyor.
+  // Auth route'ları (sign-in/up/forgot/reset): authed user oraya gelirse
+  // form'u FLASH ettirmemek için checking + authenticated durumlarında null
+  // döndür; sadece kesinleşmiş "unauthenticated" iken formu render et.
+  if (isAuthRoute) {
+    if (status === "checking" || status === "authenticated") return null;
+    return <>{children}</>;
+  }
+
+  // Diğer public sayfalar (landing /) — checking sırasında render edilebilir.
   if (isPublic) return <>{children}</>;
 
   if (status === "checking") {
     return (
       <div className="flex min-h-[60vh] items-center justify-center text-sm text-muted-foreground">
         <span className="inline-flex items-center gap-2">
-          <span className="size-2 animate-pulse rounded-full bg-violet-500" />
+          <span className="bg-brand size-2 animate-pulse rounded-full" />
           Hazırlanıyor...
         </span>
       </div>

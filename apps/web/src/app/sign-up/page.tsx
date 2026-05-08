@@ -50,7 +50,7 @@ export default function SignUpPage() {
       heading={
         <>
           Sıfırdan akıllı bir{" "}
-          <span className="bg-gradient-to-r from-violet-600 to-fuchsia-600 bg-clip-text text-transparent">
+          <span className="text-brand-gradient">
             iş arama
           </span>{" "}
           akışı.
@@ -62,7 +62,7 @@ export default function SignUpPage() {
           Zaten hesabın var mı?{" "}
           <Link
             href="/sign-in"
-            className="font-medium text-violet-600 hover:text-violet-700"
+            className="font-medium text-brand hover:text-brand-soft"
           >
             Giriş yap
           </Link>

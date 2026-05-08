@@ -26,7 +26,7 @@ export function RightSidebar() {
       <Card size="sm" className="gap-2">
         <CardHeader>
           <CardTitle className="flex items-center gap-1.5 text-sm">
-            <Mail className="size-4 text-violet-600" />
+            <Mail className="size-4 text-brand" />
             Eşleşme Bülteni
             <Badge
               variant="outline"

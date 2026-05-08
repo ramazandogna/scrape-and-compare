@@ -173,12 +173,12 @@ export function HeroSearch({ onSearch, scrapeState, onScrapeReset, total }: Hero
   const popularKeywords = ["frontend developer", "react developer", "node.js", "fullstack", "devops"];
 
   return (
-    <div className="relative rounded-3xl border border-primary/10 bg-gradient-to-br from-primary/8 via-background to-fuchsia-500/5 p-6 shadow-sm sm:p-10">
+    <div className="bg-brand-gradient-soft border-brand-200 dark:border-brand-300/20 relative rounded-3xl border p-6 shadow-sm sm:p-10">
       {/* Glow orb'ları KENDİ overflow-hidden konteynerinde tut, böylece dış
           kart taşan dropdown'ı (lokasyon listesi) kırpmaz. */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-3xl">
-        <div className="absolute -right-16 -top-16 size-56 rounded-full bg-primary/10 blur-3xl" aria-hidden />
-        <div className="absolute -bottom-20 -left-12 size-56 rounded-full bg-fuchsia-400/10 blur-3xl" aria-hidden />
+        <div className="bg-brand-100 absolute -right-16 -top-16 size-56 rounded-full opacity-50 blur-3xl" aria-hidden />
+        <div className="absolute -bottom-20 -left-12 size-56 rounded-full bg-[var(--brand-accent-400)]/30 blur-3xl" aria-hidden />
       </div>
 
       <div className="relative">
@@ -188,10 +188,7 @@ export function HeroSearch({ onSearch, scrapeState, onScrapeReset, total }: Hero
         </div>
 
         <h1 className="mt-3 text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
-          Hangi rolü{" "}
-          <span className="bg-gradient-to-r from-primary to-fuchsia-500 bg-clip-text text-transparent">
-            arıyorsun?
-          </span>
+          Hangi rolü <span className="text-brand-gradient">arıyorsun?</span>
         </h1>
         <p className="mt-2 max-w-xl text-sm text-muted-foreground sm:text-[15px]">
           3 anahtar kelime, bir lokasyon — gerisini biz hallederiz. Ortalama her tarama

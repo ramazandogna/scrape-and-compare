@@ -49,7 +49,7 @@ export function SkillTags({ skills, maxVisible = 4 }: SkillTagsProps) {
             render={
               <Badge
                 variant="outline"
-                className="px-2 py-0.5 text-[11px] text-muted-foreground transition-colors hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
+                className="px-2 py-0.5 text-[11px] text-muted-foreground transition-colors hover:border-brand-300 hover:bg-brand-50 hover:text-brand"
               >
                 +{remaining}
               </Badge>

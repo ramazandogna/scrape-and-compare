@@ -28,17 +28,17 @@ export function AuthShell({
   topRight,
 }: AuthShellProps) {
   return (
-    <div className="relative flex min-h-screen w-full items-center justify-center bg-gradient-to-br from-violet-50 via-background to-fuchsia-50 px-4 py-6 sm:px-6 sm:py-10">
+    <div className="bg-brand-gradient-soft relative flex min-h-screen w-full items-center justify-center px-4 py-6 sm:px-6 sm:py-10">
       {/* Soft glow orbs */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -left-24 top-12 size-72 rounded-full bg-violet-200/40 blur-3xl" />
-        <div className="absolute -right-24 bottom-12 size-72 rounded-full bg-fuchsia-200/40 blur-3xl" />
+        <div className="bg-brand-200 absolute -left-24 top-12 size-72 rounded-full opacity-40 blur-3xl" />
+        <div className="absolute -right-24 bottom-12 size-72 rounded-full bg-[var(--brand-accent-400)]/30 blur-3xl" />
       </div>
 
       <div className="relative mx-auto w-full max-w-6xl">
         <div
           className={cn(
-            "grid overflow-hidden rounded-3xl border bg-card/95 shadow-xl shadow-violet-500/10 backdrop-blur",
+            "shadow-brand grid overflow-hidden rounded-3xl border bg-card/95 backdrop-blur",
             "lg:grid-cols-[1.1fr_1fr]",
           )}
         >
@@ -70,7 +70,7 @@ export function AuthShell({
 
 function BrandPanel() {
   return (
-    <div className="hidden flex-col justify-between bg-gradient-to-br from-violet-600 via-fuchsia-600 to-violet-700 p-10 text-white lg:flex">
+    <div className="bg-brand-gradient hidden flex-col justify-between p-10 text-white lg:flex">
       <div className="space-y-3">
         <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-medium backdrop-blur">
           <span className="size-1.5 rounded-full bg-emerald-300 shadow-[0_0_0_3px] shadow-emerald-300/30" />

@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard" },
@@ -28,7 +29,7 @@ export function Header() {
     <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-xl supports-backdrop-filter:bg-background/55">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link href="/dashboard" className="group/logo flex items-center gap-2.5">
-          <span className="relative inline-flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 via-fuchsia-500 to-violet-700 text-sm font-bold text-white shadow-sm shadow-fuchsia-500/30 ring-1 ring-white/10 transition-transform group-hover/logo:scale-105">
+          <span className="bg-brand-gradient shadow-brand relative inline-flex size-9 items-center justify-center rounded-xl text-sm font-bold text-white ring-1 ring-white/10 transition-transform group-hover/logo:scale-105">
             <span className="absolute inset-0 rounded-xl bg-gradient-to-tr from-white/20 via-transparent to-transparent" />
             <span className="relative">S</span>
           </span>
@@ -58,15 +59,18 @@ export function Header() {
               >
                 {item.label}
                 {isActive && (
-                  <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500" />
+                  <span className="bg-brand-gradient absolute inset-x-2 -bottom-px h-0.5 rounded-full" />
                 )}
               </Link>
             );
           })}
 
+          <span className="mx-1 hidden h-5 w-px bg-border sm:block" />
+          <ThemeToggle />
+
           {isAuthed && (
             <>
-              <span className="mx-2 hidden h-5 w-px bg-border sm:block" />
+              <span className="mx-1 hidden h-5 w-px bg-border sm:block" />
               <span className="hidden text-xs text-muted-foreground sm:inline-flex">
                 {user.name}
               </span>
@@ -74,7 +78,7 @@ export function Header() {
                 type="button"
                 onClick={() => void handleLogout()}
                 title="Çıkış yap"
-                className="ml-1 inline-flex cursor-pointer items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-rose-50 hover:text-rose-600"
+                className="ml-1 inline-flex cursor-pointer items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30"
               >
                 <LogOut className="size-3.5" />
                 <span className="hidden sm:inline">Çıkış</span>

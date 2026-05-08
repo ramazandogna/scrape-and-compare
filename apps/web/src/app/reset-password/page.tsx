@@ -74,7 +74,7 @@ function ResetPasswordForm() {
       heading={
         <>
           Yeni{" "}
-          <span className="bg-gradient-to-r from-violet-600 to-fuchsia-600 bg-clip-text text-transparent">
+          <span className="text-brand-gradient">
             şifreni
           </span>{" "}
           belirle

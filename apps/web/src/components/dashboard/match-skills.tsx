@@ -104,7 +104,7 @@ export function MatchSkills({
         type="button"
         size="xs"
         variant="outline"
-        className="h-6 cursor-pointer gap-1 rounded-full px-2 text-[11px] font-medium text-muted-foreground transition-all duration-150 active:scale-95 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
+        className="h-6 cursor-pointer gap-1 rounded-full px-2 text-[11px] font-medium text-muted-foreground transition-all duration-150 active:scale-95 hover:border-brand-300 hover:bg-brand-50 hover:text-brand"
         title="Bu beceri için ne yapmak istediğini seç"
         onClick={() => {
           openSkillDialog(skill);
@@ -140,7 +140,7 @@ export function MatchSkills({
               render={
                 <Badge
                   variant="outline"
-                  className="cursor-pointer px-2 py-0.5 text-[11px] text-muted-foreground transition-colors hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
+                  className="cursor-pointer px-2 py-0.5 text-[11px] text-muted-foreground transition-colors hover:border-brand-300 hover:bg-brand-50 hover:text-brand"
                 >
                   +{hiddenCount} daha
                 </Badge>

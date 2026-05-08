@@ -53,7 +53,7 @@ export default function SignInPage() {
       heading={
         <>
           Tekrar hoş geldin —{" "}
-          <span className="bg-gradient-to-r from-violet-600 to-fuchsia-600 bg-clip-text text-transparent">
+          <span className="text-brand-gradient">
             iş arayan
           </span>{" "}
           modunda mıyız?
@@ -65,7 +65,7 @@ export default function SignInPage() {
           Hesabın yok mu?{" "}
           <Link
             href="/sign-up"
-            className="font-medium text-violet-600 hover:text-violet-700"
+            className="font-medium text-brand hover:text-brand-soft"
           >
             Kaydol
           </Link>
@@ -92,7 +92,7 @@ export default function SignInPage() {
             <Label htmlFor="password">Şifre</Label>
             <Link
               href="/forgot-password"
-              className="text-xs font-medium text-violet-600 hover:text-violet-700"
+              className="text-xs font-medium text-brand hover:text-brand-soft"
             >
               Şifremi unuttum
             </Link>

@@ -62,7 +62,7 @@ export function ProfileForm({ user, onUpdate, error }: ProfileFormProps) {
 
   return (
     <Card className="overflow-hidden">
-      <div className="border-b bg-gradient-to-br from-violet-50 via-background to-fuchsia-50 px-6 py-5">
+      <div className="border-b bg-brand-gradient-soft px-6 py-5">
         <CardHeader className="p-0">
           <CardTitle className="text-base font-semibold">
             Profili Düzenle

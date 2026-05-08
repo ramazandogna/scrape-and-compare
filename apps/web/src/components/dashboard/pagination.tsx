@@ -47,7 +47,7 @@ export function Pagination({ page, totalPages, onPageChange }: PaginationProps) 
             className={cn(
               "inline-flex h-8 min-w-8 cursor-pointer items-center justify-center rounded-lg px-2 text-sm font-medium transition-all duration-200 ease-out active:scale-95",
               p === page
-                ? "pointer-events-none bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-sm shadow-fuchsia-500/30"
+                ? "bg-brand-gradient shadow-brand pointer-events-none text-white"
                 : "border border-transparent bg-background text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground",
             )}
           >

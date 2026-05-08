@@ -49,6 +49,25 @@
 }
 
 :root {
+  /* ─── Brand renkleri (data-accent ile değiştirilir) ─────────
+     Default = mor/füşya. data-accent="green" → emerald/yeşil.
+     Tüm "brand" utility class'ları (.bg-brand-gradient, .text-brand vs.)
+     bu değişkenleri okur, böylece header → footer tek tıkla swap olur. */
+  --brand-50: oklch(0.965 0.022 295);
+  --brand-100: oklch(0.93 0.045 295);
+  --brand-200: oklch(0.86 0.085 295);
+  --brand-300: oklch(0.78 0.13 295);
+  --brand-400: oklch(0.68 0.18 295);
+  --brand-500: oklch(0.6 0.22 295);
+  --brand-600: oklch(0.52 0.245 290);
+  --brand-700: oklch(0.45 0.22 290);
+  --brand-800: oklch(0.38 0.19 290);
+  --brand-900: oklch(0.32 0.16 290);
+  /* Aynı brand'in ikincil tonu — gradient için end-color (default: füşya) */
+  --brand-accent-400: oklch(0.7 0.22 330);
+  --brand-accent-500: oklch(0.62 0.27 325);
+  --brand-accent-600: oklch(0.55 0.27 325);
+
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -81,6 +100,25 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+}
+
+/* ─── Accent toggle: yeşil tema ─────────────────────────
+   <html data-accent="green"> set edildiğinde tüm brand-* utility'leri
+   otomatik emerald/teal'e döner. */
+[data-accent="green"] {
+  --brand-50: oklch(0.96 0.025 165);
+  --brand-100: oklch(0.92 0.06 165);
+  --brand-200: oklch(0.85 0.1 165);
+  --brand-300: oklch(0.76 0.14 165);
+  --brand-400: oklch(0.68 0.16 162);
+  --brand-500: oklch(0.6 0.16 158);
+  --brand-600: oklch(0.52 0.16 158);
+  --brand-700: oklch(0.45 0.14 158);
+  --brand-800: oklch(0.38 0.12 158);
+  --brand-900: oklch(0.32 0.1 158);
+  --brand-accent-400: oklch(0.72 0.18 175);
+  --brand-accent-500: oklch(0.62 0.18 175);
+  --brand-accent-600: oklch(0.54 0.17 175);
 }
 
 .dark {
@@ -130,6 +168,54 @@
 }
 
 @layer utilities {
+  /* ─── Brand utility'leri (data-accent ile swap olur) ───── */
+  .text-brand { color: var(--brand-600); }
+  .text-brand-soft { color: var(--brand-500); }
+  .bg-brand { background-color: var(--brand-600); }
+  .bg-brand-50 { background-color: var(--brand-50); }
+  .bg-brand-100 { background-color: var(--brand-100); }
+  .border-brand { border-color: var(--brand-600); }
+  .border-brand-200 { border-color: var(--brand-200); }
+  .border-brand-300 { border-color: var(--brand-300); }
+  .ring-brand { --tw-ring-color: var(--brand-300); }
+  .bg-brand-gradient {
+    background-image: linear-gradient(
+      to right,
+      var(--brand-600),
+      var(--brand-accent-500)
+    );
+  }
+  .bg-brand-gradient-soft {
+    background-image: linear-gradient(
+      to bottom right,
+      var(--brand-50),
+      transparent,
+      color-mix(in oklch, var(--brand-accent-500) 6%, transparent)
+    );
+  }
+  .text-brand-gradient {
+    background-image: linear-gradient(
+      to right,
+      var(--brand-600),
+      var(--brand-accent-500)
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+  .shadow-brand {
+    box-shadow: 0 4px 14px 0
+      color-mix(in oklch, var(--brand-accent-500) 30%, transparent);
+  }
+  .hover\:shadow-brand-lg:hover {
+    box-shadow: 0 10px 28px -4px
+      color-mix(in oklch, var(--brand-accent-500) 40%, transparent);
+  }
+  .ring-brand-soft {
+    box-shadow: 0 0 0 1px color-mix(in oklch, var(--brand-300) 50%, transparent);
+  }
+
   /* Sayfa içeriği yumuşakça belirsin — geçişlerde skeleton flash hissini azaltır */
   .animate-page-in {
     animation: page-in 320ms cubic-bezier(0.22, 1, 0.36, 1);

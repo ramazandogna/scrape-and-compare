@@ -37,7 +37,7 @@ export default function ProfilePage() {
     <div className="mx-auto max-w-3xl space-y-5 px-4 py-8 sm:px-6">
       <div className="space-y-1.5">
         <div className="inline-flex items-center gap-2 rounded-full border bg-background/70 px-3 py-1 text-[11px] font-medium text-muted-foreground">
-          <UserCircle2 className="size-3.5 text-violet-600" />
+          <UserCircle2 className="size-3.5 text-brand" />
           Profil
         </div>
         <h1 className="text-2xl font-bold tracking-tight">

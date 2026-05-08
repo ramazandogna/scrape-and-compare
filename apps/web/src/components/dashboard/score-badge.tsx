@@ -19,23 +19,27 @@ const MATCH_THRESHOLD = 60;
 function getScoreTier(score: number) {
   if (score >= 80)
     return {
+      // 80+ "premium" tier — brand gradient (mor varsayılan, accent toggle ile yeşil)
       colors:
-        "border-fuchsia-300/70 bg-gradient-to-r from-fuchsia-100 to-violet-100 text-fuchsia-800",
+        "border-brand-300 bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-100",
       showDot: true,
-      dotClass: "animate-soft-pulse bg-fuchsia-500",
+      dotClass: "animate-soft-pulse bg-brand-gradient",
       tooltip: "Güçlü profilinle bu ilana şimdi başvur!",
       label: "Çok uygun",
     };
   if (score >= MATCH_THRESHOLD)
     return {
-      colors: "border-emerald-300/70 bg-emerald-50 text-emerald-800",
+      // 60-79 "iyi" — sabit emerald (her temada aynı, semantic anlam)
+      colors:
+        "border-emerald-300/70 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200",
       showDot: true,
       dotClass: "bg-emerald-500",
       tooltip: "Profilin bu ilanın gereksinimlerini karşılıyor",
       label: "İyi eşleşme",
     };
   return {
-    colors: "border-slate-200 bg-slate-50 text-slate-600",
+    colors:
+      "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-400",
     showDot: false,
     dotClass: "",
     tooltip: "Eksik beceriler geliştirilerek uygunluk artırılabilir",
@@ -55,7 +59,7 @@ export function ScoreBadge({
       <span
         className={cn(
           "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium",
-          "border-slate-200 bg-slate-50 text-slate-500",
+          "border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-400",
           className,
         )}
       >

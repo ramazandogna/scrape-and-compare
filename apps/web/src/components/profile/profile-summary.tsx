@@ -14,7 +14,7 @@ const STATS_DEF = [
     key: "skills" as const,
     icon: Sparkles,
     label: "Yetenek",
-    accent: "text-violet-600 bg-violet-50 ring-violet-200/60",
+    accent: "text-brand bg-brand-50 ring-brand-200/60",
   },
   {
     key: "experience" as const,

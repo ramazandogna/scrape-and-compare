@@ -240,10 +240,10 @@ export function ScoringButton({
         }}
       >
         <AlertDialogContent className="max-w-3xl gap-0 p-0">
-          <div className="space-y-1 border-b bg-gradient-to-br from-violet-50 via-background to-fuchsia-50 px-7 py-6">
+          <div className="bg-brand-gradient-soft space-y-1 border-b px-7 py-6">
             <AlertDialogHeader className="space-y-1.5">
               <AlertDialogTitle className="flex items-center gap-2 text-base">
-                <SlidersHorizontal className="size-4 text-violet-600" />
+                <SlidersHorizontal className="text-brand size-4" />
                 Puanlama Kapsamını Seç
               </AlertDialogTitle>
               <AlertDialogDescription className="text-xs leading-relaxed">
@@ -321,7 +321,7 @@ export function ScoringButton({
 
 function SparklesIcon() {
   return (
-    <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-100 to-fuchsia-100 text-violet-600 ring-1 ring-violet-200/60">
+    <span className="bg-brand-50 text-brand ring-brand-200/60 dark:bg-brand-900/30 dark:text-brand-300 flex size-9 shrink-0 items-center justify-center rounded-xl ring-1">
       <Sparkles className="size-4" />
     </span>
   );
@@ -333,8 +333,8 @@ const ACCENT_STYLES = {
     iconBg: "bg-emerald-50 text-emerald-700 ring-emerald-200/60",
   },
   violet: {
-    border: "hover:border-violet-300/70",
-    iconBg: "bg-violet-50 text-violet-700 ring-violet-200/60",
+    border: "hover:border-brand-300/70",
+    iconBg: "bg-brand-50 text-brand ring-brand-300/60 dark:bg-brand-900/30 dark:text-brand-200",
   },
   rose: {
     border: "hover:border-rose-300/70",
@@ -405,7 +405,7 @@ function StatusIcon({ status }: { status: string }) {
   switch (status) {
     case "scoring":
       return (
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600 ring-1 ring-violet-200/60">
+        <span className="bg-brand-50 text-brand ring-brand-200/60 dark:bg-brand-900/30 dark:text-brand-200 flex size-9 shrink-0 items-center justify-center rounded-xl ring-1">
           <Loader2 className="size-4 animate-spin" />
         </span>
       );
@@ -485,7 +485,7 @@ function ProgressBar({ progress }: { progress: ScoringProgress }) {
     <div className="space-y-1">
       <div className="h-1.5 overflow-hidden rounded-full bg-muted">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500 transition-[width] duration-1000 ease-out"
+          className="bg-brand-gradient h-full rounded-full transition-[width] duration-1000 ease-out"
           style={{ width: `${progress.percentage}%` }}
         />
       </div>

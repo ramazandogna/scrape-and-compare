@@ -36,7 +36,7 @@ export default function ForgotPasswordPage() {
       heading={
         <>
           Şifreni{" "}
-          <span className="bg-gradient-to-r from-violet-600 to-fuchsia-600 bg-clip-text text-transparent">
+          <span className="text-brand-gradient">
             sıfırla
           </span>
         </>
@@ -46,7 +46,7 @@ export default function ForgotPasswordPage() {
         <span>
           <Link
             href="/sign-in"
-            className="font-medium text-violet-600 hover:text-violet-700"
+            className="font-medium text-brand hover:text-brand-soft"
           >
             ← Girişe dön
           </Link>
@@ -74,7 +74,7 @@ export default function ForgotPasswordPage() {
               </p>
               <Link
                 href={`/reset-password?token=${devToken}`}
-                className="mt-2 inline-block break-all rounded bg-white px-2 py-1 font-mono text-[11px] text-violet-700 ring-1 ring-amber-200 hover:underline"
+                className="mt-2 inline-block break-all rounded bg-white px-2 py-1 font-mono text-[11px] text-brand ring-1 ring-amber-200 hover:underline"
               >
                 /reset-password?token={devToken}
               </Link>

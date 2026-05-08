@@ -11,7 +11,17 @@ import { useAuth } from "@/contexts/auth-context";
 // status === "unauthenticated" ise /sign-in'e yönlendirir.
 // "checking" sırasında küçük bir nötr ekran gösteririz; flash'ı engeller.
 
+// Auth gerektirmeyen yollar — landing ("/") ve auth ekranları.
 const PUBLIC_ROUTES = new Set<string>([
+  "/",
+  "/sign-in",
+  "/sign-up",
+  "/forgot-password",
+  "/reset-password",
+]);
+// Authenticated kullanıcı buralara giderse /dashboard'a yönlendirilir
+// (giriş yapmış birinin tekrar login ekranına gitmesinin anlamı yok).
+const REDIRECT_AUTHED_AWAY = new Set<string>([
   "/sign-in",
   "/sign-up",
   "/forgot-password",
@@ -34,7 +44,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    if (isPublic && status === "authenticated") {
+    if (status === "authenticated" && REDIRECT_AUTHED_AWAY.has(pathname)) {
       router.replace("/dashboard");
     }
   }, [status, isPublic, pathname, router]);

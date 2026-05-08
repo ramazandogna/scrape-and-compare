@@ -50,7 +50,7 @@ export function JobCard({
   }
 
   return (
-    <Card className="group/card relative overflow-visible border-border/70 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-violet-200/70 hover:shadow-md">
+    <Card className="group/card relative overflow-visible border-border/70 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-brand-200/70 hover:shadow-md">
       <CardContent className="space-y-3">
         {/* Score Badge — her ilanda eşleşti/eşleşmedi durumu */}
         <div className="flex items-center justify-between">

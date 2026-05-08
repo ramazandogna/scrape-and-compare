@@ -24,8 +24,8 @@ export function ScrollToTop() {
       aria-label="Yukarı çık"
       className={cn(
         "fixed right-6 bottom-6 z-50 flex size-11 cursor-pointer items-center justify-center rounded-full",
-        "bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-fuchsia-500/30 ring-1 ring-white/10",
-        "transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-fuchsia-500/40",
+        "bg-brand-gradient shadow-brand hover:shadow-brand-lg text-white ring-1 ring-white/10",
+        "transition-all duration-300 hover:scale-105",
         visible
           ? "translate-y-0 opacity-100"
           : "pointer-events-none translate-y-4 opacity-0",

@@ -48,7 +48,7 @@ export function FilterSidebar({ filters, onFilterChange }: FilterSidebarProps) {
         <SlidersHorizontal className="size-4 text-muted-foreground" />
         <h2 className="text-sm font-semibold">Filtreler</h2>
         {activeCount > 0 && (
-          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 px-1.5 text-[10px] font-semibold text-white">
+          <span className="bg-brand-gradient inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-semibold text-white">
             {activeCount}
           </span>
         )}
@@ -193,7 +193,7 @@ function PillOption({
       className={cn(
         "group/pill inline-flex cursor-pointer items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-all duration-200 ease-out active:scale-95",
         active
-          ? "border-violet-300 bg-gradient-to-r from-violet-100 to-fuchsia-100 text-violet-800 shadow-xs"
+          ? "border-brand-300 bg-brand-50 text-brand dark:bg-brand-900/30 dark:text-brand-100 shadow-xs"
           : "border-border bg-background text-muted-foreground hover:border-foreground/20 hover:bg-muted hover:text-foreground",
         disabled && "cursor-not-allowed opacity-60 hover:border-border hover:bg-background",
       )}

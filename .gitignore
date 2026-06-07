@@ -34,5 +34,9 @@ pgdata/
 *.mov
 *.mp4
 
-# Workflows (contain sensitive env-specific configs)
+# GitHub internal configs (workflows + AI instructions — env-specific / not public)
 /.github/workflows/*.yml
+/.github/copilot-instructions.md
+
+# Internal planning docs (kept local, not for public repo)
+/plans/

@@ -2,8 +2,8 @@
 
 # Scrape & Compare
 
-**AI destekli iş ilanı tarayıcı + uyum skorlayıcı.**
-LinkedIn'de saatlerce ilan kaydırmayı bırak — profilini bir kere oluştur, sistem 50+ yeni ilanı tarasın, AI uyum skoruyla işe yaramazları otomatik elesin.
+**AI-powered job-listing scraper + fit scorer.**
+Stop scrolling LinkedIn for hours — build your profile once, let the system pull 50+ fresh listings, and let AI auto-filter the noise with a fit score.
 
 ![Hero](./assets/hero.png)
 
@@ -20,73 +20,74 @@ LinkedIn'de saatlerce ilan kaydırmayı bırak — profilini bir kere oluştur, 
 
 </div>
 
-> 🎥 **Tanıtım videosu:** Demo videosu boyutu nedeniyle (GitHub 100MB sınırı)
-> repoya dahil edilmedi. Yakında harici bir bağlantı (YouTube/Loom) olarak eklenecek.
+> 🎥 **Demo video:** Not included in the repo due to its size (GitHub's 100MB limit).
+> It will be added soon as an external link (YouTube/Loom).
 
 ---
 
-## 📚 İçindekiler
+## 📚 Table of Contents
 
-1. [Projeyi Bir Cümleyle Tarif Et](#projeyi-bir-cümleyle-tarif-et)
-2. [Neden Bu Proje?](#neden-bu-proje)
-3. [Ekran Görüntüleri](#ekran-görüntüleri)
-4. [Mimari: Monorepo + Mikroservis Stil](#mimari-monorepo--mikroservis-stil)
-5. [Backend — Tarama Stratejisi](#backend--tarama-stratejisi)
-6. [AI Eşleştirme Motoru](#ai-eşleştirme-motoru)
-7. [Kimlik Doğrulama](#kimlik-doğrulama)
-8. [Frontend Deneyimi](#frontend-deneyimi)
+1. [The Project in One Sentence](#the-project-in-one-sentence)
+2. [Why This Project?](#why-this-project)
+3. [Screenshots](#screenshots)
+4. [Architecture: Monorepo + Microservice Style](#architecture-monorepo--microservice-style)
+5. [Backend — Scraping Strategy](#backend--scraping-strategy)
+6. [AI Matching Engine](#ai-matching-engine)
+7. [Authentication](#authentication)
+8. [Frontend Experience](#frontend-experience)
 9. [Tech Stack](#tech-stack)
-10. [Hızlı Başlangıç](#hızlı-başlangıç)
-11. [Proje Yapısı](#proje-yapısı)
-12. [Yol Haritası](#yol-haritası)
-13. [Yasal Uyarı](#yasal-uyarı)
-14. [Lisans](#lisans)
+10. [Quick Start](#quick-start)
+11. [Project Structure](#project-structure)
+12. [Roadmap](#roadmap)
+13. [Legal Disclaimer](#legal-disclaimer)
+14. [License](#license)
 
 ---
 
-## Projeyi Bir Cümleyle Tarif Et
+## The Project in One Sentence
 
-**Profilini bir kere oluştur** — Scrape & Compare LinkedIn'den senin için 50+ yeni
-ilan toplar, her birini Gemini ile **0–100 uyum skoru** verir, ve sadece doğru
-ilana başvurman için yan menüye yerleştirir. Geri kalan zamanı kahve içersin.
+**Build your profile once** — Scrape & Compare collects 50+ fresh listings from
+LinkedIn for you, gives each one a **0–100 fit score** via Gemini, and surfaces
+only the right ones in your sidebar so you apply where it matters. Spend the rest
+of the time on coffee.
 
-## Neden Bu Proje?
+## Why This Project?
 
-> Klasik iş arama: 200 ilan kaydır, yarısı seviyene uymaz, çoğu zaten başvurduğun
-> şirket, üstüne maaş bilgisi yok. Bir günün yandı.
+> Classic job hunting: scroll 200 listings, half don't match your level, most are
+> companies you already applied to, and there's no salary info. There goes your day.
 
-Bu projeyi yaparken hedeflenen 3 şey:
+Three goals drove this project:
 
-- **Aşırı yükten kurtul.** Düşük kaliteli, alakasız ilanları kullanıcının önüne
-  hiç çıkarma.
-- **Karar süresini saniyelere indir.** Her ilana 0-100 uyum skoru ekle, kullanıcı
-  sadece sayıya baksın.
-- **Kendi kendine devam etsin.** Scrape biter bitmez puanlamayı otomatik kuyruğa
-  at. İki tıklama yok, bir tıklama bile yok.
+- **Kill the overload.** Never put low-quality, irrelevant listings in front of
+  the user.
+- **Cut decision time to seconds.** Attach a 0–100 fit score to every listing so
+  the user just glances at the number.
+- **Keep it self-driving.** The moment a scrape finishes, scoring is queued
+  automatically. No two clicks — not even one.
 
-## Ekran Görüntüleri
+## Screenshots
 
 <div align="center">
 
-### Dashboard — Akıllı tarama + skorlanmış kartlar
+### Dashboard — Smart scan + scored cards
 ![Dashboard](./assets/dashboard-giris.png)
 
-### Eşleşmeler — 60+ skorlu ilanlar
+### Matches — 60+ scored listings
 ![Matches](./assets/eslesmeler-ekran%C4%B1.png)
 
-### Profil — Dark mode + custom accent
+### Profile — Dark mode + custom accent
 ![Profile](./assets/profil-ekran%C4%B1-siyah.png)
 
 </div>
 
 ---
 
-## Mimari: Monorepo + Mikroservis Stil
+## Architecture: Monorepo + Microservice Style
 
-Tek bir Docker host üzerinde **mikroservis-stil** sorumluluk ayrımı: backend
-HTTP API, BullMQ worker'ları ve scraper aynı Node.js process'inde koşar ama
-her biri **bağımsız bir modül** olarak yaşar. Şişer büyürse her birini ayrı
-container'a taşımak 1 satırlık iş.
+A **microservice-style** separation of concerns on a single Docker host: the
+backend HTTP API, the BullMQ workers, and the scraper all run inside the same
+Node.js process, yet each lives as an **independent module**. If it ever needs to
+scale out, moving each one into its own container is a one-line job.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -121,42 +122,42 @@ container'a taşımak 1 satırlık iş.
 └─────────────┘              └─────────────────┘  └────────────┘
 ```
 
-### Neden bu yapı?
+### Why this structure?
 
-| Karar | Neden |
+| Decision | Reason |
 |---|---|
-| **Monorepo (pnpm workspaces)** | `packages/shared` ile backend ↔ frontend tip + schema paylaşımı. Compile-time bağ. |
-| **NestJS modüler** | Her domain ayrı module/service/controller. SRP zorunlu, test edilebilir. |
-| **BullMQ + Redis** | Scrape ve AI puanlama uzun süreli işler — request-response'tan ayırıyoruz. HTTP 202 + polling. |
-| **Prisma + PostgreSQL** | Raw SQL yasak. Type-safe query, migration version control'da. |
-| **Discriminated Union'lar** | `ScrapeJobResult = Completed \| Failed` gibi — compile-time'da yanlış kullanım yakalanır. |
-| **Zod runtime validation** | API sınırında her gelen veri + her LLM yanıtı doğrulanır. `any` yok. |
+| **Monorepo (pnpm workspaces)** | Share types + schemas between backend ↔ frontend via `packages/shared`. A compile-time contract. |
+| **Modular NestJS** | Each domain has its own module/service/controller. SRP enforced, testable. |
+| **BullMQ + Redis** | Scraping and AI scoring are long-running jobs — decoupled from request-response. HTTP 202 + polling. |
+| **Prisma + PostgreSQL** | No raw SQL. Type-safe queries, migrations under version control. |
+| **Discriminated unions** | E.g. `ScrapeJobResult = Completed \| Failed` — misuse is caught at compile time. |
+| **Zod runtime validation** | Every incoming payload + every LLM response is validated at the API boundary. No `any`. |
 
 ---
 
-## Backend — Tarama Stratejisi
+## Backend — Scraping Strategy
 
-LinkedIn login'siz public search'ü scrape edilir. Bot tespiti karşısında 4
-katmanlı savunma:
+Scrapes LinkedIn's login-less public search. A 4-layer defense against bot
+detection:
 
 ### 1. Playwright Stealth + Fingerprint
 ```ts
 playwright-extra + puppeteer-extra-plugin-stealth
 + random viewport/user-agent rotation
 ```
-WebGL, navigator.webdriver, Chrome runtime farklarını maskeler.
+Masks WebGL, `navigator.webdriver`, and Chrome runtime differences.
 
 ### 2. Resource Blocking
-CSS/font/image/media istekleri engellenir → sayfa **~500ms**'de yüklenir.
-Bot'tan çok "hızlı kullanıcı" gibi görünür.
+CSS/font/image/media requests are blocked → the page loads in **~500ms**.
+Looks less like a bot and more like a "fast user".
 
-### 3. Smart Pagination — "50 yeni ilan" hedefi
-LinkedIn tek sayfada ~25 ilan döndürür. Önceki sürüm tek sayfa alıp
-kesiyordu — kullanıcı 6 ilanla baş başa kalıyordu. Yeni davranış:
+### 3. Smart Pagination — the "50 fresh listings" target
+LinkedIn returns ~25 listings per page. The earlier version grabbed a single page
+and stopped — leaving the user with 6 listings. The new behavior:
 
 ```
-target: 50 yeni ilan per keyword
-maxPages: 5 (LinkedIn'i zorlamamak için tavan)
+target: 50 new listings per keyword
+maxPages: 5 (a ceiling, to avoid hammering LinkedIn)
 
 while (collected < target && pageIndex < maxPages):
   fetchPage(start = pageIndex * 25)
@@ -164,115 +165,115 @@ while (collected < target && pageIndex < maxPages):
   if blocked || exhausted: break
 ```
 
-Sonuç kullanıcıya transparant raporlanır:
-> *"50/50 ilan toplandı (3 sayfa)"* veya *"24/50 — LinkedIn bu keyword için
-> yeterince yeni ilan yayımlamamış"*
+The result is reported transparently to the user:
+> *"Collected 50/50 listings (3 pages)"* or *"24/50 — LinkedIn hasn't published
+> enough fresh listings for this keyword"*
 
 ### 4. Adaptive Backoff
-Her hata `ScraperError` discriminated union'a sınıflandırılır
-(`CLOUDFLARE_BLOCKED`, `CAPTCHA_DETECTED`, `TIMEOUT`, `RATE_LIMITED`...).
-Her tip kendi base delay × exponential + jitter ile bekler. Üst üste %60+
-hatalı batch olursa **8 saniye cooldown**.
+Every error is classified into a `ScraperError` discriminated union
+(`CLOUDFLARE_BLOCKED`, `CAPTCHA_DETECTED`, `TIMEOUT`, `RATE_LIMITED`, ...).
+Each type waits with its own base delay × exponential + jitter. After a batch
+with 60%+ failures, an **8-second cooldown** kicks in.
 
 ### Parallel Tab Pool
-Detay sayfaları **5 paralel tab** ile çekilir. 50 ilan için ortalama:
-- Search faz: ~3-5 sn
-- Detail faz: ~20-30 sn (paralel)
-- Skill/salary extraction: ~1 sn
-- **Toplam: ~30-60 sn / 50 ilan**
+Detail pages are fetched with **5 parallel tabs**. Averages for 50 listings:
+- Search phase: ~3-5s
+- Detail phase: ~20-30s (parallel)
+- Skill/salary extraction: ~1s
+- **Total: ~30-60s / 50 listings**
 
 ---
 
-## AI Eşleştirme Motoru
+## AI Matching Engine
 
 ### Gemini Batch Scoring + Fallback Chain
 
 ```
 GEMINI_MODEL=gemini-2.5-flash               ← primary
 GEMINI_FALLBACK_MODEL=gemini-2.5-flash-lite ← 503 overload fallback
-QUOTA_FALLBACK=gemini-3.1-flash-lite         ← quota exceeded fallback
+QUOTA_FALLBACK=gemini-2.5-flash-lite         ← quota-exceeded fallback
 ```
 
-API capacity hatalarında zincir devreye girer — kullanıcı hiçbir hata görmez.
+On API capacity errors the chain kicks in — the user never sees an error.
 
 ### Batch Pipeline
-1. Frontend `/matcher/score` çağırır (`scope: 'unscored' | 'all' | 'selected'`)
-2. Controller eski sonuçları siler, yeni job'ları **8'erli batch'lere** böler
-3. Her batch BullMQ kuyruğuna eklenir (rate limit: 4 batch/dakika)
-4. Worker her batch için **tek prompt** üretir — token tasarrufu
-5. Sonuçlar Zod ile validate, `MatchResult` tablosuna upsert
+1. Frontend calls `/matcher/score` (`scope: 'unscored' | 'all' | 'selected'`)
+2. The controller clears old results and splits new jobs into **batches of 8**
+3. Each batch is pushed to the BullMQ queue (rate limit: 4 batches/minute)
+4. The worker produces a **single prompt** per batch — saving tokens
+5. Results are validated with Zod and upserted into the `MatchResult` table
 
-### Scoring Formula (LLM tarafından uygulanır)
+### Scoring Formula (applied by the LLM)
 ```
-(Eşleşen Skiller / Gereken Skiller) × 0.6 + (Deneyim Uyumu) × 0.4
+(Matched Skills / Required Skills) × 0.6 + (Experience Fit) × 0.4
 ```
-Sonuç: 0-100 skor + 1 cümle açıklama + eşleşen/eksik skill listesi.
+Output: a 0–100 score + a one-sentence explanation + matched/missing skill lists.
 
-### Otomatik Tetikleme
-Scrape tamamlandığında dashboard `auditId`'yi `ScoringButton`'a sinyal olarak
-geçer. Idle + unscored > 0 ise puanlama **tek tıklama olmadan başlar**.
-Kullanıcı sadece sonucu görür.
+### Automatic Trigger
+When a scrape completes, the dashboard passes the `auditId` to `ScoringButton` as
+a signal. If it's idle and there are unscored listings, scoring **starts without a
+single click**. The user just sees the result.
 
 ---
 
-## Kimlik Doğrulama
+## Authentication
 
-Tamamen production-grade auth katmanı:
+A fully production-grade auth layer:
 
-| Endpoint | Açıklama |
+| Endpoint | Description |
 |---|---|
-| `POST /auth/signup` | bcrypt hash + JWT cookie + tek tıklama login |
-| `POST /auth/login` | Email/password + timing-safe bcrypt karşılaştırma |
-| `POST /auth/logout` | httpOnly cookie temizle |
-| `POST /auth/forgot-password` | Token üret, 1 saat geçerli (dev modda response'da döner) |
-| `POST /auth/reset-password` | Token doğrula + yeni hash + tek-kullanımlık |
-| `GET /auth/me` | Cookie'den profil getir |
+| `POST /auth/signup` | bcrypt hash + JWT cookie + one-click login |
+| `POST /auth/login` | Email/password + timing-safe bcrypt comparison |
+| `POST /auth/logout` | Clears the httpOnly cookie |
+| `POST /auth/forgot-password` | Generates a token, valid for 1 hour (returned in the response in dev mode) |
+| `POST /auth/reset-password` | Validates the token + new hash + single-use |
+| `GET /auth/me` | Returns the profile from the cookie |
 
-**Güvenlik kararları:**
-- JWT 7 gün, `httpOnly + sameSite=lax + secure (prod)` cookie'de
-- Global `AuthGuard` (NestJS `APP_GUARD`) — varsayılan deny, `@Public()` decorator ile opt-out
-- `@CurrentUser()` decorator request.user'a tip-güvenli erişim
-- Her endpoint'te **ownership check** — kullanıcı sadece kendi verisine erişebilir
-- Email enumeration koruması — bilinmeyen email forgot/login'de aynı mesajı döner
-- Timing-safe karşılaştırma — user yoksa bile bcrypt çağrılır
-- bcrypt 10 round (~10ms, brute force için yeterli pratikte)
+**Security decisions:**
+- JWT valid for 7 days, in an `httpOnly + sameSite=lax + secure (prod)` cookie
+- Global `AuthGuard` (NestJS `APP_GUARD`) — deny by default, opt out via the `@Public()` decorator
+- `@CurrentUser()` decorator for type-safe access to `request.user`
+- **Ownership checks** on every endpoint — a user can only access their own data
+- Email-enumeration protection — unknown emails return the same message on forgot/login
+- Timing-safe comparison — bcrypt is called even when the user doesn't exist
+- bcrypt with 10 rounds (~10ms, enough against brute force in practice)
 
 ---
 
-## Frontend Deneyimi
+## Frontend Experience
 
-### Sayfalar
+### Pages
 - **Landing** (`/`) — Hero + features + pricing + about + final CTA. Rotating
   headline, gradient figure, soft pulse animations.
-- **Sign-in / Sign-up / Forgot / Reset** — Gradient brand panel + form. Hydration
-  flash bug'ı bloklayıcı inline script ile çözüldü.
-- **Dashboard** — Hero search + 3 sütunlu layout (filter sidebar + cards + right
-  sidebar). Smart pagination raporu, skor badge'leri, favori kalbi.
-- **Matches** — 60+ skorlu ilanlar, ortalama/top score istatistikleri.
-- **Favorites** — Kullanıcının biriktirdiği ilanlar, sadece bunları yeniden
-  puanlama seçeneği.
-- **Profile** — Skill/role/location tag input, deneyim yılı.
+- **Sign-in / Sign-up / Forgot / Reset** — Gradient brand panel + form. The
+  hydration flash bug is solved with a blocking inline script.
+- **Dashboard** — Hero search + 3-column layout (filter sidebar + cards + right
+  sidebar). Smart-pagination report, score badges, favorite heart.
+- **Matches** — 60+ scored listings, with average/top score stats.
+- **Favorites** — The listings the user has saved, with the option to re-score
+  only those.
+- **Profile** — Skill/role/location tag inputs, years of experience.
 
-### Tasarım Sistemi
-- **2 brand accent**: violet (default) + emerald (toggle). CSS variables üzerinden
-  tüm UI tek seferde swap olur.
-- **Dark mode** + light mode, F5 flash'ı `<head>` inline script ile çözüldü.
-- **Animasyonlar**: `animate-page-in`, `animate-card-in` + staggered delay (10×),
+### Design System
+- **2 brand accents**: violet (default) + emerald (toggle). The whole UI swaps at
+  once via CSS variables.
+- **Dark mode** + light mode, with the F5 flash solved by an inline `<head>` script.
+- **Animations**: `animate-page-in`, `animate-card-in` + staggered delay (10×),
   `animate-soft-pulse`, `animate-float-cta`, `animate-blob` (background).
-- **Skeleton loaders** — sayfa geçişlerinde boş durum flash'ı önlenir.
+- **Skeleton loaders** — prevent the empty-state flash during page transitions.
 
-### State Yönetimi
+### State Management
 - React Context: `AuthProvider` (status + user), `ThemeProvider` (mode + accent)
 - Domain hooks: `useJobs`, `useMatchResults`, `useScraper`, `useScoring`,
   `useFavoriteJobs`, `useUser`
-- Tüm fetch'lerde `credentials: 'include'` — auth cookie otomatik
+- `credentials: 'include'` on every fetch — the auth cookie is sent automatically
 
 ---
 
 ## Tech Stack
 
 ### Backend
-| Katman | Teknoloji |
+| Layer | Technology |
 |---|---|
 | Runtime | Node.js 20+ |
 | Framework | NestJS 11 (modular, DI, decorator-driven) |
@@ -281,12 +282,12 @@ Tamamen production-grade auth katmanı:
 | Scraping | Playwright + playwright-extra-plugin-stealth |
 | AI | Google Gemini (2.5 Flash / Lite chain) |
 | Auth | bcryptjs + jsonwebtoken + cookie-parser |
-| Validation | Zod (API sınırı + LLM çıktı) |
-| Logging | Pino (structured JSON, pino-pretty dev) |
+| Validation | Zod (API boundary + LLM output) |
+| Logging | Pino (structured JSON, pino-pretty in dev) |
 | Testing | Vitest |
 
 ### Frontend
-| Katman | Teknoloji |
+| Layer | Technology |
 |---|---|
 | Framework | Next.js 15 (App Router, RSC) |
 | Styling | Tailwind CSS 4 |
@@ -296,7 +297,7 @@ Tamamen production-grade auth katmanı:
 | Language | TypeScript 5.9 (strict) |
 
 ### DevOps
-| Katman | Teknoloji |
+| Layer | Technology |
 |---|---|
 | Monorepo | pnpm workspaces |
 | Container | docker-compose (Postgres + Redis) |
@@ -304,29 +305,29 @@ Tamamen production-grade auth katmanı:
 
 ---
 
-## Hızlı Başlangıç
+## Quick Start
 
-### Gereksinimler
+### Requirements
 - Node.js 20+
 - pnpm 9+
-- Docker (Postgres + Redis için)
+- Docker (for Postgres + Redis)
 
-### Kurulum
+### Setup
 ```bash
-# 1. Repo klonla
+# 1. Clone the repo
 git clone https://github.com/ramazandogna/scrape-and-compare.git
 cd scrape-and-compare
 
-# 2. Bağımlılıklar
+# 2. Dependencies
 pnpm install
 
-# 3. Altyapı (Postgres + Redis)
+# 3. Infrastructure (Postgres + Redis)
 docker compose up -d
 
-# 4. .env hazırla
+# 4. Prepare .env
 cp .env.example .env
-# JWT_SECRET'ı üret: openssl rand -hex 32 → .env'e koy
-# GEMINI_API_KEY'i https://aistudio.google.com/app/apikey 'den al
+# Generate JWT_SECRET: openssl rand -hex 32 → put it in .env
+# Get GEMINI_API_KEY from https://aistudio.google.com/app/apikey
 
 # 5. Prisma
 pnpm --filter @scrape/database generate
@@ -335,18 +336,19 @@ pnpm --filter @scrape/database migrate
 # 6. Playwright browser
 pnpm exec playwright install chromium
 
-# 7. Çalıştır
+# 7. Run
 pnpm dev:all
 # → Backend: http://localhost:3000/api
 # → Web:     http://localhost:3001
 ```
 
-İlk açılışta `/sign-in`'e gider → kaydol → profili doldur → dashboard'da
-keyword + location gir → Tara → tamamlandığında AI puanlama otomatik başlar.
+On first launch you'll land on `/sign-in` → sign up → fill in your profile →
+enter keyword + location on the dashboard → Scan → when it finishes, AI scoring
+starts automatically.
 
 ---
 
-## Proje Yapısı
+## Project Structure
 
 ```
 scrape-and-compare/
@@ -381,56 +383,56 @@ scrape-and-compare/
 
 ---
 
-## Yol Haritası
+## Roadmap
 
-### ✅ Tamamlanan
-- Monorepo (pnpm workspaces) + paylaşılan tipler/schemalar
-- Modüler NestJS backend (5 modül)
+### ✅ Done
+- Monorepo (pnpm workspaces) + shared types/schemas
+- Modular NestJS backend (5 modules)
 - LinkedIn scraper: stealth, paginated, adaptive backoff, resource blocking
 - Gemini batch scoring + fallback chain + queue rate limit
 - Auth: signup/login/logout/forgot/reset/me (JWT + httpOnly cookie)
-- Frontend: 9 sayfa, dark mode + brand accent toggle
-- DB: Prisma + 6 migration + ownership constraints
-- E2E auth test suite (10 senaryo doğrulandı)
+- Frontend: 9 pages, dark mode + brand accent toggle
+- DB: Prisma + 6 migrations + ownership constraints
+- E2E auth test suite (10 scenarios verified)
 
-### 🚧 Sıradaki (deploy öncesi)
-- **Mail servisi** (Resend / SES) — forgot password gerçek email gönderebilsin
+### 🚧 Next (before deploy)
+- **Mail service** (Resend / SES) — so forgot-password can send real emails
 - **Production deploy** (Vercel + Railway/Render)
 - **Domain + SSL** (Cloudflare DNS)
 - **Sentry** — error monitoring
 - **GEMINI_API_KEY rotation** + secret manager
 
-### 💡 Beta sonrası
-- CV PDF parse + otomatik skill çıkarma
-- Indeed, Glassdoor, HackerNews Jobs entegrasyonu
+### 💡 Post-beta
+- CV PDF parsing + automatic skill extraction
+- Indeed, Glassdoor, HackerNews Jobs integration
 - Match feedback (👍/👎) → scoring prompt tuning
-- Otomatik periyodik tarama (cron)
-- Email digest — haftalık yüksek skorlu ilan özeti
+- Automatic periodic scans (cron)
+- Email digest — weekly summary of high-scoring listings
 - Premium tier: Stripe + Webhook + plan-based limits
 
 ---
 
-## Yasal Uyarı
+## Legal Disclaimer
 
-Bu proje **eğitim amaçlı kişisel bir araştırma çalışmasıdır**. LinkedIn'in
-public search sonuçlarını scrape eder; herhangi bir hesaba giriş yapmaz veya
-özel veriye erişmez.
+This project is a **personal research effort for educational purposes**. It
+scrapes LinkedIn's public search results; it does not log into any account or
+access private data.
 
-Servisi kullanmadan önce hedef platformun **Terms of Service**'ini incelemek
-ve uyumlu kullanmak **son kullanıcının sorumluluğundadır**. Proje sahipleri
-ToS ihlallerinden sorumlu tutulamaz.
+It is the **end user's responsibility** to review the target platform's **Terms
+of Service** and use the tool in compliance with them. The project owners cannot
+be held responsible for ToS violations.
 
 ---
 
-## Lisans
+## License
 
-[MIT](./LICENSE) — özgürce klonla, fork'la, geliştir.
+[MIT](./LICENSE) — clone, fork, and build on it freely.
 
 ---
 
 <div align="center">
 
-**Bir geri bildirim ya da öneri için:** [doganrmzn40@gmail.com](mailto:doganrmzn40@gmail.com)
+**For feedback or suggestions:** [doganrmzn40@gmail.com](mailto:doganrmzn40@gmail.com)
 
 [GitHub](https://github.com/ramazandogna) · [LinkedIn](https://www.linkedin.com/in/ramazandogna/)
 

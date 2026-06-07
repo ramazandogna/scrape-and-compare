@@ -1,17 +1,17 @@
 /**
- * Test Fixtures — Tüm test dosyalarının ortak kullanacağı sahte veriler.
+ * Test Fixtures — shared fake data used by every test file.
  *
- * Neden ayrı dosya?
- *   - DRY: Aynı sahte veriyi her test dosyasında yeniden yazmak istemeyiz
- *   - Consistency: Tüm testler aynı referans verileri kullanır
- *   - Maintainability: Tip değişirse tek yerde güncellenir
+ * Why a separate file?
+ *   - DRY: avoids rewriting the same fake data in every test file
+ *   - Consistency: every test uses the same reference data
+ *   - Maintainability: type changes are made in one place
  */
 
 import type { JobListing } from '@scrape/shared';
 
 /**
- * Tam dolu bir JobListing fixture'ı — tüm alanlar mevcut.
- * `mapJobToCreateInput` ve `mapJobToUpdateInput` testlerinde kullanılır.
+ * Fully populated JobListing fixture — every field present.
+ * Used by the `mapJobToCreateInput` and `mapJobToUpdateInput` tests.
  */
 export const FULL_JOB: JobListing = {
   id: 'linkedin-12345',
@@ -42,8 +42,8 @@ export const FULL_JOB: JobListing = {
 };
 
 /**
- * Minimum dolu bir JobListing — opsiyonel alanlar null.
- * "Salary yok, description yok" durumunu test eder.
+ * Minimally populated JobListing — optional fields are null.
+ * Tests the "no salary, no description" case.
  */
 export const MINIMAL_JOB: JobListing = {
   id: 'linkedin-99999',
@@ -64,7 +64,7 @@ export const MINIMAL_JOB: JobListing = {
 };
 
 /**
- * USD maaşlı ve yıllık periyotlu iş — currency/period mapping testi için.
+ * USD-denominated yearly salary — for currency/period mapping tests.
  */
 export const USD_YEARLY_JOB: JobListing = {
   ...FULL_JOB,

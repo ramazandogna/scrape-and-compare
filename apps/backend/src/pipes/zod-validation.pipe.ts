@@ -1,29 +1,29 @@
 /**
- * ZodValidationPipe — NestJS pipe'ı ile Zod schema doğrulama.
+ * ZodValidationPipe — Zod schema validation as a NestJS pipe.
  *
- * Kullanım:
+ * Usage:
  *   @UsePipes(new ZodValidationPipe(scrapeJobDataSchema))
  *   async trigger(@Body() body: ScrapeJobDataInput) { ... }
  *
- * NestJS Pipe nedir?
- *   Controller metoduna gelen veriyi ÖNCE bu pipe'dan geçirir.
- *   Veri geçerli değilse 400 Bad Request döner, metod çağrılmaz.
- *   Veri geçerliyse transform edilmiş hali metoda iletilir.
+ * What is a NestJS Pipe?
+ *   Data arriving at a controller method passes through this pipe FIRST.
+ *   If invalid it returns 400 Bad Request and the method is never called.
+ *   If valid the transformed data is forwarded to the method.
  *
- * Zod + NestJS entegrasyonu:
- *   1. Zod schema parse eder (validation + transformation — trim, coerce vb.)
- *   2. Başarılıysa → parse edilmiş veri döner
- *   3. Başarısızsa → BadRequestException fırlatılır (detaylı hata mesajları)
+ * Zod + NestJS integration:
+ *   1. Zod schema parses the data (validation + transformation — trim, coerce, etc.)
+ *   2. On success → returns parsed data
+ *   3. On failure → throws BadRequestException (with detailed error messages)
  */
 
 import { PipeTransform, BadRequestException } from '@nestjs/common';
 import type { ZodSchema, ZodError, ZodIssue } from 'zod';
 
 /**
- * Zod hata mesajlarını okunabilir formata dönüştürür.
+ * Converts Zod error messages into a readable format.
  *
- * Zod hataları nested olabilir (field.subfield). Bu helper
- * her hatayı "path: message" formatında düzleştirir.
+ * Zod errors can be nested (field.subfield). This helper flattens each error
+ * into "path: message" format.
  */
 const formatZodErrors = (error: ZodError): string[] =>
   error.errors.map((e: ZodIssue) =>

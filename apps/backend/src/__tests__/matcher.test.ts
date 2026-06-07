@@ -1,21 +1,21 @@
 /**
- * Matcher Service Tests — MatcherService iş mantığı birim testleri.
+ * Matcher Service Tests — MatcherService business logic unit tests.
  *
- * Neyi test ediyoruz?
- *   1. scoreBatch() — başarılı batch scoring akışı
- *   2. scoreBatch() — Gemini hata dönerse tüm job'ları failed raporla
- *   3. scoreBatch() — boş job listesi → erken dön
- *   4. validateBatchResults() — duplicate jobId filtreleme
- *   5. validateBatchResults() — beklenmeyen jobId filtreleme
- *   6. validateBatchResults() — tüm sonuçlar geçerli
- *   7. extractSkillNames() — farklı formatlardaki skills alanı
- *   8. buildPrompt() — prompt içeriğinde user ve job bilgileri
- *   9. saveResults() — minScore altı sonuçlar kaydedilmez
+ * What do we test?
+ *   1. scoreBatch() — successful batch scoring flow
+ *   2. scoreBatch() — when Gemini returns an error, report all jobs as failed
+ *   3. scoreBatch() — empty job list → early return
+ *   4. validateBatchResults() — duplicate jobId filtering
+ *   5. validateBatchResults() — unexpected jobId filtering
+ *   6. validateBatchResults() — all results valid
+ *   7. extractSkillNames() — skills field in different formats
+ *   8. buildPrompt() — user and job info present in the prompt
+ *   9. saveResults() — results below minScore are not persisted
  *
- * Neden mock?
- *   - GeminiService mock → gerçek API çağrısı yapmadan LLM yanıtı simüle
- *   - PrismaService mock → DB bağlantısı olmadan CRUD test
- *   - Unit test = izole test — dış bağımlılık yok
+ * Why mock?
+ *   - GeminiService mock → simulate LLM responses without real API calls
+ *   - PrismaService mock → CRUD tests without a DB connection
+ *   - Unit test = isolated test — no external dependencies
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -82,12 +82,12 @@ const mockGenerateJSON = vi.fn();
 const mockCreateMany = vi.fn();
 const mockFindMany = vi.fn();
 
-/** MatcherService'i NestJS DI olmadan oluşturur */
+/** Builds MatcherService without NestJS DI */
 function createMatcherService(minScore = 50) {
   vi.stubEnv('MATCHER_MIN_SCORE', String(minScore));
 
-  // Dynamic import yerine inline class instantiation pattern
-  // MatcherService private methodlarını test etmek için prototype erişimi kullanıyoruz
+  // Inline class instantiation pattern instead of dynamic import.
+  // Uses prototype access to test MatcherService's private methods.
   const service = {
     minScore,
     gemini: { generateJSON: mockGenerateJSON },
@@ -105,10 +105,10 @@ function createMatcherService(minScore = 50) {
 // ═══════════════════════════════════════════
 
 /**
- * validateBatchResults'ı izole test edebilmek için inline implementasyon.
+ * Inline implementation so validateBatchResults can be tested in isolation.
  *
- * Bu fonksiyon MatcherService'in private metodu — prototype hack yerine
- * aynı mantığı buraya kopyalıyoruz (birim test izolasyonu).
+ * The function is a private method on MatcherService — instead of a prototype hack
+ * we copy the same logic here (unit test isolation).
  */
 function validateBatchResults(
   data: BatchScoringResult,
@@ -162,7 +162,7 @@ describe('validateBatchResults()', () => {
     const data: BatchScoringResult = {
       results: [
         MOCK_SCORING_RESULTS[0]!,
-        { ...MOCK_SCORING_RESULTS[0]!, score: 90 }, // aynı jobId tekrar
+        { ...MOCK_SCORING_RESULTS[0]!, score: 90 }, // same jobId again
         MOCK_SCORING_RESULTS[1]!,
       ],
     };
@@ -171,7 +171,7 @@ describe('validateBatchResults()', () => {
     const result = validateBatchResults(data, expectedIds);
 
     expect(result).toHaveLength(2);
-    // İlk gelen kalır, score 85
+    // First one wins, score 85
     expect(result[0]?.score).toBe(85);
   });
 
@@ -197,7 +197,7 @@ describe('validateBatchResults()', () => {
 // ═══════════════════════════════════════════
 
 /**
- * extractSkillNames'i izole test edebilmek için inline implementasyon.
+ * Inline implementation so extractSkillNames can be tested in isolation.
  */
 function extractSkillNames(skills: unknown): string[] {
   if (!Array.isArray(skills)) return [];
@@ -232,8 +232,8 @@ describe('extractSkillNames()', () => {
   it('name alanı olmayan objeler filtrelenir', () => {
     const skills = [
       { name: 'React', category: 'frontend', isMain: true },
-      { category: 'language' }, // name yok
-      42, // obje değil
+      { category: 'language' }, // no name
+      42, // not an object
       null,
     ];
 
@@ -253,7 +253,7 @@ describe('scoreBatch() mantığı', () => {
   it('boş job listesi → erken dönüş (Gemini çağrılmaz)', async () => {
     const service = createMatcherService();
 
-    // scoreBatch mantığını inline test ediyoruz
+    // Test the scoreBatch logic inline
     const jobs: MatcherJobSummary[] = [];
 
     if (jobs.length === 0) {
@@ -277,7 +277,7 @@ describe('scoreBatch() mantığı', () => {
 
     expect(result.status).toBe('error');
 
-    // Service mantığı: hata durumunda tüm jobId'ler failed listesine girer
+    // Service logic: on error, every jobId lands in the failed list
     const batchResult = {
       scored: [] as SingleScoringResult[],
       failed: jobIds,
@@ -309,7 +309,7 @@ describe('scoreBatch() mantığı', () => {
 });
 
 // ═══════════════════════════════════════════
-// minScore FİLTRELEME TESTS
+// minScore FILTERING TESTS
 // ═══════════════════════════════════════════
 
 describe('minScore filtreleme', () => {
@@ -346,7 +346,7 @@ describe('minScore filtreleme', () => {
 
 describe('buildPrompt() içerik kontrolü', () => {
   /**
-   * buildPrompt'u izole test edebilmek için inline implementasyon.
+   * Inline implementation so buildPrompt can be tested in isolation.
    */
   function buildPrompt(user: MatcherUserProfile, jobs: MatcherJobSummary[]): string {
     const jobDescriptions = jobs

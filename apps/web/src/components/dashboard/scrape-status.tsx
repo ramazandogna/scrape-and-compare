@@ -5,14 +5,14 @@ import { cn } from "@/lib/utils";
 import type { ScrapeState } from "@/hooks/use-scraper";
 
 // ═══════════════════════════════════════════
-// ScrapeStatus — Scrape ilerleme göstergesi
+// ScrapeStatus — Scrape progress indicator
 // ═══════════════════════════════════════════
 // State Machine UI:
-//   idle       → gizli
-//   triggering → "Kuyruk ekleniyor..."
-//   scraping   → progress bar + faz mesajı
-//   completed  → sonuç özeti (X yeni, Y güncellendi)
-//   error      → hata mesajı
+//   idle       → hidden
+//   triggering → "Queueing..."
+//   scraping   → progress bar + phase message
+//   completed  → result summary (X new, Y updated)
+//   error      → error message
 
 interface ScrapeStatusProps {
   state: ScrapeState;

@@ -12,12 +12,12 @@ function GithubGlyph(props: React.SVGProps<SVGSVGElement>) {
 }
 
 // ═══════════════════════════════════════════
-// Footer — alt bilgi çubuğu + tema accent toggle
+// Footer — bottom info bar + theme accent toggle
 // ═══════════════════════════════════════════
-// "Accent dot": footer'da GitHub linkinin yanında küçük renkli daire.
-// Renk = "tıklarsan siteyi BU renge çevirir" — yani:
-//   purple modda → dot yeşil (yeşile çevir)
-//   green modda  → dot mor   (mora geri dön)
+// "Accent dot": small colored circle next to the GitHub link in the footer.
+// Color = "click to switch the site to THIS color" — i.e.:
+//   purple mode → dot is green (switch to green)
+//   green mode  → dot is purple (switch back to purple)
 
 export function Footer() {
   const year = new Date().getFullYear();
@@ -55,7 +55,7 @@ export function Footer() {
               GitHub
             </a>
 
-            {/* Accent toggle dot — site temasını swap eder */}
+            {/* Accent toggle dot — swaps the site theme */}
             <button
               type="button"
               onClick={toggleAccent}

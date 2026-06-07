@@ -1,18 +1,18 @@
 /**
- * Jobs Module — İş ilanları okuma modülü.
+ * Jobs Module — job listings read module.
  *
- * Bu modül sadece READ operasyonları sunar:
- *   - GET /api/jobs → liste (paginated, filtrelenebilir)
+ * This module exposes READ operations only:
+ *   - GET /api/jobs → list (paginated, filterable)
  *
- * Neden Scraper modülünden ayrı?
- *   - ScraperModule → WRITE: veri topla, DB'ye yaz
- *   - JobsModule    → READ:  veriyi sorgula, frontend'e sun
- *   - SRP: Her modül tek bir sorumluluk
+ * Why separate from the Scraper module?
+ *   - ScraperModule → WRITE: collect data, write to DB
+ *   - JobsModule    → READ:  query data, serve to frontend
+ *   - SRP: each module has a single responsibility
  *
- * PrismaService'e erişim nasıl sağlanır?
- *   DatabaseModule @Global() olarak işaretli.
- *   Global modüller TÜM modüllerde otomatik erişilebilir.
- *   JobsModule'ün DatabaseModule'ü import etmesine gerek yok.
+ * How is PrismaService accessible?
+ *   DatabaseModule is marked @Global().
+ *   Global modules are automatically accessible in EVERY module.
+ *   JobsModule does not need to import DatabaseModule.
  */
 
 import { Module } from '@nestjs/common';

@@ -1,21 +1,21 @@
 /**
- * Job Persistence — Prisma upsert ile DB'ye yazma.
+ * Job Persistence — writes to the DB via Prisma upsert.
  *
- * Neden upsert?
+ * Why upsert?
  * ─────────────
- * Scraper aynı ilanı birden fazla kez bulabilir (farklı keyword'lerle aranır).
- * `INSERT` yaparsak duplicate key hatası alırız.
- * `upsert` = "varsa güncelle, yoksa oluştur" — tek atomik işlem.
+ * The scraper may find the same listing multiple times (searched via different keywords).
+ * `INSERT` would cause a duplicate-key error.
+ * `upsert` = "update if exists, otherwise create" — a single atomic operation.
  *
  * Prisma upsert:
- *   where:  { externalId: "..." }  → Bu ilan daha önce kaydedilmiş mi?
- *   create: { ... }                → Hayır → INSERT
- *   update: { ... }                → Evet  → UPDATE (yeni description, salary vb.)
+ *   where:  { externalId: "..." }  → has this listing been saved before?
+ *   create: { ... }                → no → INSERT
+ *   update: { ... }                → yes → UPDATE (new description, salary, etc.)
  *
- * Performans notu:
- * Prisma henüz batch upsert desteklemiyor (createMany var ama upsertMany yok).
- * Bu yüzden Promise.allSettled ile paralel upsert yapıyoruz.
- * allSettled kullanmamızın nedeni: tek bir hatalı kayıt tüm batch'i durdurmasın.
+ * Performance note:
+ * Prisma does not yet support batch upsert (createMany exists, but upsertMany does not).
+ * Therefore we do parallel upserts via Promise.allSettled.
+ * We use allSettled so a single failing record does not abort the whole batch.
  *
  * @module
  */
@@ -26,27 +26,27 @@ import { mapJobToCreateInput, mapJobToUpdateInput } from './job.mapper';
 import { logger } from '@/utils/helpers';
 
 // ═══════════════════════════════════════════
-// RESULT TİPLERİ (Discriminated Union)
+// RESULT TYPES (Discriminated Union)
 // ═══════════════════════════════════════════
 
 /**
- * Tek bir job'un persist sonucu — discriminated union.
+ * Persist result for a single job — discriminated union.
  *
- * Neden optional props değil de union?
- * `{ success: boolean; error?: string }` yazarsak:
- *   - success=true olduğunda error'a erişim hâlâ mümkün (undefined ama erişilebilir)
- *   - TypeScript seni korumaz
+ * Why a union instead of optional props?
+ * If you write `{ success: boolean; error?: string }`:
+ *   - When success=true, error is still accessible (undefined but reachable)
+ *   - TypeScript does not protect you
  *
- * Union ile:
- *   - status='created' → error alanı YOKTUR (compile-time garantisi)
- *   - status='failed'  → error alanı ZORUNLUDUR
+ * With a union:
+ *   - status='created' → error field DOES NOT EXIST (compile-time guarantee)
+ *   - status='failed'  → error field is REQUIRED
  */
 export type JobPersistResult =
   | { status: 'created'; externalId: string; jobId: string }
   | { status: 'updated'; externalId: string; jobId: string }
   | { status: 'failed'; externalId: string; error: string };
 
-/** Batch upsert özet raporu */
+/** Batch upsert summary report */
 export interface UpsertSummary {
   total: number;
   created: number;
@@ -61,19 +61,19 @@ interface UserJobLinkOptions {
 }
 
 // ═══════════════════════════════════════════
-// TEK JOB UPSERT
+// SINGLE JOB UPSERT
 // ═══════════════════════════════════════════
 
 /**
- * Tek bir job'u DB'ye upsert eder.
+ * Upserts a single job into the DB.
  *
- * externalId unique key olarak kullanılır:
- *   - Yoksa → CREATE (yeni ilan)
- *   - Varsa → UPDATE (description, salary vb. güncellenmiş olabilir)
+ * externalId is used as the unique key:
+ *   - Missing → CREATE (new listing)
+ *   - Present → UPDATE (description, salary, etc. may have changed)
  *
  * @param prisma PrismaService instance
- * @param job Scraper'dan gelen enriched JobListing
- * @returns Persist sonucu (created / updated / failed)
+ * @param job Enriched JobListing from the scraper
+ * @returns Persist result (created / updated / failed)
  */
 const upsertSingleJob = async (
   prisma: PrismaService,
@@ -109,15 +109,15 @@ const upsertSingleJob = async (
 // ═══════════════════════════════════════════
 
 /**
- * Birden fazla job'u paralel olarak DB'ye upsert eder.
+ * Upserts multiple jobs into the DB in parallel.
  *
- * Promise.allSettled kullanılır çünkü:
- *   - Promise.all: Tek bir hata TÜM batch'i iptal eder
- *   - Promise.allSettled: Her job bağımsız çalışır, hatalar izole kalır
+ * Promise.allSettled is used because:
+ *   - Promise.all: a single failure aborts THE ENTIRE batch
+ *   - Promise.allSettled: each job runs independently, failures stay isolated
  *
  * @param prisma PrismaService instance
- * @param jobs Scraper'dan gelen enriched JobListing dizisi
- * @returns Özet rapor (kaç created, updated, failed)
+ * @param jobs Array of enriched JobListing values from the scraper
+ * @returns Summary report (how many created, updated, failed)
  */
 export const upsertJobs = async (
   prisma: PrismaService,
@@ -160,7 +160,7 @@ export const upsertJobs = async (
 // SUMMARY BUILDER
 // ═══════════════════════════════════════════
 
-/** allSettled sonuçlarından summary raporu oluşturur */
+/** Builds a summary report from allSettled results */
 const buildSummary = (
   results: PromiseSettledResult<JobPersistResult>[],
 ): UpsertSummary => {

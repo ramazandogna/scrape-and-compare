@@ -17,11 +17,11 @@ import { cn } from "@/lib/utils";
 import type { MatchResultDto } from "@/types/job";
 
 // ═══════════════════════════════════════════
-// MatchCard — Tek eşleşme sonucu kartı
+// MatchCard — Single match result card
 // ═══════════════════════════════════════════
-// Score badge (renk kodlu) + Pozisyon + Açıklama
-// Genişletilebilir: matchedSkills ✅ / missingSkills ❌
-// LinkedIn linki
+// Score badge (color-coded) + Position + Description
+// Expandable: matchedSkills ✅ / missingSkills ❌
+// LinkedIn link
 
 interface MatchCardProps {
   match: MatchResultDto;
@@ -34,7 +34,7 @@ export function MatchCard({ match }: MatchCardProps) {
   return (
     <Card className="overflow-hidden transition-shadow hover:shadow-md">
       <CardContent className="p-0">
-        {/* Ana satır */}
+        {/* Main row */}
         <div className="flex items-start gap-4 p-4 sm:p-5">
           {/* Score circle */}
           <div
@@ -50,7 +50,7 @@ export function MatchCard({ match }: MatchCardProps) {
             <span className={cn("text-[9px] font-medium", config.textClass)}>puan</span>
           </div>
 
-          {/* İlan bilgileri */}
+          {/* Listing info */}
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-2">
               <div>
@@ -82,7 +82,7 @@ export function MatchCard({ match }: MatchCardProps) {
               </Badge>
             </div>
 
-            {/* AI Açıklaması */}
+            {/* AI Explanation */}
             <p className="mt-2.5 text-sm leading-relaxed text-muted-foreground">
               {match.explanation}
             </p>
@@ -120,7 +120,7 @@ export function MatchCard({ match }: MatchCardProps) {
           </div>
         </div>
 
-        {/* Genişletme butonu + detay */}
+        {/* Expand button + detail */}
         <div className="border-t">
           <button
             type="button"
@@ -142,7 +142,7 @@ export function MatchCard({ match }: MatchCardProps) {
 
           {expanded && (
             <div className="border-t px-5 py-4 space-y-4">
-              {/* Eşleşen skills */}
+              {/* Matched skills */}
               {match.matchedSkills.length > 0 && (
                 <div>
                   <h4 className="text-xs font-semibold text-green-700 mb-1.5">
@@ -163,7 +163,7 @@ export function MatchCard({ match }: MatchCardProps) {
                 </div>
               )}
 
-              {/* Eksik skills */}
+              {/* Missing skills */}
               {match.missingSkills.length > 0 && (
                 <div>
                   <h4 className="mb-1.5 text-xs font-semibold text-muted-foreground">
@@ -184,7 +184,7 @@ export function MatchCard({ match }: MatchCardProps) {
                 </div>
               )}
 
-              {/* LinkedIn linki */}
+              {/* LinkedIn link */}
               <div className="pt-1">
                 <a
                   href={match.job.url}

@@ -1,18 +1,18 @@
 /**
- * Constants — Proje genelinde kullanılan sabit değerler.
+ * Constants — project-wide constant values.
  *
- * Neden sabitler ayrı dosyada? Magic number'ları önlemek için.
- * "3000" yerine "DEFAULT_DELAY_MAX" yazmak kodu self-documenting yapar.
+ * Why a separate file? To avoid magic numbers.
+ * Writing "DEFAULT_DELAY_MAX" instead of "3000" makes code self-documenting.
  */
 
-/** Statik döviz kurları (TRY cinsinden, yaklaşık 2025 Q1) */
+/** Static exchange rates (in TRY, approx. 2025 Q1) */
 export const EXCHANGE_RATES: Record<string, number> = {
   TRY: 1,
   USD: 35,
   EUR: 38,
 } as const;
 
-/** Scraper varsayılan ayarları */
+/** Scraper default settings */
 export const SCRAPER_DEFAULTS = {
   MAX_JOBS_PER_KEYWORD: 50,
   PARALLEL_TABS: 5,
@@ -27,7 +27,7 @@ export const SCRAPER_DEFAULTS = {
   ADAPTIVE_DELAY_THRESHOLD: 2,
 } as const;
 
-/** Scraper State Machine geçerli geçişleri */
+/** Valid Scraper State Machine transitions */
 export const VALID_SCRAPER_TRANSITIONS: Record<string, readonly string[]> = {
   IDLE: ['SCANNING'],
   SCANNING: ['EXTRACTING', 'FAILED'],
@@ -41,17 +41,17 @@ export const VALID_SCRAPER_TRANSITIONS: Record<string, readonly string[]> = {
 // ═══════════════════════════════════════════
 
 /**
- * BullMQ kuyruk isimleri — magic string'leri önler.
+ * BullMQ queue names — avoids magic strings.
  *
- * Neden sabit? 'scraper' string'ini 5 farklı dosyaya yazmak yerine
- * tek bir yerden import et. Typo yapma şansın sıfır.
+ * Why a constant? Instead of writing 'scraper' across 5 different files,
+ * import it from one place. Zero chance of typos.
  */
 export const QUEUE_NAMES = {
   SCRAPER: 'scraper',
   MATCHER: 'matcher',
 } as const;
 
-/** Matcher varsayılan ayarları */
+/** Matcher default settings */
 export const MATCHER_DEFAULTS = {
   BATCH_SIZE: 16,
   RATE_LIMIT_RPM: 4,

@@ -5,10 +5,10 @@ import { apiFetch } from "@/lib/api";
 import type { JobDto, PaginatedResponse } from "@/types/job";
 
 // ═══════════════════════════════════════════
-// useJobs — Tüm ilanları çeker (client-side filter için)
+// useJobs — fetches all listings (for client-side filtering)
 // ═══════════════════════════════════════════
-// MVP stratejisi: ?limit=100 ile tümünü tek seferde al.
-// 32 ilanla bu sorunsuz. 500+ olursa backend pagination'a geçilir.
+// MVP strategy: pull everything in one shot with ?limit=100.
+// Fine for 32 listings. Switch to backend pagination at 500+.
 
 interface UseJobsReturn {
   jobs: JobDto[];
@@ -58,7 +58,7 @@ export function useJobs(): UseJobsReturn {
     setError(null);
   }, []);
 
-  /** Kullanıcının tüm ilanlarını backend'den sil ve local state'i temizle */
+  /** Delete all of the user's listings on the backend and clear local state */
   const removeAllJobs = useCallback(
     async (userId: string): Promise<{ removedJobs: number; removedMatches: number }> => {
       const res = await apiFetch<{ removedJobs: number; removedMatches: number }>(
@@ -72,7 +72,7 @@ export function useJobs(): UseJobsReturn {
     []
   );
 
-  /** Tek bir ilanı kullanıcıdan kaldır ve local state'i güncelle */
+  /** Remove a single listing from the user and update local state */
   const removeJob = useCallback(
     async (userId: string, jobId: string): Promise<boolean> => {
       const res = await apiFetch<{ removed: boolean }>(

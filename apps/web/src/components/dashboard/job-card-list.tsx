@@ -6,8 +6,8 @@ import { Pagination } from "@/components/dashboard/pagination";
 import type { EnrichedJob, SortState } from "@/types/job";
 import type { PaginationResult } from "@/lib/job-helpers";
 
-// Tailwind purge static class'ları görsün — dinamik template string yerine
-// statik array kullanıyoruz.
+// Expose static classes to Tailwind's purge — use a static array instead of
+// dynamic template strings.
 const STAGGER_CLASSES = [
   "stagger-1",
   "stagger-2",
@@ -22,7 +22,7 @@ const STAGGER_CLASSES = [
 ] as const;
 
 // ═══════════════════════════════════════════
-// JobCardList — Orta sütun: SortBar + kartlar + pagination
+// JobCardList — Middle column: SortBar + cards + pagination
 // ═══════════════════════════════════════════
 
 interface JobCardListProps {
@@ -59,8 +59,8 @@ export function JobCardList({
           </p>
         </div>
       ) : (
-        // page'i key'e koyuyoruz — sayfa değişiminde kartlar remount olup
-        // staggered enter animasyonunu yeniden tetikler.
+        // Use page as key — on page change cards remount and re-trigger the
+        // staggered enter animation.
         <div key={`p-${page}`} className="space-y-3">
           {items.map((job, idx) => (
             <div

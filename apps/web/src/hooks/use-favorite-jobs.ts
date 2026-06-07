@@ -32,18 +32,18 @@ function loadFavoriteJobIds(userId: string | null): string[] {
 }
 
 // ═══════════════════════════════════════════
-// useFavoriteJobs — kullanıcı bazlı favori ilan listesi (localStorage)
+// useFavoriteJobs — per-user favorite job list (localStorage)
 // ═══════════════════════════════════════════
 // Race fix:
-//   Eski sürümde "userId değişti → state'i yükle" effect'i ile
-//   "state değişti → localStorage'a yaz" effect'i aynı render'da çalışıp
-//   yazma effect'i eski state'i yazınca depolanan değeri overwrite ediyordu.
+//   In the old version the "userId changed → load state" effect and
+//   the "state changed → write to localStorage" effect ran in the same render,
+//   and the write effect overwrote the stored value with the old state.
 //
-// Çözüm:
-//   - Lazy useState init ile mount anında sync read
-//   - userId değişince ref ile load + skipNextWrite flag
-//   - Yazma effect'i flag set ise bir kez atlıyor
-//   - Aynı tarayıcı sekmesinde başka tabdan değişiklik olursa storage event ile sync
+// Solution:
+//   - Lazy useState init for sync read at mount
+//   - On userId change: ref-tracked load + skipNextWrite flag
+//   - Write effect skips once if flag is set
+//   - Sync via storage event when another tab in the same browser changes it
 
 export function useFavoriteJobs(userId: string | null): UseFavoriteJobsReturn {
   const [favoriteJobIds, setFavoriteJobIds] = useState<string[]>(() =>
@@ -53,7 +53,7 @@ export function useFavoriteJobs(userId: string | null): UseFavoriteJobsReturn {
   const lastUserIdRef = useRef<string | null>(userId);
   const skipNextWriteRef = useRef(false);
 
-  // userId değiştiğinde reload — kullanıcı switch'i (logout + login) için
+  // Reload when userId changes — for user switch (logout + login)
   useEffect(() => {
     if (lastUserIdRef.current === userId) return;
     lastUserIdRef.current = userId;
@@ -61,10 +61,10 @@ export function useFavoriteJobs(userId: string | null): UseFavoriteJobsReturn {
     setFavoriteJobIds(loadFavoriteJobIds(userId));
   }, [userId]);
 
-  // Persist — kullanıcı toggle ettikten sonra her değişikliği yaz
+  // Persist — write every change after user toggles
   useEffect(() => {
     if (skipNextWriteRef.current) {
-      // load sonrası ilk write'ı atla — yoksa eski state diske yazılır
+      // Skip first write after load — otherwise old state gets persisted
       skipNextWriteRef.current = false;
       return;
     }
@@ -73,11 +73,11 @@ export function useFavoriteJobs(userId: string | null): UseFavoriteJobsReturn {
     try {
       localStorage.setItem(storageKey, JSON.stringify(favoriteJobIds));
     } catch {
-      // quota / private window — sessizce geç
+      // quota / private window — silently skip
     }
   }, [favoriteJobIds, userId]);
 
-  // Cross-tab sync — başka sekmedeki toggle bu sekmede görünsün
+  // Cross-tab sync — reflect toggles from other tabs in this tab
   useEffect(() => {
     const storageKey = getStorageKey(userId);
     if (!storageKey) return;

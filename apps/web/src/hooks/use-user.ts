@@ -5,14 +5,14 @@ import { apiFetch, ApiError } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 
 // ═══════════════════════════════════════════
-// useUser — auth context'i wrap eden geriye-uyumlu hook
+// useUser — back-compat hook wrapping auth context
 // ═══════════════════════════════════════════
-// Eski API yüzeyi: { user, users, isLoading, error, updateUser, selectUser }
-// Auth ile birlikte:
-//   - user: aktif user (auth context'ten)
-//   - users: [user] tek elemanlı (legacy bileşen uyumluluğu)
+// Old API surface: { user, users, isLoading, error, updateUser, selectUser }
+// With auth:
+//   - user: active user (from auth context)
+//   - users: [user] single-element (legacy component compat)
 //   - selectUser: noop
-//   - createUser: kaldırıldı (artık /sign-up akışı)
+//   - createUser: removed (now /sign-up flow)
 
 export interface UserDto {
   id: string;
@@ -74,7 +74,7 @@ export function useUser(): UseUserReturn {
   );
 
   const selectUser = useCallback((_userId: string) => {
-    // Legacy imza için duruyor — auth ile tek aktif user var.
+    // Kept for legacy signature — with auth there is a single active user.
   }, []);
 
   return {

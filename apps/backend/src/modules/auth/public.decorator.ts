@@ -1,10 +1,10 @@
 import { SetMetadata } from '@nestjs/common';
 
 // ═══════════════════════════════════════════
-// @Public() — auth gerektirmeyen endpoint'leri işaretler
+// @Public() — marks endpoints that don't require auth
 // ═══════════════════════════════════════════
-// AuthGuard global olarak çalışıyor; @Public() decorator'lı handler'lar
-// guard tarafından bypass edilir.
+// AuthGuard runs globally; handlers decorated with @Public()
+// are bypassed by the guard.
 
 export const IS_PUBLIC_KEY = 'isPublic';
 export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);

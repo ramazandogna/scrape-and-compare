@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { UserDto } from "@/hooks/use-user";
 
 // ═══════════════════════════════════════════
-// UserSelector — DB'deki kullanıcılar arasından seç
+// UserSelector — Pick from users in the DB
 // ═══════════════════════════════════════════
 
 interface UserSelectorProps {

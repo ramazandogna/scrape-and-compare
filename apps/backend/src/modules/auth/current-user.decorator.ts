@@ -5,8 +5,8 @@ import type { AuthenticatedUser } from './auth.types';
 // ═══════════════════════════════════════════
 // @CurrentUser() — req.user injection
 // ═══════════════════════════════════════════
-// Controller'larda body.userId yerine sırayı bozmadan auth user'a erişim için.
-// AuthGuard çalıştığında req.user set edilir.
+// Used in controllers to access the auth user without relying on body.userId.
+// AuthGuard sets req.user when it runs.
 
 export const CurrentUser = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext): AuthenticatedUser => {

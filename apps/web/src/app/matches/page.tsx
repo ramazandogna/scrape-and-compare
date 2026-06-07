@@ -16,7 +16,7 @@ import { useUser } from "@/hooks/use-user";
 import { enrichJobsWithMatches } from "@/lib/job-helpers";
 
 // ═══════════════════════════════════════════
-// Matches Page — Yüksek puanlı eşleşmeler (score >= 60)
+// Matches Page — High-scoring matches (score >= 60)
 // ═══════════════════════════════════════════
 
 const MATCH_THRESHOLD = 60;
@@ -39,7 +39,7 @@ export default function MatchesPage() {
     };
   }, [fetchJobs, fetchMatches, user?.id]);
 
-  // Boş durumun bir an parlayıp sonra liste gelmesini engelle.
+  // Prevent the empty state from flashing before the list arrives.
   const isHydrating = userLoading || (user !== null && !hasFetched);
 
   const matchedJobs = useMemo(() => {
@@ -103,7 +103,7 @@ export default function MatchesPage() {
             AI puanlama skoru {MATCH_THRESHOLD} ve üzeri olan ilanlar. Ne kadar yüksekse o kadar iyi eşleşme.
           </p>
 
-          {/* İstatistikler */}
+          {/* Stats */}
           {matchedJobs.length > 0 && (
             <div className="mt-4 flex flex-wrap gap-4">
               <div className="flex items-center gap-1.5 rounded-xl border bg-background px-3 py-1.5 text-xs">
@@ -141,14 +141,14 @@ export default function MatchesPage() {
         )}
       </div>
 
-      {/* Hidrasyon — kullanıcı + ilanlar henüz yüklenmedi */}
+      {/* Hydration — user + jobs not yet loaded */}
       {isHydrating && (
         <div className="mt-6">
           <JobListSkeleton count={3} />
         </div>
       )}
 
-      {/* Kullanıcı yok */}
+      {/* No user */}
       {!isHydrating && !user && (
         <Card className="mt-6">
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
@@ -157,7 +157,7 @@ export default function MatchesPage() {
         </Card>
       )}
 
-      {/* Eşleşme yok — hiç puanlanmamış */}
+      {/* No matches — nothing scored yet */}
       {!isHydrating && user && matchedJobs.length === 0 && matches.length === 0 && (
         <Card className="mt-6 border-dashed">
           <CardContent className="space-y-3 py-12 text-center">
@@ -174,7 +174,7 @@ export default function MatchesPage() {
         </Card>
       )}
 
-      {/* Puanlama var ama threshold altında */}
+      {/* Scored but below threshold */}
       {!isHydrating && user && matchedJobs.length === 0 && matches.length > 0 && (
         <Card className="mt-6 border-dashed">
           <CardContent className="space-y-3 py-12 text-center">
@@ -192,7 +192,7 @@ export default function MatchesPage() {
         </Card>
       )}
 
-      {/* Eşleşme listesi */}
+      {/* Match list */}
       {!isHydrating && user && matchedJobs.length > 0 && (
         <div className="mt-6 space-y-3">
           {matchedJobs.map((job, idx) => (

@@ -1,14 +1,14 @@
 /**
- * Jobs Service — İş ilanlarını veritabanından sorgulama.
+ * Jobs Service — query job listings from the database.
  *
- * Bu servis Prisma ORM üzerinden JobListing tablosunu okur.
- * İş mantığı (filtreleme, pagination, sıralama) burada yaşar.
- * Controller sadece HTTP request/response ile ilgilenir, sorgulama burada.
+ * This service reads the JobListing table via Prisma ORM.
+ * Business logic (filtering, pagination, ordering) lives here.
+ * The controller only handles HTTP request/response; queries belong here.
  *
- * Neden ayrı modül (scraper'dan bağımsız)?
- *   - Scraper: "veri toplar" (yazma — Create/Update)
- *   - Jobs: "veri sunar" (okuma — Read)
- *   - İki farklı sorumluluk → iki farklı modül (SRP)
+ * Why a separate module (independent from scraper)?
+ *   - Scraper: "collects data" (write — Create/Update)
+ *   - Jobs: "serves data" (read — Read)
+ *   - Two responsibilities → two modules (SRP)
  */
 
 import { Injectable } from '@nestjs/common';
@@ -21,10 +21,10 @@ import { logger } from '@/utils/helpers';
 // ═══════════════════════════════════════════
 
 /**
- * Paginated response — frontend pagination UI'ı için gereken tüm bilgiler.
+ * Paginated response — everything the frontend pagination UI needs.
  *
- * totalPages ve hasNext/hasPrev ile frontend "Sonraki sayfa" butonunu
- * gösterip göstermemeye karar verir.
+ * With totalPages and hasNext/hasPrev the frontend decides whether to
+ * show the "Next page" button.
  */
 export interface PaginatedJobs {
   data: JobListingDto[];
@@ -39,10 +39,11 @@ export interface PaginatedJobs {
 }
 
 /**
- * JobListing DTO — frontend'e dönen iş ilanı verisi.
+ * JobListing DTO — job listing data returned to the frontend.
  *
- * DB'deki tüm alanları değil, sadece frontend'in ihtiyaç duyduklarını dönüyoruz.
- * description gibi büyük alanlar listede gereksiz, detay sayfasında döner (gelecek).
+ * We return only the fields the frontend needs, not every DB column.
+ * Large fields like description are unnecessary on the list and will
+ * be returned on the detail page later.
  */
 export interface JobListingDto {
   id: string;
@@ -74,15 +75,15 @@ export class JobsService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * İş ilanlarını paginated, filtrelenmiş ve sıralanmış şekilde döner.
+   * Returns job listings paginated, filtered, and ordered.
    *
-   * Prisma query yapısı:
-   *   - where: filtreleme koşulları (search + location)
-   *   - orderBy: sıralama
+   * Prisma query shape:
+   *   - where: filter conditions (search + location)
+   *   - orderBy: ordering
    *   - skip/take: pagination (offset-based)
-   *   - select: sadece gereken alanlar (description hariç — büyük alan)
+   *   - select: only required fields (description excluded — large field)
    *
-   * @param query Zod ile validate edilmiş query parametreleri
+   * @param query Query parameters already validated by Zod
    */
   async findAll(query: JobsQueryInput): Promise<PaginatedJobs> {
     const { page, limit, userId, search, location, sort } = query;
@@ -114,7 +115,7 @@ export class JobsService {
           postedDate: true,
           source: true,
           scrapedAt: true,
-          // description ve requirements hariç — liste görünümünde gereksiz
+          // description and requirements excluded — unneeded in the list view
         },
       }),
       this.prisma.jobListing.count({ where }),
@@ -136,13 +137,13 @@ export class JobsService {
   }
 
   /**
-   * Prisma WHERE koşullarını oluşturur.
+   * Builds Prisma WHERE conditions.
    *
-   * search parametresi varsa title, company ve location'da arar (case-insensitive).
-   * Prisma'nın `contains` + `mode: 'insensitive'` → SQL ILIKE'a dönüşür.
+   * If search is given, search in title, company, and location (case-insensitive).
+   * Prisma's `contains` + `mode: 'insensitive'` → maps to SQL ILIKE.
    *
-   * OR mantığı: "React" araması → title'da VEYA company'de VEYA location'da geçen
-   * AND mantığı: search + location filtresi birlikte uygulanır
+   * OR logic: search "React" → matches title OR company OR location
+   * AND logic: search + location filters apply together
    */
   private buildWhereClause(
     userId?: string,
@@ -182,10 +183,10 @@ export class JobsService {
   // ═══════════════════════════════════════════
 
   /**
-   * Kullanıcının tüm ilan bağlantılarını ve match sonuçlarını siler.
+   * Deletes all of the user's job links and match results.
    *
-   * Prisma $transaction: Atomik garanti — ya ikisi de silinir ya da hiçbiri.
-   * JobListing kayıtları silinmez — başka kullanıcılar aynı ilanları görebilir.
+   * Prisma $transaction: atomic guarantee — either both delete or neither does.
+   * JobListing rows are not deleted — other users may still see the same listings.
    */
   async removeAllUserJobs(userId: string): Promise<{ removedJobs: number; removedMatches: number }> {
     const [matchResult, jobResult] = await this.prisma.$transaction([
@@ -205,7 +206,7 @@ export class JobsService {
   }
 
   /**
-   * Tekil ilan-kullanıcı bağlantısını ve ilgili match sonucunu siler.
+   * Deletes a single user-job link and its associated match result.
    */
   async removeUserJob(userId: string, jobId: string): Promise<{ removed: boolean }> {
     const [matchResult, jobResult] = await this.prisma.$transaction([

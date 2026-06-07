@@ -7,7 +7,7 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['src/**/*.test.ts'],
-    // Test timeout — DB testleri biraz yavaş olabilir
+    // Test timeout — DB tests can be a bit slow
     testTimeout: 10_000,
   },
   plugins: [
@@ -18,7 +18,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, './src'),
-      // Workspace paketleri vitest için de erişilebilir olması lazım
+      // Workspace packages must also be reachable from vitest
     },
   },
 });

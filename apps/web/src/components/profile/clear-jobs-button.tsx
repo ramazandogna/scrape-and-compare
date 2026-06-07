@@ -19,9 +19,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useJobs } from "@/hooks/use-jobs";
 
 // ═══════════════════════════════════════════
-// ClearJobsButton — Kullanıcının tüm ilanlarını temizle
+// ClearJobsButton — Clear all of the user's listings
 // ═══════════════════════════════════════════
-// AlertDialog ile onay → silme → loading → sonuç bildirimi
+// Confirm via AlertDialog → delete → loading → result toast
 
 interface ClearJobsButtonProps {
   userId: string;

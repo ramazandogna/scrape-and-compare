@@ -1,13 +1,13 @@
 /**
- * Users Controller — Kullanıcı profil REST API.
+ * Users Controller — user profile REST API.
  *
- * Auth ile birlikte tüm endpoint'ler korunuyor — kullanıcı sadece kendi
- * profiline erişebilir. POST /users akışı /api/auth/signup'a taşındı.
+ * With auth, all endpoints are protected — users can only access
+ * their own profile. The POST /users flow has moved to /api/auth/signup.
  *
- * Endpoint'ler:
- *   GET   /api/users        → Sadece current user'ı array içinde döner
- *   GET   /api/users/:id    → :id current user değilse 403
- *   PATCH /api/users/:id    → :id current user değilse 403
+ * Endpoints:
+ *   GET   /api/users        → Returns only the current user wrapped in an array
+ *   GET   /api/users/:id    → 403 if :id is not the current user
+ *   PATCH /api/users/:id    → 403 if :id is not the current user
  */
 
 import {
@@ -32,8 +32,8 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   /**
-   * GET /api/users — Frontend'in legacy "kullanıcı listesi" akışı için
-   * geriye uyumlu kalır; sadece current user'ı tek-elemanlı dizide döner.
+   * GET /api/users — Backwards compatible with the frontend's legacy
+   * "user list" flow; returns only the current user as a single-element array.
    */
   @Get()
   async findAll(@CurrentUser() user: AuthenticatedUser): Promise<UserDto[]> {
@@ -41,7 +41,7 @@ export class UsersController {
     return [me];
   }
 
-  /** GET /api/users/:id — sadece kendi profiline erişim. */
+  /** GET /api/users/:id — access only to own profile. */
   @Get(':id')
   async findById(
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -51,7 +51,7 @@ export class UsersController {
     return this.usersService.findById(id);
   }
 
-  /** PATCH /api/users/:id — sadece kendi profilini güncelleyebilir. */
+  /** PATCH /api/users/:id — can only update own profile. */
   @Patch(':id')
   async update(
     @Param('id', new ParseUUIDPipe()) id: string,

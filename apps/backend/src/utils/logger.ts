@@ -1,29 +1,29 @@
 /**
- * Structured Logger — Pino tabanlı merkezi log sistemi.
+ * Structured Logger — central log system based on Pino.
  *
- * Neden Pino?
- *   - JSON-native: Production'da makine-okunabilir log (ELK, Datadog, Loki)
- *   - 5x hızlı: Winston'a göre benchmark farkı çok büyük
- *   - Async transport: Log yazma ana thread'i bloklamaz
- *   - Child logger: Her modüle context ekleyebilirsin
+ * Why Pino?
+ *   - JSON-native: machine-readable logs in production (ELK, Datadog, Loki)
+ *   - 5x faster: huge benchmark gap over Winston
+ *   - Async transport: log writes don't block the main thread
+ *   - Child logger: add context per module
  *
- * Nasıl çalışır?
- *   - NODE_ENV=production → JSON output (tek satır, makine parse eder)
- *   - NODE_ENV !== production → pino-pretty (renkli, insan-okunabilir)
- *   - LOG_LEVEL env ile filtreleme: 'debug' | 'info' | 'warn' | 'error'
+ * How it works:
+ *   - NODE_ENV=production → JSON output (single line, machine-parsable)
+ *   - NODE_ENV !== production → pino-pretty (colored, human-readable)
+ *   - LOG_LEVEL env filter: 'debug' | 'info' | 'warn' | 'error'
  *
  * Custom level: "success" (35)
- *   Pino'da success yok. Biz INFO (30) ile WARN (40) arasına 35 olarak tanımlıyoruz.
- *   Böylece mevcut `logger.success(...)` çağrıları bozulmaz.
+ *   Pino doesn't ship a success level. We define it as 35, between INFO (30) and WARN (40).
+ *   This keeps existing `logger.success(...)` calls working.
  *
- * Kullanım:
+ * Usage:
  *   import { logger } from '@/utils/logger';
  *
- *   logger.info('mesaj');                          // basit
- *   logger.info({ keyword: 'react' }, 'mesaj');    // context ile
+ *   logger.info('message');                          // simple
+ *   logger.info({ keyword: 'react' }, 'message');    // with context
  *
  *   const child = createChildLogger('scraper');
- *   child.info('job bulundu');  // {"module":"scraper", "msg":"job bulundu"}
+ *   child.info('job found');  // {"module":"scraper", "msg":"job found"}
  */
 
 import pino from 'pino';
@@ -33,15 +33,15 @@ import pino from 'pino';
 // ═══════════════════════════════════════════
 
 /**
- * Geçerli log level'ları.
- * Dışarıdan gelen LOG_LEVEL değerini validate etmek için kullanılır.
+ * Valid log levels.
+ * Used to validate the LOG_LEVEL value coming from outside.
  */
 const VALID_LOG_LEVELS = ['trace', 'debug', 'info', 'warn', 'error', 'fatal'] as const;
 type LogLevel = (typeof VALID_LOG_LEVELS)[number];
 
 /**
- * Environment'tan gelen LOG_LEVEL'ı validate eder.
- * Geçersizse default olarak 'info' döner.
+ * Validates the LOG_LEVEL coming from the environment.
+ * Falls back to 'info' when invalid.
  */
 function resolveLogLevel(): LogLevel {
   const envLevel = process.env['LOG_LEVEL']?.toLowerCase();
@@ -58,36 +58,36 @@ function resolveLogLevel(): LogLevel {
 const isProduction = process.env['NODE_ENV'] === 'production';
 
 /**
- * Pino logger instance — uygulamanın tek log kaynağı.
+ * Pino logger instance — the single log sink for the application.
  *
  * Custom levels:
- *   success: 35 (info=30 ile warn=40 arası)
+ *   success: 35 (between info=30 and warn=40)
  *
  * Transport:
- *   Production → stdout JSON (varsayılan, en hızlı)
- *   Development → pino-pretty (renkli, readable)
+ *   Production → stdout JSON (default, fastest)
+ *   Development → pino-pretty (colored, readable)
  */
 const pinoInstance = pino({
   level: resolveLogLevel(),
 
-  // Custom level: success (info ile warn arasında)
+  // Custom level: success (between info and warn)
   customLevels: {
     success: 35,
   },
 
-  // Timestamp'i ISO 8601 formatında yaz (Elasticsearch uyumlu)
+  // Write timestamps in ISO 8601 format (Elasticsearch compatible)
   timestamp: pino.stdTimeFunctions.isoTime,
 
-  // Development'ta pino-pretty kullan
+  // Use pino-pretty in development
   transport: isProduction
-    ? undefined // Production: raw JSON → stdout (en yüksek performans)
+    ? undefined // Production: raw JSON → stdout (max performance)
     : {
         target: 'pino-pretty',
         options: {
           colorize: true,
           translateTime: 'HH:MM:ss.l',
           ignore: 'pid,hostname',
-          // Custom level'lara renk ve label ata
+          // Assign color and label to custom levels
           customLevels: 'success:35',
           customColors: 'success:green',
           useOnlyCustomProps: false,
@@ -96,45 +96,45 @@ const pinoInstance = pino({
 });
 
 // ═══════════════════════════════════════════
-// PUBLIC API — Eski logger interface'ini korur
+// PUBLIC API — preserves the old logger interface
 // ═══════════════════════════════════════════
 
 /**
- * Pino'nun `customLevels` ile eklediğimiz "success" metodunu
- * TypeScript'e tanıtmak için tip genişletmesi.
+ * Type extension that exposes the "success" method we added via Pino's
+ * `customLevels` to TypeScript.
  */
 type PinoWithSuccess = typeof pinoInstance & {
   success: (objOrMsg: Record<string, unknown> | string, msg?: string) => void;
 };
 
 /**
- * Eski logger API'si ile uyumlu wrapper.
+ * Wrapper compatible with the old logger API.
  *
- * Eski kullanım:
- *   logger.info('mesaj', { key: 'value' });
+ * Old usage:
+ *   logger.info('message', { key: 'value' });
  *
- * Pino'nun native API'si:
- *   logger.info({ key: 'value' }, 'mesaj');  // ← object ÖNCE gelir!
+ * Pino's native API:
+ *   logger.info({ key: 'value' }, 'message');  // ← object comes FIRST!
  *
- * Bu wrapper her iki kullanımı da destekler ama
- * eski çağrıları (msg, data?) pino formatına (data, msg) çevirir.
+ * This wrapper supports both forms but converts old calls (msg, data?)
+ * into pino's format (data, msg).
  *
- * Neden böyle? Tüm 50+ logger çağrısını tek seferde değiştirmek riskli.
- * Gradual migration: önce wrapper ile geçiş, sonra native API'ye taşınır.
+ * Why this way? Changing all 50+ logger calls in one go is risky.
+ * Gradual migration: ship the wrapper first, then move to the native API.
  */
 function wrapLogMethod(
   method: (obj: Record<string, unknown>, msg?: string) => void,
 ): (msgOrObj: string | Record<string, unknown>, dataOrMsg?: Record<string, unknown> | string) => void {
   return (msgOrObj, dataOrMsg?) => {
     if (typeof msgOrObj === 'string') {
-      // Eski format: logger.info('mesaj', { key: 'val' })
+      // Old format: logger.info('message', { key: 'val' })
       if (dataOrMsg && typeof dataOrMsg === 'object') {
         method(dataOrMsg, msgOrObj);
       } else {
         method({}, msgOrObj);
       }
     } else {
-      // Pino native format: logger.info({ key: 'val' }, 'mesaj')
+      // Pino native format: logger.info({ key: 'val' }, 'message')
       method(msgOrObj, dataOrMsg as string);
     }
   };
@@ -143,15 +143,15 @@ function wrapLogMethod(
 const typedPino = pinoInstance as PinoWithSuccess;
 
 /**
- * Ana logger — tüm modüller bu objeyi import eder.
+ * Main logger — imported by every module.
  *
- * Eski interface korunuyor:
- *   logger.info('mesaj')
- *   logger.info('mesaj', { key: 'value' })
- *   logger.success('tamamlandı', { count: 5 })
+ * Old interface is preserved:
+ *   logger.info('message')
+ *   logger.info('message', { key: 'value' })
+ *   logger.success('done', { count: 5 })
  *
- * Ayrıca pino native format da çalışır:
- *   logger.info({ key: 'value' }, 'mesaj')
+ * Pino native format also works:
+ *   logger.info({ key: 'value' }, 'message')
  */
 export const logger = {
   info: wrapLogMethod(typedPino.info.bind(typedPino)),
@@ -161,19 +161,19 @@ export const logger = {
 };
 
 // ═══════════════════════════════════════════
-// CHILD LOGGER — Modül bazlı context
+// CHILD LOGGER — per-module context
 // ═══════════════════════════════════════════
 
 /**
- * Modüle özel child logger oluşturur.
+ * Creates a module-scoped child logger.
  *
- * Her log otomatik olarak `module` field'ı taşır:
+ * Every log automatically carries a `module` field:
  *   const log = createChildLogger('scraper');
- *   log.info('job bulundu');
- *   // → {"module":"scraper","msg":"job bulundu","level":30}
+ *   log.info('job found');
+ *   // → {"module":"scraper","msg":"job found","level":30}
  *
- * @param moduleName Modül adı (scraper, audit, parser, matcher)
- * @returns Wrapper logger objesi (eski API uyumlu)
+ * @param moduleName Module name (scraper, audit, parser, matcher)
+ * @returns Wrapper logger object (compatible with the old API)
  */
 export function createChildLogger(moduleName: string) {
   const child = pinoInstance.child({ module: moduleName }) as PinoWithSuccess;
@@ -187,7 +187,7 @@ export function createChildLogger(moduleName: string) {
 }
 
 /**
- * Ham pino instance — NestJS Logger adapter'ı veya
- * advanced kullanım için (stream, serializers vb.)
+ * Raw pino instance — for the NestJS Logger adapter or
+ * advanced usage (streams, serializers, etc.)
  */
 export const pinoLogger = pinoInstance;

@@ -23,14 +23,14 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/auth-context";
 
 // ═══════════════════════════════════════════
-// Landing — public marketing sayfası
+// Landing — public marketing page
 // ═══════════════════════════════════════════
-// 6 bölüm: Hero, Features, Testimonials, Pricing, About, CTA
-// brand-* utility'leri kullandığı için footer'daki accent dot ile mor↔yeşil swap olur.
+// 6 sections: Hero, Features, Testimonials, Pricing, About, CTA
+// Uses brand-* utilities so the footer accent dot swaps purple↔green.
 
 const CONTACT_EMAIL = "doganrmzn40@gmail.com";
 
-// Kullanıcı authenticated ise CTA'lar /dashboard'a, değilse /sign-up'a gider.
+// If the user is authenticated, CTAs point to /dashboard; otherwise to /sign-up.
 function usePrimaryCta() {
   const { status } = useAuth();
   const authed = status === "authenticated";
@@ -41,7 +41,7 @@ function usePrimaryCta() {
   };
 }
 
-// ─── Brand SVG glyph'leri ───────────────────
+// ─── Brand SVG glyphs ───────────────────
 function GithubGlyph(props: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...props}>
@@ -90,7 +90,7 @@ function Hero() {
 
   return (
     <section className="bg-brand-gradient-soft relative overflow-hidden border-b">
-      {/* Yavaş yüzen blob'lar — hareketli derinlik */}
+      {/* Slow-floating blobs — animated depth */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="bg-brand-200 animate-blob absolute -left-32 -top-32 size-96 rounded-full opacity-50 blur-3xl" />
         <div className="animate-blob-slow absolute -right-32 -bottom-40 size-[28rem] rounded-full bg-[var(--brand-accent-400)]/40 blur-3xl" />
@@ -99,7 +99,7 @@ function Hero() {
 
       <div className="relative mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:py-28">
         <div className="grid items-center gap-10 lg:grid-cols-[1.15fr_1fr]">
-          {/* Sol: copy + CTA */}
+          {/* Left: copy + CTA */}
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border bg-background/70 px-3 py-1 text-[11px] font-medium text-muted-foreground backdrop-blur">
               <span className="animate-soft-pulse size-1.5 rounded-full bg-emerald-500" />
@@ -109,7 +109,7 @@ function Hero() {
             <h1 className="mt-6 text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
               Bırak senin için en{" "}
               <span className="relative inline-block align-baseline">
-                {/* Aynı anda tek kelime görünür; key değiştikçe kısa fade-up animasyonu */}
+                {/* Only one word is visible at a time; short fade-up animation on key change */}
                 <span
                   key={wordIndex}
                   className="text-brand-gradient inline-block animate-[card-in_360ms_cubic-bezier(0.22,1,0.36,1)_both]"
@@ -159,7 +159,7 @@ function Hero() {
             </p>
           </div>
 
-          {/* Sağ: SVG figüran (telifsiz, brand renkli) */}
+          {/* Right: SVG figure (royalty-free, brand-colored) */}
           <div className="relative hidden lg:block">
             <HeroFigure />
           </div>
@@ -169,7 +169,7 @@ function Hero() {
   );
 }
 
-// SVG figüran — orbiting kartlar + merkezi AI nod. Tüm renkler brand var ile.
+// SVG figure — orbiting cards + central AI node. All colors via brand vars.
 function HeroFigure() {
   return (
     <div className="relative mx-auto aspect-square w-full max-w-md">
@@ -226,7 +226,7 @@ function FloatingChip({
 }) {
   return (
     <div className={className}>
-      {/* counter-rotate: orbit dönerken chip'ler dik kalsın */}
+      {/* counter-rotate: keep chips upright while the orbit spins */}
       <div className="animate-orbit [animation-direction:reverse]">
         <div className="border-brand-200/60 dark:border-brand-300/30 inline-flex items-center gap-1.5 rounded-full border bg-card px-3 py-1.5 text-xs font-medium shadow-md">
           <Icon className="text-brand size-3.5" />
@@ -238,7 +238,7 @@ function FloatingChip({
 }
 
 // ═══════════════════════════════════════════
-// FEATURES — 6 kart (daha önce vardı, korundu)
+// FEATURES — 6 cards (existed previously, preserved)
 // ═══════════════════════════════════════════
 
 const FEATURES = [
@@ -314,7 +314,7 @@ function Features() {
 }
 
 // ═══════════════════════════════════════════
-// STATS — 2x2 büyük kart, hover, staggered entrance
+// STATS — 2x2 large cards, hover, staggered entrance
 // ═══════════════════════════════════════════
 
 const STATS = [
@@ -367,7 +367,7 @@ function Stats() {
                 key={stat.headline}
                 className={`animate-card-in stagger-${i + 1} group relative overflow-hidden rounded-3xl border bg-card p-6 shadow-xs transition-all duration-500 ease-out hover:-translate-y-1 hover:scale-[1.02] hover:border-[var(--brand-300)]/60 hover:shadow-lg sm:p-7`}
               >
-                {/* Hover'da hafif gradient overlay */}
+                {/* Subtle gradient overlay on hover */}
                 <div className="bg-brand-gradient-soft pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
 
                 <div className="relative">
@@ -393,7 +393,7 @@ function Stats() {
 }
 
 // ═══════════════════════════════════════════
-// TESTIMONIALS — kullanım süresi + hizalanmış isim
+// TESTIMONIALS — usage duration + aligned name
 // ═══════════════════════════════════════════
 
 const TESTIMONIALS = [
@@ -444,7 +444,7 @@ function Testimonials() {
                 &ldquo;{t.quote}&rdquo;
               </p>
 
-              {/* mt-auto + sabit border-t — quote uzunluğuna bağımsız hizalı */}
+              {/* mt-auto + fixed border-t — aligned regardless of quote length */}
               <div className="mt-6 flex items-center gap-3 border-t pt-4">
                 <span className="bg-brand-gradient flex size-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white">
                   {t.author.charAt(0)}
@@ -468,7 +468,7 @@ function Testimonials() {
 }
 
 // ═══════════════════════════════════════════
-// PRICING (önceki commit'tekiyle aynı)
+// PRICING (same as previous commit)
 // ═══════════════════════════════════════════
 
 interface Tier {
@@ -668,7 +668,7 @@ function PricingCard({ tier }: { tier: Tier }) {
 }
 
 // ═══════════════════════════════════════════
-// ABOUT — biz kimiz + linkler
+// ABOUT — who we are + links
 // ═══════════════════════════════════════════
 
 function About() {
@@ -756,8 +756,8 @@ function FinalCTA() {
               Ücretsiz, kart bilgisi yok.
             </p>
             <div className="mt-7 flex flex-wrap justify-center gap-3">
-              {/* Beyaz buton — hover'da hafif şeffaflaşır, hero gradient'i gizlemez.
-                  variant=default kullansaydık primary (siyah) hover devreye girerdi → düzeltildi. */}
+              {/* White button — slightly translucent on hover, doesn't obscure the hero gradient.
+                  Using variant=default would trigger primary (black) hover → fixed. */}
               <Link
                 href={cta.href}
                 className="text-brand inline-flex h-12 cursor-pointer items-center justify-center gap-2 rounded-lg bg-white px-7 text-sm font-semibold shadow-md transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/95 hover:shadow-lg active:scale-95"

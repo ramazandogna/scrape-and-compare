@@ -1,25 +1,25 @@
 /**
- * Queue Types — BullMQ kuyruk kontratları.
+ * Queue Types — BullMQ queue contracts.
  *
- * Bu tipler Producer (Controller/CLI) ve Consumer (Worker/Processor) arasındaki
- * type-safe iletişimi garanti eder. Her iki taraf da aynı tipleri kullanır,
- * böylece "yanlış alan gönderme" hataları compile-time'da yakalanır.
+ * These types guarantee type-safe communication between Producer (Controller/CLI)
+ * and Consumer (Worker/Processor). Both sides use the same types, so "wrong field
+ * sent" mistakes are caught at compile-time.
  *
- * Tüm tipler runtime'da kullanılmaz — sadece TypeScript compile-time güvenliği sağlar.
- * BullMQ `Queue<ScrapeJobData, ScrapeJobResult>` şeklinde generic tip alır.
+ * No type is used at runtime — they only provide TypeScript compile-time safety.
+ * BullMQ takes generics as `Queue<ScrapeJobData, ScrapeJobResult>`.
  */
 
 import type { ScraperConfig } from './job';
 
 // ═══════════════════════════════════════════
-// QUEUE INPUT — Kuyruğa ne atılacak?
+// QUEUE INPUT — what gets pushed onto the queue?
 // ═══════════════════════════════════════════
 
 /**
- * Scrape job'ının kuyruğa eklenirken gönderilen verisi.
+ * Data sent when adding a scrape job to the queue.
  *
- * Producer (Controller veya CLI) bu tipi kullanarak job oluşturur.
- * Worker bu tipi alır ve scraping işlemini başlatır.
+ * Producer (Controller or CLI) uses this type to create a job.
+ * Worker receives this type and starts the scraping operation.
  *
  * @example
  * await queue.add('scrape', {
@@ -28,128 +28,128 @@ import type { ScraperConfig } from './job';
  * });
  */
 export interface ScrapeJobData {
-  /** Aranacak keyword listesi (en az 1 zorunlu) */
+  /** List of keywords to search (at least 1 required) */
   keywords: string[];
-  /** Arama lokasyonu */
+  /** Search location */
   location: string;
-  /** Scrape'i tetikleyen kullanıcı (legacy çağrılar için opsiyonel) */
+  /** User who triggered the scrape (optional for legacy callers) */
   userId?: string;
-  /** Opsiyonel config override'ları — verilmezse .env default'ları kullanılır */
+  /** Optional config overrides — falls back to .env defaults if omitted */
   config?: Partial<ScraperConfig>;
 }
 
 // ═══════════════════════════════════════════
-// QUEUE OUTPUT — Worker ne döndürecek?
+// QUEUE OUTPUT — what does the worker return?
 // ═══════════════════════════════════════════
 
 /**
- * Başarılı scrape sonucu — Worker job'ı tamamladığında döner.
+ * Successful scrape result — returned when the worker completes the job.
  *
- * BullMQ bu değeri `job.returnvalue` olarak Redis'te saklar.
- * Event consumer veya Controller bu değeri okuyabilir.
+ * BullMQ stores this value as `job.returnvalue` in Redis.
+ * Event consumers or the Controller can read it.
  */
 export interface ScrapeJobCompleted {
   status: 'completed';
-  /** Bu scrape koşusunda hedeflenen yeni ilan sayısı */
+  /** Target number of new listings for this scrape run */
   targetNewJobs: number;
-  /** Hedefe ulaşıldı mı? */
+  /** Was the target reached? */
   targetReached: boolean;
-  /** Hedefe ulaşılamadıysa kullanıcıya açıklayıcı not */
+  /** Explanatory note shown to the user when the target is not reached */
   discoveryMessage: string;
-  /** Toplam bulunan iş ilanı sayısı */
+  /** Total job listings found */
   totalJobs: number;
-  /** Kalite filtresi ile çıkarılan ilan sayısı */
+  /** Listings dropped by the quality filter */
   filtered: number;
-  /** DB'ye yeni eklenen ilan sayısı */
+  /** Listings newly inserted into the DB */
   created: number;
-  /** DB'de güncellenen ilan sayısı */
+  /** Listings updated in the DB */
   updated: number;
-  /** DB'ye yazılamayan ilan sayısı */
+  /** Listings that failed to write to the DB */
   failed: number;
-  /** Scrape süresi (ms) */
+  /** Scrape duration (ms) */
   durationMs: number;
-  /** İlişkili ScraperAudit kaydının ID'si */
+  /** ID of the related ScraperAudit record */
   auditId: string;
-  /** Her keyword için hedeflenen yeni ilan sayısı (smart pagination) */
+  /** Target new listings per keyword (smart pagination) */
   targetPerKeyword: number;
-  /** Hedefine ulaşan keyword sayısı */
+  /** Number of keywords that hit their target */
   keywordsHitTarget: number;
-  /** Toplam keyword sayısı */
+  /** Total keyword count */
   keywordsTotal: number;
-  /** Her keyword için hedef vs gerçek detay raporu */
+  /** Per-keyword target vs actual report */
   perKeyword: KeywordScrapeOutcome[];
 }
 
 /**
- * Tek bir keyword için scrape sonucu özeti — UI'da "hedefini tutturdun mu?"
- * cevabı için kullanılır.
+ * Per-keyword scrape outcome summary — used in the UI to answer
+ * "did you hit the target?".
  */
 export interface KeywordScrapeOutcome {
   keyword: string;
-  /** Bu keyword için toplanan unique ilan sayısı */
+  /** Unique listings collected for this keyword */
   collected: number;
-  /** Hedeflenen ilan sayısı */
+  /** Target listing count */
   target: number;
-  /** Gezilen sayfa sayısı (LinkedIn pagination) */
+  /** Pages traversed (LinkedIn pagination) */
   pagesScanned: number;
-  /** Hedefe ulaşıldı mı? */
+  /** Was the target reached? */
   targetReached: boolean;
-  /** LinkedIn bu keyword için sonuç döndürmeyi durdurdu mu? */
+  /** Did LinkedIn stop returning results for this keyword? */
   exhausted: boolean;
-  /** Block/captcha vb. nedenle hiç sonuç alınamadı mı? */
+  /** Did we get zero results due to block/captcha/etc.? */
   blocked: boolean;
 }
 
 /**
- * Başarısız scrape sonucu — Worker job'ı işleyemediğinde döner.
+ * Failed scrape result — returned when the worker cannot process the job.
  *
- * BullMQ bunu `job.failedReason` olarak saklar.
- * `errorCode` ile hata tipi belirtilir, `message` ile detay verilir.
+ * BullMQ stores this as `job.failedReason`.
+ * `errorCode` identifies the error type, `message` provides detail.
  */
 export interface ScrapeJobFailed {
   status: 'failed';
-  /** Hata kodu — ScraperError code'larından biri veya genel hata */
+  /** Error code — one of ScraperError codes or a generic error */
   errorCode: string;
-  /** İnsan-okunabilir hata mesajı */
+  /** Human-readable error message */
   message: string;
-  /** İlişkili ScraperAudit kaydının ID'si (varsa) */
+  /** ID of the related ScraperAudit record (if any) */
   auditId?: string;
 }
 
 /**
- * Scrape job sonucu — Discriminated Union.
+ * Scrape job result — Discriminated Union.
  *
- * `status` alanına göre TypeScript doğru tip alanlarını bilir:
+ * TypeScript narrows the correct fields based on `status`:
  *
  * @example
  * if (result.status === 'completed') {
- *   console.log(result.totalJobs);  // ✅ TypeScript bilir
+ *   console.log(result.totalJobs);  // TypeScript knows
  * } else {
- *   console.log(result.errorCode);  // ✅ TypeScript bilir
+ *   console.log(result.errorCode);  // TypeScript knows
  * }
  */
 export type ScrapeJobResult = ScrapeJobCompleted | ScrapeJobFailed;
 
 // ═══════════════════════════════════════════
-// QUEUE PROGRESS — İşlem sırasında ne rapor edilecek?
+// QUEUE PROGRESS — what is reported during processing?
 // ═══════════════════════════════════════════
 
 /**
- * Scrape sırasında BullMQ üzerinden bildirilen ilerleme durumu.
+ * Progress reported via BullMQ during a scrape.
  *
- * Worker `job.updateProgress(progress)` ile bu veriyi gönderir.
- * Frontend veya event consumer bu veriyi dinleyebilir.
+ * Worker emits this via `job.updateProgress(progress)`.
+ * Frontend or event consumers can subscribe to it.
  *
- * `phase` alanı ScraperAudit state machine ile senkronize çalışır:
- *   SCANNING → search sayfaları taranıyor
- *   EXTRACTING → skill/salary extraction yapılıyor
+ * The `phase` field stays in sync with the ScraperAudit state machine:
+ *   SCANNING → search pages are being scanned
+ *   EXTRACTING → skill/salary extraction is running
  */
 export interface ScrapeJobProgress {
-  /** Mevcut işlem fazı (ScraperAudit state ile uyumlu) */
+  /** Current processing phase (matches ScraperAudit state) */
   phase: 'SCANNING' | 'EXTRACTING';
-  /** İnsan-okunabilir durum mesajı */
+  /** Human-readable status message */
   message: string;
-  /** Yüzde ilerleme (0-100) */
+  /** Progress percentage (0-100) */
   percentage: number;
 }
 
@@ -158,10 +158,10 @@ export interface ScrapeJobProgress {
 // ═══════════════════════════════════════════
 
 /**
- * Matcher kuyruğuna gönderilen kullanıcı profili.
+ * User profile sent to the matcher queue.
  *
- * DB User'ın tamamı değil — sadece scoring için gereken alanlar.
- * Token tasarrufu + privacy: email, name gibi alanlar gönderilmez.
+ * Not the full DB User — only the fields required for scoring.
+ * Token savings + privacy: fields like email, name are not sent.
  */
 export interface MatcherUserProfile {
   id: string;
@@ -172,10 +172,10 @@ export interface MatcherUserProfile {
 }
 
 /**
- * Matcher kuyruğuna gönderilen iş ilanı özeti.
+ * Job listing summary sent to the matcher queue.
  *
- * description tam metni göndermiyoruz — skills ve requirements yeterli.
- * Bu tipi Controller (producer) ve Processor (consumer) paylaşır.
+ * Full description text is not sent — skills and requirements are enough.
+ * Shared between Controller (producer) and Processor (consumer).
  */
 export interface MatcherJobSummary {
   id: string;
@@ -189,10 +189,10 @@ export interface MatcherJobSummary {
 }
 
 /**
- * Matcher job verisi — kuyruğa atılan payload.
+ * Matcher job data — payload pushed to the queue.
  *
- * Controller bunu oluşturur, Processor bunu okur.
- * batchIndex/totalBatches ilerleme bildirimi için kullanılır.
+ * Controller creates it, Processor consumes it.
+ * batchIndex/totalBatches are used for progress reporting.
  */
 export interface MatcherJobData {
   user: MatcherUserProfile;
@@ -202,24 +202,24 @@ export interface MatcherJobData {
 }
 
 /**
- * Matcher başarılı sonuç — Worker batch'i tamamladığında döner.
+ * Matcher success result — returned when the worker completes a batch.
  */
 export interface MatcherJobCompleted {
   status: 'completed';
-  /** Puanlanan ilan sayısı */
+  /** Scored listing count */
   scored: number;
-  /** Başarısız ilan sayısı */
+  /** Failed listing count */
   failed: number;
-  /** Batch'teki toplam ilan sayısı */
+  /** Total listings in the batch */
   totalJobs: number;
-  /** Ortalama skor (0-100) */
+  /** Average score (0-100) */
   avgScore: number;
   /** Batch index (0-based) */
   batchIndex: number;
 }
 
 /**
- * Matcher başarısız sonuç — Worker batch'i işleyemediğinde döner.
+ * Matcher failure result — returned when the worker cannot process a batch.
  */
 export interface MatcherJobFailed {
   status: 'failed';
@@ -229,12 +229,12 @@ export interface MatcherJobFailed {
 }
 
 /**
- * Matcher job sonucu — Discriminated Union.
+ * Matcher job result — Discriminated Union.
  */
 export type MatcherJobResult = MatcherJobCompleted | MatcherJobFailed;
 
 /**
- * Matcher ilerleme durumu.
+ * Matcher progress status.
  */
 export interface MatcherJobProgress {
   phase: 'SCORING' | 'SAVING';

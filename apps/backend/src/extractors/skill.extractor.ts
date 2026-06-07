@@ -1,22 +1,22 @@
 /**
- * Skill Extractor — Job description'larından teknoloji ve yetenek çıkarır.
+ * Skill Extractor — extracts technologies and skills from job descriptions.
  *
- * Strateji:
- * - 80+ teknoloji keyword'ü, 8 kategoride
+ * Strategy:
+ * - 80+ technology keywords across 8 categories
  * - Word boundary matching (case-insensitive)
- * - Main skill: title veya requirements'da geçen
- * - Side skill: sadece description'da geçen
+ * - Main skill: appears in the title or requirements
+ * - Side skill: appears only in the description
  *
- * Neden LLM kullanmıyoruz? Hız ve maliyet:
- * - 58 job × GPT-4o call = ~20sn + $0.50
- * - Regex matching = <10ms total, ücretsiz
- * - %90+ accuracy zaten yeterli (v1 için)
+ * Why no LLM? Speed and cost:
+ * - 58 jobs × GPT-4o call = ~20s + $0.50
+ * - Regex matching = <10ms total, free
+ * - 90%+ accuracy is already enough (for v1)
  */
 
 import type { ExtractedSkill } from '@scrape/shared';
 
 // ═══════════════════════════════════════════
-// SKILL DATABASE — Kategori bazlı teknoloji listesi
+// SKILL DATABASE — category-based technology list
 // ═══════════════════════════════════════════
 
 interface SkillEntry {
@@ -26,7 +26,7 @@ interface SkillEntry {
 }
 
 /**
- * Skill veritabanı oluşturur — her entry için word boundary regex üretir.
+ * Builds the skill database — produces a word-boundary regex for each entry.
  */
 const buildSkillEntries = (category: string, skills: string[]): SkillEntry[] =>
   skills.map((name) => ({
@@ -36,8 +36,8 @@ const buildSkillEntries = (category: string, skills: string[]): SkillEntry[] =>
   }));
 
 /**
- * Tüm skill veritabanı — 8 kategori, 80+ teknoloji.
- * Sıralama önemli: uzun isimler önce gelir (ör: "React Native" > "React")
+ * Full skill database — 8 categories, 80+ technologies.
+ * Order matters: longer names come first (e.g. "React Native" > "React").
  */
 const SKILL_DATABASE: SkillEntry[] = [
   // Frontend
@@ -95,10 +95,10 @@ const SKILL_DATABASE: SkillEntry[] = [
 ];
 
 // ═══════════════════════════════════════════
-// EXTRACTOR FONKSİYONLARI
+// EXTRACTOR FUNCTIONS
 // ═══════════════════════════════════════════
 
-/** Verilen text içinde hangi skill'lerin geçtiğini bulur */
+/** Finds which skills appear in the given text */
 const findSkillsInText = (text: string): Set<string> => {
   const found = new Set<string>();
   for (const entry of SKILL_DATABASE) {
@@ -110,15 +110,15 @@ const findSkillsInText = (text: string): Set<string> => {
 };
 
 /**
- * Bir job listing'den skill'leri çıkarır.
+ * Extracts skills from a job listing.
  *
- * Main skill: title veya requirements'da geçen → ilanın ana gereksinimleri
- * Side skill: sadece description'da geçen → "nice to have"
+ * Main skill: appears in the title or requirements → core requirements of the listing
+ * Side skill: appears only in the description → "nice to have"
  *
- * @param title Job başlığı
- * @param description Job açıklaması
- * @param requirements Gereksinimler listesi
- * @returns ExtractedSkill dizisi
+ * @param title Job title
+ * @param description Job description
+ * @param requirements Requirements list
+ * @returns ExtractedSkill array
  */
 export const extractSkills = (
   title: string,
@@ -132,7 +132,7 @@ export const extractSkills = (
   const results: ExtractedSkill[] = [];
   const addedSkills = new Set<string>();
 
-  // Main skill'ler (title + requirements)
+  // Main skills (title + requirements)
   for (const skillName of primarySkills) {
     const entry = SKILL_DATABASE.find((e) => e.name === skillName);
     if (!entry || addedSkills.has(skillName)) continue;
@@ -140,7 +140,7 @@ export const extractSkills = (
     addedSkills.add(skillName);
   }
 
-  // Side skill'ler (sadece description)
+  // Side skills (description only)
   for (const skillName of descriptionSkills) {
     if (addedSkills.has(skillName)) continue;
     const entry = SKILL_DATABASE.find((e) => e.name === skillName);

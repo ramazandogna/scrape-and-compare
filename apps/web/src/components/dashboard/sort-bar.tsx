@@ -7,11 +7,11 @@ import { cn } from "@/lib/utils";
 import type { SortField, SortState } from "@/types/job";
 
 // ═══════════════════════════════════════════
-// SortBar — Tri-state sıralama toggle butonları
+// SortBar — Tri-state sort toggle buttons
 // ═══════════════════════════════════════════
-// Tıklama döngüsü: nötr → asc → desc → nötr
-// Aynı anda sadece 1 sıralama aktif.
-// Aktif sıralama: mavi + yön oku.
+// Click cycle: neutral → asc → desc → neutral
+// Only 1 sort active at a time.
+// Active sort: blue + direction arrow.
 
 interface SortBarProps {
   sort: SortState;
@@ -32,11 +32,11 @@ const SORT_OPTIONS: SortOption[] = [
 ];
 
 function getNextSort(current: SortState, field: SortField): SortState {
-  // Farklı alan → asc ile başla
+  // Different field → start with asc
   if (current.field !== field) return { field, direction: "asc" };
-  // Aynı alan → tri-state döngüsü
+  // Same field → tri-state cycle
   if (current.direction === "asc") return { field, direction: "desc" };
-  // desc → default'a sıfırla
+  // desc → reset to default
   return { field: "default", direction: "desc" };
 }
 

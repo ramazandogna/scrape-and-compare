@@ -1,29 +1,29 @@
 /**
  * Scraper Processor — BullMQ Worker.
  *
- * Bu dosya Redis kuyruğu ile ScraperService arasındaki köprüdür.
- * Kendi iş mantığı YOKTUR — sadece:
- *   1. Kuyruktan job al (BullMQ otomatik yapar)
- *   2. ScraperService.runFastScrape(job.data) çağır
- *   3. Sonucu Redis'e dön (BullMQ otomatik yapar)
+ * This file is the bridge between the Redis queue and ScraperService.
+ * It has NO business logic of its own — only:
+ *   1. Pull a job from the queue (BullMQ does this automatically)
+ *   2. Call ScraperService.runFastScrape(job.data)
+ *   3. Return the result to Redis (BullMQ does this automatically)
  *
- * Neden ayrı dosya? Single Responsibility Principle:
- *   - ScraperService → "Nasıl scrape edilir?" (iş mantığı)
- *   - ScraperProcessor → "Kuyruktan nasıl alınır?" (transport katmanı)
+ * Why a separate file? Single Responsibility Principle:
+ *   - ScraperService → "how to scrape?" (business logic)
+ *   - ScraperProcessor → "how to consume from the queue?" (transport layer)
  *
- * @Processor decorator'ı ne yapar?
- *   1. NestJS bu class'ı bir BullMQ Worker olarak kaydeder
- *   2. Redis'e bağlanır ve QUEUE_NAMES.SCRAPER kuyruğunu dinler
- *   3. Job geldiğinde process() metodunu çağırır
- *   4. process() return ederse → job COMPLETED olarak işaretlenir
- *   5. process() throw ederse → job FAILED olarak işaretlenir
+ * What does the @Processor decorator do?
+ *   1. NestJS registers this class as a BullMQ Worker
+ *   2. Connects to Redis and listens to the QUEUE_NAMES.SCRAPER queue
+ *   3. Calls the process() method when a job arrives
+ *   4. If process() returns → job marked as COMPLETED
+ *   5. If process() throws → job marked as FAILED
  *
- * WorkerHost nedir?
- *   @nestjs/bullmq'nun abstract class'ı. Worker lifecycle'ını yönetir:
- *   - Redis bağlantısı kurma/kapama
- *   - Job alma döngüsü (polling)
- *   - Hata yakalama ve retry mekanizması
- *   Sen sadece process() metodunu implement edersin.
+ * What is WorkerHost?
+ *   An abstract class from @nestjs/bullmq. Manages the Worker lifecycle:
+ *   - Opening/closing the Redis connection
+ *   - The job-fetch loop (polling)
+ *   - Error handling and the retry mechanism
+ *   You only implement the process() method.
  */
 
 import { Processor, WorkerHost } from '@nestjs/bullmq';
@@ -39,15 +39,15 @@ import { logger } from '@/utils/helpers';
 // ═══════════════════════════════════════════
 
 /**
- * BullMQ Worker — Redis kuyruğundan scrape job'larını işler.
+ * BullMQ Worker — processes scrape jobs from the Redis queue.
  *
- * Generic tipler: Job<Data, Result>
- *   - Data = ScrapeJobData → job.data'nın tipi (keywords, location, config?)
- *   - Result = ScrapeJobResult → process() return değerinin tipi
+ * Generic types: Job<Data, Result>
+ *   - Data = ScrapeJobData → type of job.data (keywords, location, config?)
+ *   - Result = ScrapeJobResult → type of process()'s return value
  *
- * @Processor(QUEUE_NAMES.SCRAPER) ne demek?
- *   "Bu class 'scraper' isimli kuyruğu dinle" demek.
- *   QUEUE_NAMES.SCRAPER = 'scraper' — magic string yerine sabit kullanıyoruz.
+ * What does @Processor(QUEUE_NAMES.SCRAPER) mean?
+ *   "This class listens to the queue named 'scraper'."
+ *   QUEUE_NAMES.SCRAPER = 'scraper' — we use a constant instead of a magic string.
  */
 @Injectable()
 @Processor(QUEUE_NAMES.SCRAPER)
@@ -59,14 +59,14 @@ export class ScraperProcessor extends WorkerHost {
   }
 
   /**
-   * Her job geldiğinde BullMQ tarafından çağrılır.
+   * Invoked by BullMQ whenever a job arrives.
    *
-   * Bu metod:
-   *   - Return ederse → job.returnvalue = dönüş değeri, state = COMPLETED
-   *   - Throw ederse → job.failedReason = error.message, state = FAILED
+   * This method:
+   *   - On return → job.returnvalue = return value, state = COMPLETED
+   *   - On throw  → job.failedReason = error.message, state = FAILED
    *
-   * @param job BullMQ Job nesnesi — job.data ile payload'a, job.id ile unique ID'ye erişilir
-   * @returns ScrapeJobResult — başarılıysa ScrapeJobCompleted, hatalıysa throw eder (BullMQ yakalar)
+   * @param job BullMQ Job object — access the payload via job.data and the unique ID via job.id
+   * @returns ScrapeJobResult — ScrapeJobCompleted on success, throws on failure (BullMQ catches it)
    */
   async process(
     job: Job<ScrapeJobData, ScrapeJobResult>,
@@ -80,7 +80,7 @@ export class ScraperProcessor extends WorkerHost {
       attempt: job.attemptsMade + 1,
     });
 
-    // İlerleme bildirimi: SCANNING fazına geçiyoruz
+    // Progress report: entering the SCANNING phase
     await this.reportProgress(job, {
       phase: 'SCANNING',
       message: `${keywords.length} keyword taranacak: ${keywords.join(', ')}`,
@@ -88,8 +88,8 @@ export class ScraperProcessor extends WorkerHost {
     });
 
     try {
-      // Asıl iş burada — ScraperService tüm scraping mantığını çalıştırır
-      // Progress callback: her aşamada BullMQ'ya ilerleme bildirimi yapar
+      // The real work happens here — ScraperService runs the entire scraping pipeline
+      // Progress callback: reports progress to BullMQ at each phase
       const result = await this.scraperService.runFastScrape(
         job.data,
         (phase, message, percentage) => {
@@ -97,7 +97,7 @@ export class ScraperProcessor extends WorkerHost {
         },
       );
 
-      // Son ilerleme bildirimi: tamamlandı
+      // Final progress report: done
       await this.reportProgress(job, {
         phase: 'EXTRACTING',
         message: `Tamamlandı: ${result.totalJobs} ilan, ${result.created} yeni`,
@@ -123,17 +123,17 @@ export class ScraperProcessor extends WorkerHost {
         attempt: job.attemptsMade + 1,
       });
 
-      // throw edersek BullMQ job'ı FAILED olarak işaretler
-      // retry ayarı varsa otomatik tekrar dener
+      // Throwing causes BullMQ to mark the job as FAILED
+      // If retry is configured, it will automatically retry
       throw err;
     }
   }
 
   /**
-   * job.updateProgress() wrapper'ı — type-safe progress bildirimi.
+   * Wrapper for job.updateProgress() — type-safe progress reporting.
    *
-   * BullMQ'nun updateProgress() metodu `number | object` kabul eder.
-   * Biz her zaman ScrapeJobProgress tipinde nesne gönderiyoruz.
+   * BullMQ's updateProgress() accepts `number | object`.
+   * We always send an object typed as ScrapeJobProgress.
    */
   private async reportProgress(
     job: Job<ScrapeJobData, ScrapeJobResult>,

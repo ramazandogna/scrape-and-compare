@@ -1,8 +1,8 @@
 /**
- * Types barrel export — tüm tipleri tek noktadan dışarı verir.
+ * Types barrel export — exposes all types from a single entry point.
  *
- * Kullanım: import { JobListing, ScraperResult } from '@scrape/shared';
- * Her dosyayı ayrı ayrı import etmeye gerek yok.
+ * Usage: import { JobListing, ScraperResult } from '@scrape/shared';
+ * No need to import each file separately.
  */
 export type {
   ExtractedSkill,

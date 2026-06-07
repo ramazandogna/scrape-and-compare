@@ -1,22 +1,22 @@
 /**
- * Job Mapper — Scraper ↔ Database alan dönüşümleri.
+ * Job Mapper — Scraper ↔ Database field transformations.
  *
- * Neden mapper gerekli?
+ * Why is a mapper needed?
  * ─────────────────────
- * Scraper'dan gelen `JobListing` (shared tip) ile Prisma'nın beklediği
- * `JobListingCreateInput` arasında 3 önemli fark var:
+ * Between the `JobListing` (shared type) coming from the scraper and the
+ * `JobListingCreateInput` Prisma expects, there are 3 important differences:
  *
- * 1. **Alan adları:** shared → `id`, `link`, `salaryParsed`
+ * 1. **Field names:** shared → `id`, `link`, `salaryParsed`
  *                     prisma → `externalId`, `url`, `salaryMin/Max/Currency/Period`
  *
  * 2. **Enum casing:** shared → `SalaryPeriod = 'monthly' | 'yearly'` (lowercase)
  *                     prisma → `SalaryPeriod = MONTHLY | YEARLY` (uppercase enum)
  *
- * 3. **Tip yapısı:** shared → `salaryParsed: { min, max, currency, period }` (nested)
+ * 3. **Type shape:** shared → `salaryParsed: { min, max, currency, period }` (nested)
  *                    prisma → `salaryMin`, `salaryMax`, `salaryCurrency`, `salaryPeriod` (flat)
  *
- * Bu mapper bu farkları tek yerde çözer. Scraper ve DB birbirini tanımak zorunda değil.
- * Bu **Single Responsibility Principle**: mapper sadece "çevir" der.
+ * This mapper resolves these differences in one place. The scraper and DB do not have to know about each other.
+ * This is the **Single Responsibility Principle**: the mapper only "translates".
  *
  * @module
  */
@@ -30,12 +30,12 @@ import {
 import type { JobListing, SalaryParsed } from '@scrape/shared';
 
 // ═══════════════════════════════════════════
-// ENUM DÖNÜŞÜM TABLOLARI
+// ENUM CONVERSION TABLES
 // ═══════════════════════════════════════════
 
 /**
- * shared'deki lowercase currency → Prisma enum.
- * Her iki taraf aynı casing kullandığı için doğrudan mapping.
+ * shared lowercase currency → Prisma enum.
+ * Direct mapping because both sides use the same casing.
  */
 const CURRENCY_MAP: Record<string, PrismaCurrency> = {
   TRY: PrismaCurrency.TRY,
@@ -44,11 +44,11 @@ const CURRENCY_MAP: Record<string, PrismaCurrency> = {
 };
 
 /**
- * shared'deki lowercase period → Prisma enum.
+ * shared lowercase period → Prisma enum.
  *
- * DİKKAT: shared → 'monthly' / 'yearly' (lowercase)
- *         prisma → MONTHLY / YEARLY (uppercase)
- * Bu mapping olmazsa runtime'da Prisma validation hatası alırsın.
+ * NOTE: shared → 'monthly' / 'yearly' (lowercase)
+ *       prisma → MONTHLY / YEARLY (uppercase)
+ * Without this mapping you would hit a Prisma validation error at runtime.
  */
 const PERIOD_MAP: Record<string, PrismaPeriod> = {
   monthly: PrismaPeriod.MONTHLY,
@@ -56,10 +56,10 @@ const PERIOD_MAP: Record<string, PrismaPeriod> = {
 };
 
 // ═══════════════════════════════════════════
-// ALAN DÖNÜŞÜM HELPER'LARI
+// FIELD CONVERSION HELPERS
 // ═══════════════════════════════════════════
 
-/** Nested salaryParsed → flat prisma alanlarına açar */
+/** Unflattens nested salaryParsed into flat prisma fields */
 const flattenSalary = (
   parsed: SalaryParsed | null,
 ): Pick<
@@ -83,26 +83,26 @@ const flattenSalary = (
   };
 };
 
-/** skills array → Prisma Json tipine çevirir */
+/** Converts a skills array to the Prisma Json type */
 const skillsToJson = (skills: JobListing['skills']): Prisma.InputJsonValue =>
   skills as unknown as Prisma.InputJsonValue;
 
 // ═══════════════════════════════════════════
-// ANA MAPPER
+// MAIN MAPPER
 // ═══════════════════════════════════════════
 
 /**
- * Tek bir scraped JobListing'i Prisma create input'una çevirir.
+ * Converts a single scraped JobListing into a Prisma create input.
  *
- * Alan mapping'i:
+ * Field mapping:
  *   shared.id          → prisma.externalId
  *   shared.link        → prisma.url
  *   shared.salaryParsed → prisma.salaryMin + salaryMax + salaryCurrency + salaryPeriod
  *   shared.skills      → prisma.skills (Json)
  *   shared.scrapedAt   → prisma.scrapedAt (string → Date)
  *
- * @param job Scraper'dan gelen JobListing
- * @returns Prisma'nın beklediği create input objesi
+ * @param job JobListing coming from the scraper
+ * @returns The create-input object Prisma expects
  */
 export const mapJobToCreateInput = (
   job: JobListing,
@@ -131,10 +131,10 @@ export const mapJobToCreateInput = (
 };
 
 /**
- * Tek bir scraped JobListing'i Prisma update input'una çevirir.
+ * Converts a single scraped JobListing into a Prisma update input.
  *
- * Create ile arasındaki fark: externalId ve url güncellenmez (unique key).
- * Sadece değişebilecek alanlar (title, description, salary vb.) güncellenir.
+ * Difference from create: externalId and url are not updated (unique key).
+ * Only fields that may change (title, description, salary, etc.) are updated.
  */
 export const mapJobToUpdateInput = (
   job: JobListing,

@@ -1,12 +1,12 @@
 /**
- * Config Tests — Ortam değişkeni okuma ve adaptive delay testleri.
+ * Config Tests — environment variable loading and adaptive delay tests.
  *
- * Neyi test ediyoruz?
- *   1. Default değerler: env yoksa güvenli default'lar gelir
- *   2. Env override: KEYWORDS, LOCATION, PARALLEL_TABS vb.
- *   3. Adaptive delay: 3+ keyword ise gecikme 1.5x
- *   4. Output filename formatı: job-YYYY-MM-DD-HH-MM.json
- *   5. Deduplication: aynı ID/link tekrar gelmez
+ * What do we test?
+ *   1. Default values: when env is missing safe defaults apply
+ *   2. Env overrides: KEYWORDS, LOCATION, PARALLEL_TABS, etc.
+ *   3. Adaptive delay: with 3+ keywords the delay scales 1.5x
+ *   4. Output filename format: job-YYYY-MM-DD-HH-MM.json
+ *   5. Deduplication: the same ID/link never appears twice
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -26,7 +26,7 @@ import { FULL_JOB, MINIMAL_JOB, USD_YEARLY_JOB } from './fixtures';
 const originalEnv = { ...process.env };
 
 beforeEach(() => {
-  // Her test öncesi env'i temizle
+  // Reset env before each test
   vi.unstubAllEnvs();
 });
 
@@ -101,7 +101,7 @@ describe('loadFastConfig', () => {
   });
 
   it('default config değerleri doğru', () => {
-    // Tüm env değişkenlerini temizle
+    // Clear every env variable
     delete process.env['REQUEST_DELAY_MIN'];
     delete process.env['REQUEST_DELAY_MAX'];
     delete process.env['HEADLESS'];
@@ -123,7 +123,7 @@ describe('generateOutputFilename', () => {
   it('job-YYYY-MM-DD-HH-MM.json formatında döner', () => {
     const filename = generateOutputFilename();
 
-    // Regex ile format doğrula
+    // Verify format with regex
     expect(filename).toMatch(/^job-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}\.json$/);
   });
 });
@@ -134,7 +134,7 @@ describe('generateOutputFilename', () => {
 
 describe('deduplicateJobs', () => {
   it('aynı ID tekrarlanırsa filtreler', () => {
-    const jobs = [FULL_JOB, { ...FULL_JOB }]; // aynı id
+    const jobs = [FULL_JOB, { ...FULL_JOB }]; // same id
     const seenIds = new Set<string>();
     const seenLinks = new Set<string>();
 
@@ -145,7 +145,7 @@ describe('deduplicateJobs', () => {
   it('farklı ID + aynı link → filtreler', () => {
     const jobs = [
       FULL_JOB,
-      { ...MINIMAL_JOB, link: FULL_JOB.link }, // farklı ID ama aynı link
+      { ...MINIMAL_JOB, link: FULL_JOB.link }, // different ID but same link
     ];
     const seenIds = new Set<string>();
     const seenLinks = new Set<string>();
@@ -165,12 +165,12 @@ describe('deduplicateJobs', () => {
 
   it('unknown_ ID duplicate check atlar', () => {
     const unknown1 = { ...FULL_JOB, id: 'unknown_1', link: 'link1' };
-    const unknown2 = { ...FULL_JOB, id: 'unknown_1', link: 'link2' }; // aynı unknown ID ama farklı link
+    const unknown2 = { ...FULL_JOB, id: 'unknown_1', link: 'link2' }; // same unknown ID but different link
     const seenIds = new Set<string>();
     const seenLinks = new Set<string>();
 
     const result = deduplicateJobs([unknown1, unknown2], 25, seenIds, seenLinks);
-    // unknown_ prefix'li ID'ler duplicate check'ten muaf
+    // IDs with the unknown_ prefix are exempt from the duplicate check
     expect(result).toHaveLength(2);
   });
 });

@@ -1,26 +1,26 @@
 /**
- * Scraper Controller — HTTP API endpoint'leri.
+ * Scraper Controller — HTTP API endpoints.
  *
- * Bu dosya dış dünyayla (frontend, Postman, curl) iletişim kurar.
- * Kendi iş mantığı YOKTUR — sadece:
- *   1. POST /scrape/trigger → Queue'ya job ekle, jobId dön
- *   2. GET /scrape/status/:jobId → Job durumunu Redis'ten oku, dön
+ * This file is the boundary with the outside world (frontend, Postman, curl).
+ * It has NO business logic of its own — only:
+ *   1. POST /scrape/trigger → add job to Queue, return jobId
+ *   2. GET /scrape/status/:jobId → read job state from Redis, return it
  *
- * Neden Controller ayrı?
- *   - ScraperService → "Nasıl scrape edilir?" (iş mantığı)
- *   - ScraperProcessor → "Kuyruktan nasıl alınır?" (queue transport)
- *   - ScraperController → "HTTP'den nasıl tetiklenir?" (HTTP transport)
- *   Her biri tek bir sorumluluğa sahip (SRP).
+ * Why a separate Controller?
+ *   - ScraperService → "how to scrape?" (business logic)
+ *   - ScraperProcessor → "how to consume from the queue?" (queue transport)
+ *   - ScraperController → "how to trigger via HTTP?" (HTTP transport)
+ *   Each has a single responsibility (SRP).
  *
- * @InjectQueue(QUEUE_NAMES.SCRAPER) ne yapar?
- *   NestJS DI'dan 'scraper' isimli Queue instance'ını ister.
- *   Bu Queue, BullModule.registerQueue() ile kaydedilmiş olmalı.
- *   Queue.add() ile Redis'e job eklenir — Worker otomatik alır.
+ * What does @InjectQueue(QUEUE_NAMES.SCRAPER) do?
+ *   Asks NestJS DI for the Queue instance named 'scraper'.
+ *   This Queue must have been registered via BullModule.registerQueue().
+ *   Queue.add() pushes a job to Redis — the Worker picks it up automatically.
  *
  * Fire-and-Forget Pattern:
- *   POST /trigger anında döner (< 1ms). Scraping arka planda çalışır.
- *   Client istediği zaman GET /status/:id ile durumu kontrol eder.
- *   HTTP 202 (Accepted) = "İsteğini aldım, işliyorum ama henüz bitmedi."
+ *   POST /trigger returns immediately (< 1ms). Scraping runs in the background.
+ *   The client polls GET /status/:id whenever it wants.
+ *   HTTP 202 (Accepted) = "I received your request, processing it but not done yet."
  */
 
 import {
@@ -46,13 +46,13 @@ import { logger } from '@/utils/helpers';
 // RESPONSE TYPES
 // ═══════════════════════════════════════════
 
-/** POST /scrape/trigger yanıtı */
+/** POST /scrape/trigger response */
 interface TriggerResponse {
   jobId: string;
   message: string;
 }
 
-/** GET /scrape/status/:jobId yanıtı */
+/** GET /scrape/status/:jobId response */
 interface StatusResponse {
   jobId: string;
   state: string;
@@ -71,7 +71,7 @@ interface StatusResponse {
 // ═══════════════════════════════════════════
 
 /**
- * @Controller('scrape') → Tüm route'lar /scrape prefix'i altında:
+ * @Controller('scrape') → All routes live under the /scrape prefix:
  *   POST /scrape/trigger
  *   GET  /scrape/status/:jobId
  */
@@ -79,26 +79,26 @@ interface StatusResponse {
 export class ScraperController {
   constructor(
     /**
-     * @InjectQueue(QUEUE_NAMES.SCRAPER) — DI'dan Queue instance'ını al.
+     * @InjectQueue(QUEUE_NAMES.SCRAPER) — get the Queue instance from DI.
      *
-     * Generic tipler: Queue<Data, Result>
-     *   - Data = ScrapeJobData → queue.add() ile gönderilen veri tipi
-     *   - Result = ScrapeJobResult → job.returnvalue tipi
+     * Generic types: Queue<Data, Result>
+     *   - Data = ScrapeJobData → payload type sent via queue.add()
+     *   - Result = ScrapeJobResult → type of job.returnvalue
      *
-     * Bu Queue nesnesi sadece job EKLEMEK ve SORGULAMAK için kullanılır.
-     * Job İŞLEMEK Processor'ın (Worker) işi — Controller buna karışmaz.
+     * This Queue object is only used to ENQUEUE and QUERY jobs.
+     * Processing jobs is the Processor's (Worker's) job — the Controller does not touch it.
      */
     @InjectQueue(QUEUE_NAMES.SCRAPER)
     private readonly scrapeQueue: Queue<ScrapeJobData, ScrapeJobResult>,
   ) {}
 
   /**
-   * POST /scrape/trigger — Yeni scrape job'ı kuyruğa ekler.
+   * POST /scrape/trigger — enqueues a new scrape job.
    *
-   * @HttpCode(202) neden 200 değil?
-   *   HTTP 202 Accepted = "İsteğini aldım, KABUL ETTİM, ama henüz işlemedim."
-   *   HTTP 200 OK = "İsteğini işledim, İŞTE SONUÇ."
-   *   Biz scrape'i hemen yapmıyoruz — kuyruğa ekliyoruz. Bu yüzden 202.
+   * Why @HttpCode(202) instead of 200?
+   *   HTTP 202 Accepted = "I received your request, ACCEPTED it, but have not processed it yet."
+   *   HTTP 200 OK = "I processed your request, HERE IS THE RESULT."
+   *   We do not scrape immediately — we enqueue. Hence 202.
    *
    * @param body ScrapeJobData — { keywords, location, config? }
    * @returns TriggerResponse — { jobId, message }
@@ -106,17 +106,17 @@ export class ScraperController {
   @Post('trigger')
   @HttpCode(HttpStatus.ACCEPTED)
   async trigger(
-    // Pipe parametreye bağlanır — method-level @UsePipes CurrentUser'ı bozardı.
+    // Pipe is bound to the parameter — method-level @UsePipes would break CurrentUser.
     @Body(new ZodValidationPipe(scrapeJobDataSchema)) body: ScrapeJobData,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<TriggerResponse> {
-    // userId her zaman auth'tan gelir — body'deki override edilir.
+    // userId always comes from auth — any value in the body is overridden.
     const payload: ScrapeJobData = { ...body, userId: user.id };
     const job = await this.scrapeQueue.add('scrape', payload, {
       /**
-       * removeOnComplete: Tamamlanan job'ları Redis'ten sil (bellek tasarrufu).
-       * Son 100 tamamlanan job'ı tut — status sorgusu için lazım.
-       * removeOnFail: Başarısız job'ları da benzer şekilde yönet.
+       * removeOnComplete: drop completed jobs from Redis (memory savings).
+       * Keep the last 100 completed jobs — needed for status queries.
+       * removeOnFail: manage failed jobs the same way.
        */
       removeOnComplete: { count: 100 },
       removeOnFail: { count: 50 },
@@ -135,18 +135,18 @@ export class ScraperController {
   }
 
   /**
-   * GET /scrape/status/:jobId — Job durumunu sorgular.
+   * GET /scrape/status/:jobId — queries job state.
    *
-   * BullMQ Job State'leri:
-   *   - waiting:    Kuyrukta bekliyor (henüz Worker almadı)
-   *   - active:     Worker işliyor (scraping devam ediyor)
-   *   - completed:  Başarıyla tamamlandı (result mevcut)
-   *   - failed:     Hata oluştu (failedReason mevcut)
-   *   - delayed:    Zamanlı çalışma bekliyor
-   *   - unknown:    Job Redis'te bulunamadı (silinmiş veya geçersiz ID)
+   * BullMQ Job states:
+   *   - waiting:    in the queue (not yet picked up by a Worker)
+   *   - active:     Worker is processing (scraping in progress)
+   *   - completed:  finished successfully (result available)
+   *   - failed:     errored (failedReason available)
+   *   - delayed:    waiting for scheduled execution
+   *   - unknown:    job not found in Redis (deleted or invalid ID)
    *
-   * @param jobId BullMQ job ID'si (POST /trigger'dan dönen)
-   * @returns StatusResponse — mevcut durum, ilerleme ve sonuç
+   * @param jobId BullMQ job ID (returned from POST /trigger)
+   * @returns StatusResponse — current state, progress and result
    */
   @Get('status/:jobId')
   async status(@Param('jobId') jobId: string): Promise<StatusResponse> {
@@ -180,11 +180,11 @@ export class ScraperController {
 // ═══════════════════════════════════════════
 
 /**
- * BullMQ progress objesini ScrapeJobProgress'e çevirir.
+ * Converts a BullMQ progress object into a ScrapeJobProgress.
  *
  * job.progress: number | object | undefined
- * Biz her zaman ScrapeJobProgress nesnesi gönderiyoruz (Processor'da).
- * Ama BullMQ number da kabul eder, bu yüzden güvenli kontrol yapıyoruz.
+ * We always send a ScrapeJobProgress object (from the Processor).
+ * But BullMQ also accepts numbers, so we guard defensively.
  */
 function extractProgress(progress: unknown): ScrapeJobProgress | null {
   if (

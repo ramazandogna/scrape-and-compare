@@ -1,24 +1,24 @@
 /**
- * Scraper Audit — State Machine ile scrape oturumu takibi.
+ * Scraper Audit — scrape-session tracking via a State Machine.
  *
- * Her scrape çalıştırıldığında bir "audit kaydı" oluşturulur.
- * Bu kayıt scraper'ın tüm yaşam döngüsünü takip eder:
+ * Each scrape run creates an "audit record".
+ * This record tracks the full lifecycle of the scraper:
  *
  *   IDLE → SCANNING → EXTRACTING → COMPLETED
  *                ↘ FAILED    ↗ FAILED
  *
- * State Machine kuralları (copilot-instructions kural #11):
+ * State Machine rules (copilot-instructions rule #11):
  * ─────────────────────────────────────────────────────────
- * Boolean bayraklar yerine açık durumlar kullanıyoruz.
- * `VALID_SCRAPER_TRANSITIONS` tablosu hangi geçişlerin
- * izin verildiğini tanımlar. Geçersiz geçiş → hata fırlatır.
+ * We use explicit states instead of boolean flags.
+ * The `VALID_SCRAPER_TRANSITIONS` table defines which transitions
+ * are allowed. An invalid transition → throws an error.
  *
- * Neden audit kaydı?
+ * Why an audit record?
  * ──────────────────
- * 1. Debug: "Son scrape ne zaman çalıştı, kaç ilan buldu?"
- * 2. Monitoring: "Hata oranı artıyor mu? LinkedIn bizi engelliyor mu?"
- * 3. History: "Geçen haftaki scrape'ler ne kadar sürdü?"
- * 4. Retry: "FAILED olan keyword'leri otomatik tekrar dene"
+ * 1. Debug: "When did the last scrape run, how many listings did it find?"
+ * 2. Monitoring: "Is the error rate climbing? Is LinkedIn blocking us?"
+ * 3. History: "How long did last week's scrapes take?"
+ * 4. Retry: "Automatically retry keywords that FAILED."
  *
  * @module
  */
@@ -30,20 +30,20 @@ import { VALID_SCRAPER_TRANSITIONS } from '@scrape/shared';
 import { logger } from '@/utils/helpers';
 
 // ═══════════════════════════════════════════
-// STATE GEÇİŞ DOĞRULAMASI
+// STATE TRANSITION VALIDATION
 // ═══════════════════════════════════════════
 
 /**
- * State Machine geçişini doğrular.
+ * Validates a State Machine transition.
  *
- * VALID_SCRAPER_TRANSITIONS tablosuna bakar:
- *   IDLE → [SCANNING]              ✅ geçerli
- *   SCANNING → [EXTRACTING, FAILED] ✅ geçerli
- *   COMPLETED → [SCANNING]          ❌ geçersiz! hata fırlatır
+ * Looks at the VALID_SCRAPER_TRANSITIONS table:
+ *   IDLE → [SCANNING]              ✅ valid
+ *   SCANNING → [EXTRACTING, FAILED] ✅ valid
+ *   COMPLETED → [SCANNING]          ❌ invalid! throws
  *
- * @param from Mevcut durum
- * @param to Hedef durum
- * @throws Error geçersiz geçişte
+ * @param from Current state
+ * @param to Target state
+ * @throws Error on invalid transition
  */
 const validateTransition = (from: ScraperStatus, to: ScraperStatus): void => {
   const allowed = VALID_SCRAPER_TRANSITIONS[from];
@@ -55,19 +55,19 @@ const validateTransition = (from: ScraperStatus, to: ScraperStatus): void => {
 };
 
 // ═══════════════════════════════════════════
-// AUDIT KAYDI OLUŞTURMA
+// AUDIT RECORD CREATION
 // ═══════════════════════════════════════════
 
 /**
- * Yeni bir audit kaydı oluşturur — scrape başlangıcında çağrılır.
+ * Creates a new audit record — called at the start of a scrape.
  *
- * Başlangıç durumu: IDLE (henüz bir şey yapmadık).
- * Hemen ardından SCANNING'e geçirilmelidir.
+ * Initial state: IDLE (we have done nothing yet).
+ * Must immediately transition to SCANNING after this.
  *
  * @param prisma PrismaService instance
- * @param keyword Aranan keyword
- * @param location Aranan lokasyon
- * @returns Oluşturulan audit kaydının ID'si
+ * @param keyword Searched keyword
+ * @param location Searched location
+ * @returns ID of the created audit record
  */
 export const createAudit = async (
   prisma: PrismaService,
@@ -90,20 +90,20 @@ export const createAudit = async (
 };
 
 // ═══════════════════════════════════════════
-// STATE GEÇİŞLERİ
+// STATE TRANSITIONS
 // ═══════════════════════════════════════════
 
 /**
- * Audit kaydının durumunu günceller — State Machine geçişi.
+ * Updates the audit record's state — a State Machine transition.
  *
- * Bu fonksiyon validateTransition üzerinden geçer:
- *   1. Mevcut durumu DB'den okur
- *   2. Geçişin geçerli olup olmadığını kontrol eder
- *   3. Geçerliyse günceller, değilse hata fırlatır
+ * This function goes through validateTransition:
+ *   1. Reads the current state from the DB
+ *   2. Checks whether the transition is valid
+ *   3. Updates if valid, otherwise throws
  *
  * @param prisma PrismaService instance
- * @param auditId Audit kaydı UUID'si
- * @param newStatus Hedef durum
+ * @param auditId Audit record UUID
+ * @param newStatus Target state
  */
 export const transitionAudit = async (
   prisma: PrismaService,
@@ -126,10 +126,10 @@ export const transitionAudit = async (
 };
 
 // ═══════════════════════════════════════════
-// METRİK GÜNCELLEME
+// METRIC UPDATES
 // ═══════════════════════════════════════════
 
-/** Search adımından sonra bulunan ilan sayısını günceller */
+/** Updates the number of listings found after the search step */
 export const updateAuditFound = async (
   prisma: PrismaService,
   auditId: string,
@@ -141,7 +141,7 @@ export const updateAuditFound = async (
   });
 };
 
-/** Extract adımından sonra çekilen ilan sayısını günceller */
+/** Updates the number of listings extracted after the extract step */
 export const updateAuditExtracted = async (
   prisma: PrismaService,
   auditId: string,
@@ -154,14 +154,14 @@ export const updateAuditExtracted = async (
 };
 
 // ═══════════════════════════════════════════
-// TAMAMLAMA / HATA
+// COMPLETION / FAILURE
 // ═══════════════════════════════════════════
 
 /**
- * Scrape oturumunu başarıyla tamamlar.
+ * Successfully completes the scrape session.
  *
  * Transition: EXTRACTING → COMPLETED
- * Süre hesaplanır, completedAt set edilir.
+ * Duration is computed; completedAt is set.
  */
 export const completeAudit = async (
   prisma: PrismaService,
@@ -199,11 +199,11 @@ export const completeAudit = async (
 };
 
 /**
- * Scrape oturumunu hatayla sonlandırır.
+ * Ends the scrape session with an error.
  *
  * Transition: SCANNING|EXTRACTING → FAILED
- * Hangi durumda olursak olalım (SCANNING veya EXTRACTING),
- * FAILED'a geçiş her ikisinden de geçerlidir.
+ * Regardless of the current state (SCANNING or EXTRACTING),
+ * the transition to FAILED is valid from both.
  */
 export const failAudit = async (
   prisma: PrismaService,

@@ -11,11 +11,11 @@ import type { ScrapeState } from "@/hooks/use-scraper";
 import { LINKEDIN_LOCATIONS } from "@/constants/linkedin-locations";
 
 // ═══════════════════════════════════════════
-// HeroSearch — Dashboard üst bölüm (arama barı + scrape tetikleme)
+// HeroSearch — Dashboard top section (search bar + scrape trigger)
 // ═══════════════════════════════════════════
-// "Ara" → backend'e scrape isteği gönderir (POST /scrape/trigger)
-// Scraping devam ederken progress gösterir
-// Bitince yeni ilanlar otomatik listelenir
+// "Search" → sends scrape request to backend (POST /scrape/trigger)
+// Shows progress while scraping is in flight
+// On completion new listings appear automatically
 
 interface HeroSearchProps {
   onSearch: (keywords: string[], location: string) => void;
@@ -174,8 +174,8 @@ export function HeroSearch({ onSearch, scrapeState, onScrapeReset, total }: Hero
 
   return (
     <div className="bg-brand-gradient-soft border-brand-200 dark:border-brand-300/20 relative rounded-3xl border p-6 shadow-sm sm:p-10">
-      {/* Glow orb'ları KENDİ overflow-hidden konteynerinde tut, böylece dış
-          kart taşan dropdown'ı (lokasyon listesi) kırpmaz. */}
+      {/* Keep glow orbs in their OWN overflow-hidden container so the outer
+          card doesn't clip the overflowing dropdown (location list). */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-3xl">
         <div className="bg-brand-100 absolute -right-16 -top-16 size-56 rounded-full opacity-50 blur-3xl" aria-hidden />
         <div className="absolute -bottom-20 -left-12 size-56 rounded-full bg-[var(--brand-accent-400)]/30 blur-3xl" aria-hidden />

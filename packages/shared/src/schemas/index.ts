@@ -1,17 +1,17 @@
 /**
- * Zod Schemas — LLM çıktılarını ve dış veri kaynaklarını doğrulama.
+ * Zod Schemas — validation for LLM outputs and external data sources.
  *
- * Neden Zod? GPT-4o JSON döner ama format garantisi yoktur.
- * Zod ile "bu JSON kesinlikle bu shape'te" diyoruz, değilse hata fırlatıyoruz.
- * Runtime'da type safety = Zod. Compile-time'da = TypeScript.
+ * Why Zod? GPT-4o returns JSON but offers no format guarantee.
+ * Zod asserts "this JSON is exactly this shape" and throws otherwise.
+ * Runtime type safety = Zod. Compile-time = TypeScript.
  *
- * copilot-instructions kuralı: "Validate all LLM outputs with Zod schemas"
+ * copilot-instructions rule: "Validate all LLM outputs with Zod schemas"
  */
 
 import { z } from 'zod';
 
 /**
- * ExtractedSkill Zod şeması — LLM'den gelen skill verisi doğrulama
+ * ExtractedSkill Zod schema — validates skill data from the LLM
  */
 export const extractedSkillSchema = z.object({
   name: z.string().min(1),
@@ -20,7 +20,7 @@ export const extractedSkillSchema = z.object({
 });
 
 /**
- * SalaryParsed Zod şeması — maaş verisi doğrulama
+ * SalaryParsed Zod schema — validates salary data
  */
 export const salaryParsedSchema = z.object({
   min: z.number().nullable(),
@@ -31,7 +31,7 @@ export const salaryParsedSchema = z.object({
 });
 
 /**
- * JobListing Zod şeması — scraper çıktısı doğrulama
+ * JobListing Zod schema — validates scraper output
  */
 export const jobListingSchema = z.object({
   id: z.string().min(1),
@@ -53,7 +53,7 @@ export const jobListingSchema = z.object({
 });
 
 /**
- * LLM'den gelen skill extraction yanıtı — Module B için
+ * Skill extraction response from the LLM — for Module B
  */
 export const llmSkillExtractionSchema = z.object({
   skills: z.array(z.string()),
@@ -62,7 +62,7 @@ export const llmSkillExtractionSchema = z.object({
   preferredRoles: z.array(z.string()),
 });
 
-/** Zod'dan TypeScript tipi üretme — schema ile tip her zaman senkron */
+/** Derive TypeScript type from Zod — schema and type always stay in sync */
 export type LlmSkillExtraction = z.infer<typeof llmSkillExtractionSchema>;
 
 // ═══════════════════════════════════════════
@@ -70,8 +70,8 @@ export type LlmSkillExtraction = z.infer<typeof llmSkillExtractionSchema>;
 // ═══════════════════════════════════════════
 
 /**
- * ScraperConfig Zod şeması — opsiyonel config override'ları doğrulama.
- * Tüm alanlar optional çünkü Partial<ScraperConfig> bekleniyor.
+ * ScraperConfig Zod schema — validates optional config overrides.
+ * All fields are optional since a Partial<ScraperConfig> is expected.
  */
 export const scraperConfigSchema = z.object({
   headless: z.boolean(),
@@ -86,12 +86,12 @@ export const scraperConfigSchema = z.object({
 }).partial();
 
 /**
- * ScrapeJobData Zod şeması — POST /scrape/trigger body doğrulama.
+ * ScrapeJobData Zod schema — validates POST /scrape/trigger body.
  *
- * Kurallar:
- *   - keywords: en az 1 string, her biri 1-100 karakter, max 10 keyword
- *   - location: 1-100 karakter
- *   - config: opsiyonel scraper ayarları
+ * Rules:
+ *   - keywords: at least 1 string, each 1-100 chars, max 10 keywords
+ *   - location: 1-100 chars
+ *   - config: optional scraper settings
  */
 export const scrapeJobDataSchema = z.object({
   keywords: z
@@ -114,14 +114,14 @@ export type ScrapeJobDataInput = z.infer<typeof scrapeJobDataSchema>;
 // ═══════════════════════════════════════════
 
 /**
- * GET /api/jobs query parametreleri — pagination, filtreleme, sıralama.
+ * GET /api/jobs query parameters — pagination, filtering, sorting.
  *
- * Query string'ler her zaman string olarak gelir, bu yüzden:
- *   - z.coerce.number() → "2" string'ini 2 number'ına çevirir
- *   - .default() → parametre gönderilmezse varsayılan değer kullanılır
- *   - .max(100) → DoS koruması — tek seferde 100'den fazla kayıt dönemez
+ * Query strings always arrive as strings, so:
+ *   - z.coerce.number() → converts "2" string to the number 2
+ *   - .default() → applies a default when the parameter is omitted
+ *   - .max(100) → DoS protection — cannot return more than 100 records at once
  *
- * Kullanım: GET /api/jobs?page=2&limit=15&search=React&location=Istanbul&sort=newest
+ * Usage: GET /api/jobs?page=2&limit=15&search=React&location=Istanbul&sort=newest
  */
 export const jobsQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -139,13 +139,13 @@ export type JobsQueryInput = z.infer<typeof jobsQuerySchema>;
 // ═══════════════════════════════════════════
 
 /**
- * Tek bir ilanın puanlama sonucu — Gemini'den dönen her ilan için.
+ * Per-listing scoring result — for each listing returned by Gemini.
  *
- * jobId: Hangi ilanın puanlandığını bilmek için (batch'te 8 ilan var, hangisi hangisi?)
- * score: 0-100 arası match yüzdesi
- * explanation: AI'ın "neden bu puanı verdim" açıklaması
- * matchedSkills: Kullanıcıda olan VE ilanda istenen skill'ler
- * missingSkills: İlanda istenen ama kullanıcıda olmayan skill'ler
+ * jobId: identifies which listing was scored (8 listings in a batch — which is which?)
+ * score: match percentage from 0-100
+ * explanation: the AI's "why I gave this score" rationale
+ * matchedSkills: skills the user has AND the listing asks for
+ * missingSkills: skills the listing asks for but the user lacks
  */
 export const singleScoringResultSchema = z.object({
   jobId: z.string().min(1),
@@ -158,12 +158,12 @@ export const singleScoringResultSchema = z.object({
 export type SingleScoringResult = z.infer<typeof singleScoringResultSchema>;
 
 /**
- * Batch puanlama sonucu — Gemini'den dönen tüm yanıt.
+ * Batch scoring result — the full response from Gemini.
  *
- * Neden array wrapper? Gemini'ye "8 ilan gönder, 8 sonuç al" diyoruz.
- * results array'i her ilanın ayrı puanını taşır.
- * Zod burada array uzunluğunu kontrol etmez — çünkü son batch 8'den az olabilir.
- * Eksik/fazla ilan kontrolü MatcherService'de yapılır (4.3).
+ * Why an array wrapper? We tell Gemini "send 8 listings, return 8 results".
+ * The results array carries the per-listing score.
+ * Zod does not enforce array length here — the last batch may have fewer than 8.
+ * Missing/extra listing checks happen in MatcherService (4.3).
  */
 export const batchScoringResultSchema = z.object({
   results: z.array(singleScoringResultSchema).min(1),
@@ -172,7 +172,7 @@ export const batchScoringResultSchema = z.object({
 export type BatchScoringResult = z.infer<typeof batchScoringResultSchema>;
 
 /**
- * POST /api/matcher/score body — hangi kullanıcı için puanlama yapılacak.
+ * POST /api/matcher/score body — which user to run scoring for.
  */
 const matcherScoreBaseSchema = z.object({
   userId: z.string().uuid('Geçerli bir UUID olmalı'),
@@ -204,15 +204,15 @@ export type MatcherScoreInput = z.infer<typeof matcherScoreInputSchema>;
 // ═══════════════════════════════════════════
 
 /**
- * POST /api/users body — yeni kullanıcı oluşturma.
+ * POST /api/users body — create a new user.
  *
- * Kurallar:
- *   - email: geçerli email formatı (unique DB constraint)
- *   - name: 1-100 karakter
- *   - techStack: string array, her biri 1-50 karakter (max 50 skill)
- *   - experienceYears: 0-50 arası tam sayı
- *   - preferredRoles: string array (max 10 rol)
- *   - preferredLocations: string array (max 10 lokasyon)
+ * Rules:
+ *   - email: valid email format (unique DB constraint)
+ *   - name: 1-100 chars
+ *   - techStack: string array, each 1-50 chars (max 50 skills)
+ *   - experienceYears: integer between 0-50
+ *   - preferredRoles: string array (max 10 roles)
+ *   - preferredLocations: string array (max 10 locations)
  */
 export const createUserSchema = z.object({
   email: z.string().trim().email('Geçerli bir email adresi giriniz'),
@@ -235,11 +235,11 @@ export const createUserSchema = z.object({
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 
 /**
- * PATCH /api/users/:id body — kullanıcı güncelleme.
+ * PATCH /api/users/:id body — update a user.
  *
- * .partial() → tüm alanları optional yapar.
- * Frontend sadece değişen alanları gönderir, geri kalanı dokunulmaz.
- * Boş body ({}) da geçerli — hiçbir şey güncellenmez.
+ * .partial() → makes all fields optional.
+ * Frontend only sends changed fields; the rest stay untouched.
+ * An empty body ({}) is also valid — nothing gets updated.
  */
 export const updateUserSchema = createUserSchema.partial();
 

@@ -1,15 +1,15 @@
 /**
- * Browser Service — Playwright tarayıcısını stealth modda yönetir.
+ * Browser Service — manages the Playwright browser in stealth mode.
  *
- * Eski browser.manager.ts'in NestJS servis versiyonu.
- * Farklar:
- * - @Injectable() → DI ile inject edilir, constructor'da new yapmaya gerek yok
- * - onModuleDestroy → NestJS uygulama kapanınca browser otomatik kapanır
- * - Aynı işlevsellik: stealth plugin, random user-agent, random viewport
+ * NestJS service version of the legacy browser.manager.ts.
+ * Differences:
+ * - @Injectable() → injected via DI, no need to `new` in the constructor
+ * - onModuleDestroy → browser closes automatically when the NestJS app shuts down
+ * - Same functionality: stealth plugin, random user-agent, random viewport
  *
- * Neden ayrı servis? Single Responsibility:
- * ScraperService → "ne scrape edilecek" (iş mantığı)
- * BrowserService → "browser nasıl açılacak/kapanacak" (altyapı)
+ * Why a separate service? Single Responsibility:
+ * ScraperService → "what to scrape" (business logic)
+ * BrowserService → "how to open/close the browser" (infrastructure)
  */
 
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
@@ -18,15 +18,15 @@ import type { ScraperConfig } from '@scrape/shared';
 import { logger } from '@/utils/helpers';
 
 /**
- * Stealth plugin'i yükler.
- * puppeteer-extra-plugin-stealth playwright-extra ile uyumlu.
+ * Loads the stealth plugin.
+ * puppeteer-extra-plugin-stealth is compatible with playwright-extra.
  */
 const loadStealthPlugin = async () => {
   const { default: StealthPlugin } = await import('puppeteer-extra-plugin-stealth');
   return StealthPlugin();
 };
 
-/** Gerçekçi user-agent listesi — her oturumda rastgele biri seçilir */
+/** Realistic user-agent list — one is picked at random per session */
 const USER_AGENTS = [
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
@@ -35,7 +35,7 @@ const USER_AGENTS = [
   'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
 ];
 
-/** Gerçekçi viewport boyutları */
+/** Realistic viewport sizes */
 const VIEWPORTS = [
   { width: 1920, height: 1080 },
   { width: 1440, height: 900 },
@@ -52,18 +52,18 @@ export class BrowserService implements OnModuleDestroy {
   private browser: Browser | null = null;
 
   /**
-   * NestJS uygulama kapanırken browser'ı güvenli şekilde kapat.
-   * cli.ts'te app.close() çağrıldığında tetiklenir.
+   * Safely close the browser when the NestJS app shuts down.
+   * Triggered when app.close() is called in cli.ts.
    */
   async onModuleDestroy(): Promise<void> {
     await this.close();
   }
 
   /**
-   * Yeni bir browser instance ve context oluşturur.
+   * Creates a new browser instance and context.
    *
-   * @param config Scraper konfigürasyonu
-   * @returns Browser context (sayfa açmak için)
+   * @param config Scraper configuration
+   * @returns Browser context (used to open pages)
    */
   async launch(config: ScraperConfig): Promise<BrowserContext> {
     logger.info('Tarayıcı başlatılıyor...', {
@@ -128,7 +128,7 @@ export class BrowserService implements OnModuleDestroy {
   }
 
   /**
-   * Yeni bir sayfa açar ve bot-koruması ayarlarını yapar.
+   * Opens a new page and applies anti-bot settings.
    */
   async createPage(context: BrowserContext): Promise<Page> {
     const page = await context.newPage();
@@ -143,7 +143,7 @@ export class BrowserService implements OnModuleDestroy {
   }
 
   /**
-   * Browser'ı güvenli şekilde kapatır.
+   * Safely closes the browser.
    */
   async close(): Promise<void> {
     if (!this.browser) return;

@@ -1,20 +1,20 @@
 /**
- * Main Entry Point — NestJS HTTP sunucusu.
+ * Main Entry Point — NestJS HTTP server.
  *
- * Bu dosya REST API endpoint'lerini sunar:
- * - POST /api/scrape/trigger — yeni scrape job'ı kuyruğa ekle
- * - GET  /api/scrape/status/:jobId — job durumunu sorgula
- * - GET  /api/jobs — iş ilanlarını listele
+ * This file exposes REST API endpoints:
+ * - POST /api/scrape/trigger — enqueue a new scrape job
+ * - GET  /api/scrape/status/:jobId — query job status
+ * - GET  /api/jobs — list job postings
  *
- * BullMQ Worker da bu process içinde çalışır:
- * - ScraperProcessor otomatik olarak Redis kuyruğunu dinlemeye başlar
- * - ScraperEventListener event'leri loglar
+ * The BullMQ Worker also runs inside this process:
+ * - ScraperProcessor automatically starts listening to the Redis queue
+ * - ScraperEventListener logs events
  *
- * İki mod:
- *   main.ts → HTTP sunucu + BullMQ Worker (aynı process)
- *   cli.ts  → Tek seferlik scrape (standalone, sunucu yok)
+ * Two modes:
+ *   main.ts → HTTP server + BullMQ Worker (same process)
+ *   cli.ts  → One-shot scrape (standalone, no server)
  *
- * Çalıştırma: pnpm dev (apps/backend)
+ * Run: pnpm dev (apps/backend)
  */
 
 import 'reflect-metadata';
@@ -31,31 +31,31 @@ const bootstrap = async (): Promise<void> => {
     logger: false,
   });
 
-  // Global prefix — tüm route'lar /api altında
+  // Global prefix — all routes live under /api
   app.setGlobalPrefix('api');
 
-  // Cookie parser — auth_token cookie'sini req.cookies'e parse eder
+  // Cookie parser — parses the auth_token cookie into req.cookies
   app.use(cookieParser());
 
-  // CORS — Next.js frontend'in API'ye erişimi için (httpOnly cookie credentials)
+  // CORS — allows the Next.js frontend to call the API (httpOnly cookie credentials)
   app.enableCors({
     origin: process.env['CORS_ORIGIN'] ?? 'http://localhost:3001',
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     credentials: true,
   });
 
-  // Global exception filter — tutarlı hata formatı
+  // Global exception filter — consistent error format
   app.useGlobalFilters(new GlobalExceptionFilter());
 
   const port = process.env['PORT'] ?? 3000;
   await app.listen(port);
 
-  // --watch modunda Node.js SIGTERM ile süreci yeniden başlatır.
-  // enableShutdownHooks olmadan HTTP server portu serbest bırakmaz
-  // → bir sonraki başlatmada EADDRINUSE hatası alınır.
+  // In --watch mode Node.js restarts the process via SIGTERM.
+  // Without enableShutdownHooks the HTTP server does not release the port
+  // → next startup fails with EADDRINUSE.
   app.enableShutdownHooks();
 
-  // Node.js 18.2+ — tüm açık socket'ları kapatır, port hemen serbest kalır
+  // Node.js 18.2+ — closes all open sockets so the port is released immediately
   const httpServer = app.getHttpServer() as import('http').Server;
   const closeConnections = (): void => {
     if (typeof httpServer.closeAllConnections === 'function') {

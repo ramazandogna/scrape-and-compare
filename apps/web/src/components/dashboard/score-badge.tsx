@@ -1,12 +1,12 @@
 import { cn } from "@/lib/utils";
 
 // ═══════════════════════════════════════════
-// ScoreBadge — Eşleşme skoru badge'i
+// ScoreBadge — Match score badge
 // ═══════════════════════════════════════════
-// 80+ → fuchsia + soft-pulse dot (premium "şimdi başvur" hissi)
-// 60-79 → emerald (sakin yeşil, "iyi eşleşme")
-// 0-59 → slate (kısmen uygun, dikkat çekme)
-// Puanlanmamış → boş slate
+// 80+ → fuchsia + soft-pulse dot (premium "apply now" feel)
+// 60-79 → emerald (calm green, "good match")
+// 0-59 → slate (partial fit, low emphasis)
+// Unscored → empty slate
 
 interface ScoreBadgeProps {
   score: number | null | undefined;
@@ -19,7 +19,7 @@ const MATCH_THRESHOLD = 60;
 function getScoreTier(score: number) {
   if (score >= 80)
     return {
-      // 80+ "premium" tier — brand gradient (mor varsayılan, accent toggle ile yeşil)
+      // 80+ "premium" tier — brand gradient (purple default, green via accent toggle)
       colors:
         "border-brand-300 bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-100",
       showDot: true,
@@ -29,7 +29,7 @@ function getScoreTier(score: number) {
     };
   if (score >= MATCH_THRESHOLD)
     return {
-      // 60-79 "iyi" — sabit emerald (her temada aynı, semantic anlam)
+      // 60-79 "good" — fixed emerald (same across themes, semantic meaning)
       colors:
         "border-emerald-300/70 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200",
       showDot: true,

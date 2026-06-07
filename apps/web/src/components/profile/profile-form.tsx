@@ -23,8 +23,8 @@ interface ProfileFormProps {
 }
 
 /**
- * Profil düzenleme formu — auth ile birlikte oluşturma akışı /sign-up'a taşındı.
- * Bu form sadece mevcut kullanıcının bilgilerini günceller.
+ * Profile edit form — the create flow moved to /sign-up alongside auth.
+ * This form only updates the existing user's info.
  */
 export function ProfileForm({ user, onUpdate, error }: ProfileFormProps) {
   const [email, setEmail] = useState(user.email);
@@ -55,7 +55,7 @@ export function ProfileForm({ user, onUpdate, error }: ProfileFormProps) {
     }
   }
 
-  /** Error prop değiştiğinde toast göster */
+  /** Show toast whenever the error prop changes */
   useEffect(() => {
     if (error) toast.error(error);
   }, [error]);
@@ -74,7 +74,7 @@ export function ProfileForm({ user, onUpdate, error }: ProfileFormProps) {
       </div>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Email + Name — yan yana */}
+          {/* Email + Name — side by side */}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="email">E-posta</Label>
@@ -113,7 +113,7 @@ export function ProfileForm({ user, onUpdate, error }: ProfileFormProps) {
             </p>
           </div>
 
-          {/* Experience + Preferred Roles — yan yana */}
+          {/* Experience + Preferred Roles — side by side */}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="experience">Deneyim (Yıl)</Label>

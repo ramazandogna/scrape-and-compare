@@ -1,33 +1,33 @@
 /**
- * Yardımcı fonksiyonlar — scraper genelinde kullanılır.
+ * Helper functions — used across the scraper.
  *
- * Neden ayrı dosya? Single Responsibility: her dosyanın tek görevi olmalı.
- * Bu dosya sadece genel amaçlı utility'ler içerir.
+ * Why a separate file? Single Responsibility: every file should have one job.
+ * This file contains only general-purpose utilities.
  *
- * Logger: Pino tabanlı structured logger — `@/utils/logger` dosyasında yaşar.
- * Geriye uyumluluk için buradan re-export edilir.
+ * Logger: a Pino-based structured logger — lives in `@/utils/logger`.
+ * Re-exported from here for backwards compatibility.
  */
 
-// Re-export logger — mevcut `import { logger } from '@/utils/helpers'` çağrıları bozulmasın
+// Re-export logger — keep existing `import { logger } from '@/utils/helpers'` calls working
 export { logger } from '@/utils/logger';
 
 /**
- * Belirli bir süre bekler (ms).
- * LinkedIn'e insan gibi görünmek için request'ler arası rastgele bekleriz.
+ * Waits for a given duration (ms).
+ * To look human to LinkedIn we sleep a random amount between requests.
  *
- * @param ms Bekleme süresi (milisaniye)
- * @returns Bekleme bitince resolve olan Promise
+ * @param ms Wait duration (milliseconds)
+ * @returns Promise that resolves when the wait is over
  */
 export const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * Min-max arasında rastgele bir sayı üretir (inclusive).
- * İnsan davranışını simüle etmek için kullanılır.
+ * Produces a random integer between min and max (inclusive).
+ * Used to simulate human behavior.
  *
- * @param min Minimum değer
- * @param max Maximum değer
- * @returns Rastgele tam sayı
+ * @param min Minimum value
+ * @param max Maximum value
+ * @returns Random integer
  */
 export const randomBetween = (min: number, max: number): number =>
   Math.floor(Math.random() * (max - min + 1)) + min;

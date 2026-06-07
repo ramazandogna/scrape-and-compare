@@ -1,6 +1,6 @@
 /**
- * AuthModule — auth.guard global APP_GUARD olarak register edilir.
- * Diğer modüller @Public() decorator'ı kullanmadıkça login zorunlu.
+ * AuthModule — registers auth.guard globally as APP_GUARD.
+ * Login is mandatory unless other modules use the @Public() decorator.
  */
 
 import { Module } from '@nestjs/common';

@@ -1,12 +1,12 @@
 /**
- * Adaptive Delay Tests — Hata sınıflandırma ve backoff hesaplama testleri.
+ * Adaptive Delay Tests — error classification and backoff calculation tests.
  *
- * Neyi test ediyoruz?
- *   1. HTTP status → doğru ScraperError code üretiliyor mu?
- *   2. Runtime error mesajı → doğru ScraperError code üretiliyor mu?
- *   3. Backoff hesaplama: exponential artış, max cap, jitter
- *   4. Retry limitleri: CAPTCHA_DETECTED → max 1 retry
- *   5. Batch cooldown: hata oranına göre doğru aralık
+ * What do we test?
+ *   1. HTTP status → does it produce the correct ScraperError code?
+ *   2. Runtime error message → does it produce the correct ScraperError code?
+ *   3. Backoff calculation: exponential growth, max cap, jitter
+ *   4. Retry limits: CAPTCHA_DETECTED → max 1 retry
+ *   5. Batch cooldown: correct interval based on error rate
  */
 
 import { describe, it, expect } from 'vitest';
@@ -19,7 +19,7 @@ import {
 } from '@/modules/scraper/helpers/delay';
 
 // ═══════════════════════════════════════════
-// HTTP ERROR SINIFLANDIRMA
+// HTTP ERROR CLASSIFICATION
 // ═══════════════════════════════════════════
 
 describe('classifyHttpError', () => {
@@ -45,7 +45,7 @@ describe('classifyHttpError', () => {
 });
 
 // ═══════════════════════════════════════════
-// RUNTIME ERROR SINIFLANDIRMA
+// RUNTIME ERROR CLASSIFICATION
 // ═══════════════════════════════════════════
 
 describe('classifyRuntimeError', () => {
@@ -71,7 +71,7 @@ describe('classifyRuntimeError', () => {
 });
 
 // ═══════════════════════════════════════════
-// RETRY KONTROLÜ
+// RETRY CHECK
 // ═══════════════════════════════════════════
 
 describe('isRetryable', () => {
@@ -103,7 +103,7 @@ describe('isRetryable', () => {
 });
 
 // ═══════════════════════════════════════════
-// BACKOFF HESAPLAMA
+// BACKOFF CALCULATION
 // ═══════════════════════════════════════════
 
 describe('calculateBackoff', () => {
@@ -113,7 +113,7 @@ describe('calculateBackoff', () => {
     const delay0 = calculateBackoff(error, 0);
     const delay1 = calculateBackoff(error, 1);
 
-    // Delay artmalı (jitter yüzünden tam eşitlik bekleyemeyiz ama trend doğru olmalı)
+    // Delay must grow (jitter prevents exact equality but the trend must be correct)
     // retry 0: ~2000ms, retry 1: ~4000ms
     expect(delay0).toBeGreaterThanOrEqual(2_000);
     expect(delay1).toBeGreaterThan(delay0);
@@ -122,7 +122,8 @@ describe('calculateBackoff', () => {
   it('max delay aşılmaz', () => {
     const error = classifyHttpError(403, 'url'); // CLOUDFLARE_BLOCKED, max: 120_000ms
 
-    const delay = calculateBackoff(error, 10); // Çok yüksek retry
+    // Very high retry
+    const delay = calculateBackoff(error, 10);
     expect(delay).toBeLessThanOrEqual(120_000);
   });
 

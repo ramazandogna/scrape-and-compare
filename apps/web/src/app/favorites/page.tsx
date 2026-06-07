@@ -33,8 +33,8 @@ export default function FavoritesPage() {
     };
   }, [fetchJobs, fetchMatches, user?.id]);
 
-  // user yüklenene + ilk fetch dönene kadar skeleton göster.
-  // Aksi halde "favori yok" boş durumu bir an parlayıp sonra liste geliyor.
+  // Show skeleton until the user loads and the first fetch returns.
+  // Otherwise the "no favorites" empty state flashes before the list appears.
   const isHydrating = userLoading || (user !== null && !hasFetched);
 
   const favoriteJobs = useMemo(() => {

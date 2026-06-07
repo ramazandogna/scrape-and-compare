@@ -15,10 +15,10 @@ import {
 } from "@/types/job";
 
 // ═══════════════════════════════════════════
-// FilterSidebar — sol panel filtreleri (modern pill style)
+// FilterSidebar — left panel filters (modern pill style)
 // ═══════════════════════════════════════════
-// Radio davranışı korunuyor: tek seçim, null = "Hepsi".
-// Görsel: nokta+text yerine pill — her filtre tıklanabilir hissi veriyor.
+// Radio behavior preserved: single selection, null = "All".
+// Visual: pill instead of dot+text — every filter feels clickable.
 
 interface FilterSidebarProps {
   filters: FilterState;
@@ -33,8 +33,8 @@ export function FilterSidebar({ filters, onFilterChange }: FilterSidebarProps) {
     onFilterChange({ ...filters, [key]: value });
   }
 
-  // Aktif filtre sayısı — varsayılana eşit olmayan her filtre 1 sayılır.
-  // Header'da chip olarak gösterip "Temizle" butonunu koşullu açıyoruz.
+  // Active filter count — each filter not equal to default counts as 1.
+  // Shown as a chip in the header; conditionally enables the "Clear" button.
   const activeCount =
     (filters.seniorityLevel !== INITIAL_FILTERS.seniorityLevel ? 1 : 0) +
     (filters.employmentType !== INITIAL_FILTERS.employmentType ? 1 : 0) +
@@ -134,7 +134,7 @@ export function FilterSidebar({ filters, onFilterChange }: FilterSidebarProps) {
         </div>
       </FilterCard>
 
-      {/* Sticky alt bar — aktif filtre varsa "Temizle" görünür, yoksa sönük */}
+      {/* Sticky bottom bar — "Clear" visible when active filters exist, otherwise dimmed */}
       <div className="sticky bottom-2 mt-2">
         <Button
           variant={activeCount > 0 ? "outline" : "ghost"}
@@ -198,7 +198,7 @@ function PillOption({
         disabled && "cursor-not-allowed opacity-60 hover:border-border hover:bg-background",
       )}
     >
-      {/* width transition + scale: aktif olunca check yumuşakça açılır */}
+      {/* width transition + scale: check unfolds smoothly when active */}
       <span
         className={cn(
           "inline-flex items-center overflow-hidden transition-all duration-200",

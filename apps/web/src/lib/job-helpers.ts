@@ -1,8 +1,8 @@
 // ═══════════════════════════════════════════
 // DASHBOARD HELPERS — Pure utility functions
 // ═══════════════════════════════════════════
-// Her biri tek sorumluluk, sıfır side-effect.
-// Bileşenler bunları doğrudan import eder.
+// Each one single-responsibility, zero side-effects.
+// Components import these directly.
 
 import type {
   EnrichedJob,
@@ -13,12 +13,12 @@ import type {
 } from "@/types/job";
 
 // ═══════════════════════════════════════════
-// 1. COMPANY AVATAR — Deterministik renk üretimi
+// 1. COMPANY AVATAR — Deterministic color generation
 // ═══════════════════════════════════════════
 
 /**
- * Şirket adından deterministik HSL renk üretir.
- * Aynı şirket her zaman aynı rengi alır.
+ * Generates a deterministic HSL color from the company name.
+ * Same company always gets the same color.
  * djb2 hash → hue (0-360) → pastel HSL
  */
 const AVATAR_COLORS = [
@@ -43,7 +43,7 @@ export function getAvatarColor(name: string): string {
   return AVATAR_COLORS[index]!;
 }
 
-/** Şirket adının baş harfini döndürür */
+/** Returns the initial of the company name */
 export function getInitial(name: string): string {
   return name.charAt(0).toUpperCase();
 }
@@ -53,12 +53,12 @@ export function getInitial(name: string): string {
 // ═══════════════════════════════════════════
 
 /**
- * Maaş aralığını insan dostu formata çevirir.
+ * Converts the salary range to a human-friendly format.
  *
- * Backend her ilan için maaşı **aylık TRY** olarak normalize edip saklıyor
- * (`salary.parser.ts → normalizeToMonthlyTRY`). Bu yüzden UI tek bir standart
- * birim gösterir: "150k - 200k ₺/ay". Currency parametresi geriye dönük uyum
- * için kabul edilir ama gösterimde kullanılmaz.
+ * Backend normalizes and stores each listing's salary as **monthly TRY**
+ * (`salary.parser.ts → normalizeToMonthlyTRY`). So the UI always shows a single
+ * standard unit: "150k - 200k ₺/ay". Currency parameter is accepted for
+ * backward compat but not used in display.
  *
  * formatSalary(150000, 200000)  → "150k - 200k ₺/ay"
  * formatSalary(null, null)      → null
@@ -66,8 +66,8 @@ export function getInitial(name: string): string {
 export function formatSalary(
   min: number | null,
   max: number | null,
-  // currency parametresi DB'den orijinal para birimini iletir;
-  // değer zaten aylık TRY'ye normalize edildiği için sadece imza uyumu için tutuluyor.
+  // currency parameter passes the original currency from the DB;
+  // value is already normalized to monthly TRY, kept only for signature compat.
   _currency?: string | null,
 ): string | null {
   if (!min && !max) return null;
@@ -84,16 +84,16 @@ export function formatSalary(
 // ═══════════════════════════════════════════
 
 /**
- * ISO date string'i relatif zamana çevirir.
+ * Converts an ISO date string to a relative time.
  * "2026-03-31T10:00:00Z" → "1 gün önce"
- * Fallback: postedDate string'i doğrudan döner (LinkedIn "2 days ago" veriyor)
+ * Fallback: returns the postedDate string directly (LinkedIn gives "2 days ago")
  */
 export function timeAgo(dateString: string | null, fallback?: string | null): string {
   if (!dateString && fallback) return fallback;
   if (!dateString) return "";
 
   const date = new Date(dateString);
-  if (isNaN(date.getTime())) return dateString; // parse edilemezse ham string
+  if (isNaN(date.getTime())) return dateString; // raw string if unparseable
 
   const now = Date.now();
   const diffMs = now - date.getTime();
@@ -113,12 +113,12 @@ export function timeAgo(dateString: string | null, fallback?: string | null): st
 // ═══════════════════════════════════════════
 
 /**
- * İki API response'unu birleştirir:
+ * Merges two API responses:
  * - jobs: GET /api/jobs
  * - matches: GET /api/matcher/results/:userId
  *
- * Map<jobId, MatchResult> ile O(n) lookup.
- * Match yoksa → match: null (puanlanmamış)
+ * O(n) lookup via Map<jobId, MatchResult>.
+ * No match → match: null (unscored)
  */
 export function enrichJobsWithMatches(
   jobs: JobDto[],
@@ -150,8 +150,8 @@ export function enrichJobsWithMatches(
 // ═══════════════════════════════════════════
 
 /**
- * EnrichedJob[] üzerinde aktif filtreleri uygular.
- * Her filtre null ise o filtre atlanır (pass-through).
+ * Applies active filters over EnrichedJob[].
+ * If a filter is null it is skipped (pass-through).
  * Chain: source → seniority → employment → salary → score
  */
 export function applyFilters(
@@ -188,8 +188,8 @@ export function applyFilters(
 // ═══════════════════════════════════════════
 
 /**
- * Tri-state sıralama: default → asc → desc → default
- * null/undefined değerler daima sona gider.
+ * Tri-state sort: default → asc → desc → default
+ * null/undefined values always go to the end.
  */
 export function applySort(
   jobs: EnrichedJob[],
@@ -203,7 +203,7 @@ export function applySort(
     const valA = getSortValue(a, sort.field);
     const valB = getSortValue(b, sort.field);
 
-    // null'lar daima sona
+    // nulls always to the end
     if (valA === null && valB === null) return 0;
     if (valA === null) return 1;
     if (valB === null) return -1;

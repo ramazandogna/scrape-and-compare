@@ -1,14 +1,14 @@
 /**
- * App Module — NestJS uygulamasının kök modülü.
+ * App Module — root module of the NestJS application.
  *
- * Bu modül diğer tüm modülleri import eder ve uygulamayı bir araya getirir.
- * NestJS'te her uygulama tam olarak bir root module'e sahiptir.
+ * This module imports all other modules and wires the application together.
+ * In NestJS every application has exactly one root module.
  *
- * BullModule.forRoot() → Tüm BullMQ queue'ları için tek Redis bağlantısı.
- * forRoot() pattern'ı: "Bu config uygulama genelinde geçerli, bir kez tanımla."
- * Tıpkı DatabaseModule'ün @Global() olması gibi — her modül ayrı bağlantı açmaz.
+ * BullModule.forRoot() → single Redis connection shared by all BullMQ queues.
+ * forRoot() pattern: "This config is application-wide, define it once."
+ * Same as DatabaseModule being @Global() — no module opens its own connection.
  *
- * REDIS_HOST/REDIS_PORT .env'den okunur, yoksa localhost:6379 default kullanılır.
+ * REDIS_HOST/REDIS_PORT are read from .env, falling back to localhost:6379.
  */
 
 import { Module } from '@nestjs/common';
@@ -26,11 +26,11 @@ import { AuthModule } from '@/modules/auth/auth.module';
     AuthModule,
 
     /**
-     * BullModule.forRoot() — Redis bağlantı konfigürasyonu.
+     * BullModule.forRoot() — Redis connection configuration.
      *
-     * Bu çağrı TÜM queue'lar için ortak Redis bağlantısını tanımlar.
-     * Her BullModule.registerQueue() bu bağlantıyı paylaşır.
-     * Ayrı bir ioredis instance yaratmana gerek yok — @nestjs/bullmq halleder.
+     * This call defines the shared Redis connection for ALL queues.
+     * Every BullModule.registerQueue() reuses this connection.
+     * No need to instantiate a separate ioredis — @nestjs/bullmq handles it.
      */
     BullModule.forRoot({
       connection: {

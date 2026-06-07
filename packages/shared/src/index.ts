@@ -1,11 +1,11 @@
 /**
  * @scrape/shared — Barrel Export
  *
- * Bu dosya paketin "kapısı". Dışarıdan yapılan tüm import'lar buraya gelir.
- * Kullanım: import { JobListing, jobListingSchema, SCRAPER_DEFAULTS } from '@scrape/shared';
+ * The package entry point. All external imports go through here.
+ * Usage: import { JobListing, jobListingSchema, SCRAPER_DEFAULTS } from '@scrape/shared';
  *
- * Neden barrel? Paket içi dosya yapısını dışarıya sızdırmamak için.
- * İç yapı değişse bile dış import'lar aynı kalır (SRP, encapsulation).
+ * Why a barrel? To avoid leaking internal file structure to consumers.
+ * Internal layout can change without breaking external imports (SRP, encapsulation).
  */
 
 // Types

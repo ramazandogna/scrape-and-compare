@@ -13,10 +13,10 @@ import { AUTH_COOKIE_NAME, getAuthSecret } from './auth.constants';
 import type { AuthenticatedUser } from './auth.types';
 
 // ═══════════════════════════════════════════
-// AuthGuard — global JWT cookie doğrulayıcı
+// AuthGuard — global JWT cookie validator
 // ═══════════════════════════════════════════
-// Her request'te auth_token cookie'si verify edilir, payload req.user'a yazılır.
-// @Public() ile işaretlenen handler'lar bypass edilir.
+// On every request the auth_token cookie is verified and the payload is written to req.user.
+// Handlers marked with @Public() are bypassed.
 
 interface JwtUserPayload extends JwtPayload {
   sub: string;
@@ -58,9 +58,9 @@ export class AuthGuard implements CanActivate {
 }
 
 /**
- * Cookie veya Authorization header'dan token çıkarır.
- * Cookie öncelikli — fetch credentials:'include' ile gelir.
- * Bearer header ise mobil/script entegrasyonu için fallback.
+ * Extracts the token from the cookie or Authorization header.
+ * Cookie takes precedence — comes via fetch credentials:'include'.
+ * The Bearer header is a fallback for mobile/script integration.
  */
 function extractToken(request: Request): string | null {
   const cookieRecord = request.cookies as Record<string, string | undefined> | undefined;

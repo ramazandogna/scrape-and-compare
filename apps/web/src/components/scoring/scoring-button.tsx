@@ -27,25 +27,25 @@ import type { ScoringProgress, TriggerScoringInput } from "@/hooks/use-scoring";
 import { cn } from "@/lib/utils";
 
 // ═══════════════════════════════════════════
-// ScoringButton — AI puanlama tetikleme bileşeni
+// ScoringButton — AI scoring trigger component
 // ═══════════════════════════════════════════
-// State Machine: idle → scoring → completed (veya error)
-// allScored ise: "Puanlama Seçenekleri" → modal açar (yeniden puanlama)
-// allScored değilse: "İlanları Puanla" → unscored akışını direkt tetikler
+// State Machine: idle → scoring → completed (or error)
+// allScored: "Scoring Options" → opens modal (rescore)
+// not allScored: "Score Listings" → triggers the unscored flow directly
 //
-// autoTriggerSignal: dashboard scrape tamamlandığında bu prop'u değiştirir;
-// idle + unscoredCount > 0 ise unscored puanlamayı otomatik kuyruğa atar.
+// autoTriggerSignal: dashboard mutates this prop when a scrape completes;
+// if idle + unscoredCount > 0, queues the unscored scoring automatically.
 
 interface ScoringButtonProps {
   userId: string | null;
-  /** Puanlanmamış ilan sayısı (0 = tümü puanlı) */
+  /** Number of unscored listings (0 = all scored) */
   unscoredCount: number;
   favoriteJobIds?: string[];
-  /** Scoring tamamlandığında çağrılır — dashboard match'leri yenileyebilsin */
+  /** Called when scoring completes — lets the dashboard refresh matches */
   onComplete?: () => void;
-  /** Yeni batch puanlandığında çağrılır (scoredJobs sayısı iletilir) */
+  /** Called when a new batch is scored (passes the scoredJobs count) */
   onProgress?: (scoredJobs: number) => void;
-  /** Değiştiğinde idle + unscored ilan varsa otomatik puanlamayı başlatır */
+  /** When changed, kicks off auto-scoring if idle + unscored listings exist */
   autoTriggerSignal?: string | null;
 }
 
@@ -67,11 +67,11 @@ export function ScoringButton({
   function handleScoreClick() {
     if (!userId) return;
     if (allScored) {
-      // Tüm ilanlar puanlıysa yeniden puanlama scope dialog'u
+      // All listings scored → rescore scope dialog
       setShowRescore(true);
       return;
     }
-    // Aksi halde direkt unscored akışını başlat — ekstra tıklama yok
+    // Otherwise trigger the unscored flow directly — no extra click
     void triggerScoring(userId, { scope: "unscored" });
   }
 
@@ -85,7 +85,7 @@ export function ScoringButton({
     setShowRescore(false);
   }
 
-  // ── Callbacks via ref (sonsuz döngü yok) ───────────────
+  // ── Callbacks via ref (no infinite loop) ───────────────
   const onCompleteRef = useRef(onComplete);
   const onProgressRef = useRef(onProgress);
   useEffect(() => {
@@ -112,10 +112,10 @@ export function ScoringButton({
     if (message) toast.info(message);
   }, [message]);
 
-  // ── Auto-trigger: scrape tamamlandığında dashboard signal yollar ──
-  // userId + unscored ilan varsa + status idle ise direkt başlat.
-  // Bilgilendirici toast atıyoruz; modaldan onay almıyoruz çünkü kullanıcı
-  // zaten "tara → puanla" akışına girmiş, onay tekrar tıklatma maliyeti.
+  // ── Auto-trigger: dashboard emits a signal when scrape completes ──
+  // If userId + unscored listings exist + status is idle, start immediately.
+  // We fire an informational toast; no modal confirm because the user already
+  // opted into the "scrape → score" flow — confirming would be wasted clicks.
   const lastAutoSignalRef = useRef<string | null>(null);
   useEffect(() => {
     if (!autoTriggerSignal || !userId) return;
@@ -130,7 +130,7 @@ export function ScoringButton({
     void triggerScoring(userId, { scope: "unscored" });
   }, [autoTriggerSignal, userId, unscoredCount, status, triggerScoring]);
 
-  // Profil yoksa → disabled CTA
+  // No profile → disabled CTA
   if (!userId) {
     return (
       <Card>

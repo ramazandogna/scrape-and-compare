@@ -1,12 +1,12 @@
 /**
- * Job Mapper Tests — Scraper ↔ Database alan dönüşüm testleri.
+ * Job Mapper Tests — Scraper ↔ Database field conversion tests.
  *
- * Neyi test ediyoruz?
- *   1. Alan adı mapping'i: id → externalId, link → url
+ * What do we test?
+ *   1. Field name mapping: id → externalId, link → url
  *   2. Enum casing: 'monthly' → MONTHLY, 'TRY' → TRY
  *   3. Nested → flat: salaryParsed → salaryMin + salaryMax + salaryCurrency + salaryPeriod
- *   4. Null handling: salaryParsed null ise tüm salary alanları null
- *   5. Create vs Update: update'te externalId/url olmamalı
+ *   4. Null handling: when salaryParsed is null all salary fields are null
+ *   5. Create vs Update: update must not contain externalId/url
  */
 
 import { describe, it, expect } from 'vitest';
@@ -55,7 +55,7 @@ describe('mapJobToCreateInput', () => {
   it('skills array JSON tipine dönüşür', () => {
     const result = mapJobToCreateInput(FULL_JOB);
 
-    // skills Prisma InputJsonValue — array olarak geldiğini doğrula
+    // skills is a Prisma InputJsonValue — verify it arrives as an array
     expect(Array.isArray(result.skills)).toBe(true);
   });
 
@@ -85,7 +85,7 @@ describe('mapJobToUpdateInput', () => {
   it('externalId ve url İÇERMEZ (unique key güncellenmez)', () => {
     const result = mapJobToUpdateInput(FULL_JOB);
 
-    // TypeScript compile-time'da da bunu engellemeli ama runtime'da da doğrulayalım
+    // TypeScript should block this at compile time, but verify at runtime as well
     expect(result).not.toHaveProperty('externalId');
     expect(result).not.toHaveProperty('url');
     expect(result).not.toHaveProperty('source');

@@ -1,20 +1,20 @@
 /**
- * Database Module — Prisma ORM entegrasyonu.
+ * Database Module — Prisma ORM integration.
  *
- * Global modül olarak tanımlanmıştır — her modül ayrıca import etmek zorunda değil.
- * Tüm uygulama boyunca PrismaService'e erişim sağlar.
+ * Declared as a global module — other modules don't need to import it separately.
+ * Provides access to PrismaService throughout the application.
  *
- * Neden @Global()?
- * PrismaService hemen hemen her modülde kullanılacak:
- * - ScraperModule → audit log yaz, job'ları kaydet
- * - MatcherModule → user profile ve match sonuçları
- * - ParserModule → CV verisi kaydet
+ * Why @Global()?
+ * PrismaService is used in nearly every module:
+ * - ScraperModule → write audit logs, persist jobs
+ * - MatcherModule → user profile and match results
+ * - ParserModule → store CV data
  *
- * Her birine tek tek `imports: [DatabaseModule]` yazmak yerine
- * bir kez global tanımlıyoruz. NestJS bunu tüm modüllere inject eder.
+ * Instead of writing `imports: [DatabaseModule]` everywhere, we declare it
+ * global once. NestJS injects it into every module.
  *
- * Not: Global modüllerden kaçının diyor NestJS docs, ama DB servisi
- * bunun en meşru kullanım alanı.
+ * Note: NestJS docs recommend avoiding global modules, but a DB service is
+ * one of the most legitimate use cases for it.
  */
 
 import { Global, Module } from '@nestjs/common';

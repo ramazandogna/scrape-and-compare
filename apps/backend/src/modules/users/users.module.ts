@@ -1,15 +1,15 @@
 /**
- * Users Module — Kullanıcı profil yönetimi.
+ * Users Module — user profile management.
  *
- * Sorumluluk: User CRUD (Create, Read, Update)
- *   - POST /api/users       → yeni profil oluştur
- *   - GET /api/users/:id    → profil getir
- *   - PATCH /api/users/:id  → profil güncelle
+ * Responsibility: User CRUD (Create, Read, Update)
+ *   - POST /api/users       → create a new profile
+ *   - GET /api/users/:id    → fetch profile
+ *   - PATCH /api/users/:id  → update profile
  *
- * Delete yok — MVP'de kullanıcı silme özelliği gereksiz.
+ * No delete — user deletion is unnecessary in MVP.
  *
- * PrismaService erişimi: DatabaseModule @Global() olduğu için
- * burada import etmeye gerek yok — otomatik erişilebilir.
+ * PrismaService access: since DatabaseModule is @Global() there is no
+ * need to import it here — it's available automatically.
  */
 
 import { Module } from '@nestjs/common';

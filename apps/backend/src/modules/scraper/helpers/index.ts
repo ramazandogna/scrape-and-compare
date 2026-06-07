@@ -1,6 +1,6 @@
 /**
  * Scraper Helpers — barrel export.
- * Tüm helper'lar bu dosya üzerinden dışarı açılır.
+ * All helpers are re-exported through this file.
  */
 
 // Resource blocking & page pool
@@ -61,6 +61,6 @@ export {
   failAudit,
 } from './audit';
 
-// Concurrency queue — kontrollü paralel task yürütücü
+// Concurrency queue — controlled parallel task executor
 export { runConcurrent, extractFulfilled, extractRejected } from './concurrency';
 export type { ConcurrentResult, ConcurrencyOptions } from './concurrency';

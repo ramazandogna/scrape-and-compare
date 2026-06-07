@@ -30,7 +30,7 @@ export default function SignInPage() {
 
     try {
       await loginRequest({ email, password });
-      // Backend cookie'yi set etti, profile'i çekip context'i doldur.
+      // Backend set the cookie; fetch the profile and populate the context.
       await refresh();
       toast.success("Hoş geldin 👋");
       const redirect = searchParams.get("redirect") ?? "/dashboard";
@@ -41,8 +41,8 @@ export default function SignInPage() {
           ? "Email veya şifre hatalı"
           : "Giriş yapılamadı, lütfen tekrar dene";
       setErrorMessage(message);
-      // setUser çağrılmaz — auth state authenticated'a geçmez
-      void setUser; // hook stabilitesi için ref tut, kullanılmayan param uyarısı vermesin
+      // setUser is not called — auth state does not transition to authenticated
+      void setUser; // hold a ref for hook stability; suppresses unused param warning
     } finally {
       setIsLoading(false);
     }

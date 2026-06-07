@@ -9,11 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 
 // ═══════════════════════════════════════════
-// RightSidebar — sticky 2 kart, eşit yapıda
+// RightSidebar — sticky 2 cards, equal structure
 // ═══════════════════════════════════════════
-// "Çok Yakında" feature roadmap'ini sidebar'dan çıkardık — beta'da değer
-// üretmiyor, kullanıcıyı feature isteyen vaadlerle yormak yerine sade tutuyoruz.
-// Bülten kartında "Yakında" rozeti ile non-functional olduğunu açıkça belirtiyoruz.
+// Dropped the "Coming Soon" feature roadmap from the sidebar — it adds no value
+// in beta, keeping it simple instead of overloading the user with promises.
+// The newsletter card explicitly marks it non-functional via a "Soon" badge.
 
 export function RightSidebar() {
   function handleSubscribe(e: React.FormEvent) {

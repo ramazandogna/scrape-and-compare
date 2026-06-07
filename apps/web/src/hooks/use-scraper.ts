@@ -4,14 +4,14 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { apiFetch } from "@/lib/api";
 
 // ═══════════════════════════════════════════
-// useScraper — Scrape tetikleme + durum takibi
+// useScraper — trigger scrape + track status
 // ═══════════════════════════════════════════
 // State Machine: idle → triggering → scraping → completed / error
-// POST /scrape/trigger → jobId al → GET /scrape/status/:jobId polling
+// POST /scrape/trigger → get jobId → GET /scrape/status/:jobId polling
 //
 // F5 Persistence:
-//   sessionStorage'da aktif scrape jobId tutulur.
-//   Mount'ta kontrol edilir, polling devam eder.
+//   Active scrape jobId is kept in sessionStorage.
+//   Checked at mount, polling resumes.
 
 // ── Types ──────────────────────────────────
 
@@ -80,10 +80,10 @@ interface UseScraperReturn {
 // ── Constants ──────────────────────────────
 
 const POLL_INTERVAL_MS = 2_000;
-const POLL_TIMEOUT_MS = 5 * 60_000; // 5 dakika max
+const POLL_TIMEOUT_MS = 5 * 60_000; // 5 minutes max
 const SESSION_KEY = "scrape:scraper-active";
 
-/** sessionStorage'a yazılan aktif scrape bilgisi */
+/** Active scrape info written to sessionStorage */
 interface ScrapeSession {
   jobId: string;
   startedAt: number;
@@ -138,7 +138,7 @@ export function useScraper(): UseScraperReturn {
     setState({ phase: "idle", progress: null, result: null, error: null });
   }
 
-  /** F5 sonrası: aktif scrape varsa polling'i devam ettir */
+  /** After F5: if active scrape exists, resume polling */
   useEffect(() => {
     if (resumedRef.current) return;
     resumedRef.current = true;
@@ -157,7 +157,7 @@ export function useScraper(): UseScraperReturn {
       setState({ phase: "triggering", progress: null, result: null, error: null });
 
       try {
-        // 1) Trigger — kuyruğa ekle
+        // 1) Trigger — enqueue
         const { jobId } = await apiFetch<TriggerResponse>("/scrape/trigger", {
           method: "POST",
           body: JSON.stringify({ keywords, location, userId }),
@@ -165,11 +165,11 @@ export function useScraper(): UseScraperReturn {
 
         setState((prev) => ({ ...prev, phase: "scraping" }));
 
-        // sessionStorage'a kaydet — F5 sonrasına persist
+        // Save to sessionStorage — persist across F5
         const startedAt = Date.now();
         saveScrapeSession({ jobId, startedAt });
 
-        // 2) Poll — durumu takip et
+        // 2) Poll — track status
         await pollJobStatus(jobId, startedAt);
       } catch (err) {
         const message = err instanceof Error ? err.message : "Scrape başlatılamadı";
@@ -183,7 +183,7 @@ export function useScraper(): UseScraperReturn {
   async function pollJobStatus(jobId: string, startedAt: number): Promise<void> {
     return new Promise<void>((resolve) => {
       intervalRef.current = setInterval(async () => {
-        // Timeout kontrolü
+        // Timeout check
         if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
           cleanup();
           clearScrapeSession();
@@ -227,12 +227,12 @@ export function useScraper(): UseScraperReturn {
             return;
           }
 
-          // Devam ediyor — progress güncelle
+          // Still running — update progress
           if (status.progress) {
             setState((prev) => ({ ...prev, progress: status.progress }));
           }
         } catch {
-          // Tek bir poll hatası silently ignore — sonraki dener
+          // Silently ignore a single poll error — next attempt retries
         }
       }, POLL_INTERVAL_MS);
     });

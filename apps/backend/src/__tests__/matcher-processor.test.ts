@@ -1,14 +1,14 @@
 /**
- * Matcher Processor Tests — BullMQ Worker birim testleri.
+ * Matcher Processor Tests — BullMQ Worker unit tests.
  *
- * Neyi test ediyoruz?
- *   1. Başarılı batch → MatcherJobCompleted döner
- *   2. scoreBatch hata fırlatırsa → process de fırlatır (BullMQ FAILED yapar)
- *   3. Progress reporting → SCORING ve SAVING fazları doğru raporlanır
- *   4. Sonuç yapısı — scored, failed, avgScore alanları doğru
+ * What do we test?
+ *   1. Successful batch → returns MatcherJobCompleted
+ *   2. If scoreBatch throws → process also throws (BullMQ marks it FAILED)
+ *   3. Progress reporting → SCORING and SAVING phases are reported correctly
+ *   4. Result shape — scored, failed, avgScore fields are correct
  *
- * Pattern: queue.test.ts (ScraperProcessor) ile aynı yaklaşım.
- * NestJS DI + Redis olmadan, Processor mantığını inline test ediyoruz.
+ * Pattern: same approach as queue.test.ts (ScraperProcessor).
+ * We test the Processor logic inline, without NestJS DI + Redis.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -83,7 +83,7 @@ const MOCK_BATCH_RESULT = {
 
 const mockScoreBatch = vi.fn();
 
-/** Mock Job nesnesi — BullMQ Job<MatcherJobData, MatcherJobResult> */
+/** Mock Job object — BullMQ Job<MatcherJobData, MatcherJobResult> */
 const createMockJob = (overrides?: Partial<{ data: MatcherJobData; id: string }>) => ({
   id: overrides?.id ?? 'matcher-job-1',
   data: overrides?.data ?? {
@@ -98,10 +98,10 @@ const createMockJob = (overrides?: Partial<{ data: MatcherJobData; id: string }>
 });
 
 /**
- * Processor'ın process() mantığı — inline implementasyon.
+ * Inline implementation of the Processor's process() logic.
  *
- * @Processor decorator NestJS DI gerektirir, unit test'te istemiyoruz.
- * Sadece iş mantığını test ediyoruz.
+ * The @Processor decorator requires NestJS DI, which we don't want in a unit test.
+ * We test only the business logic.
  */
 async function processMethod(
   job: ReturnType<typeof createMockJob>,
@@ -187,12 +187,12 @@ describe('MatcherProcessor.process()', () => {
 
     expect(job.updateProgress).toHaveBeenCalledTimes(2);
 
-    // İlk çağrı: SCORING
+    // First call: SCORING
     const firstProgress = job.updateProgress.mock.calls[0]?.[0] as MatcherJobProgress;
     expect(firstProgress.phase).toBe('SCORING');
     expect(firstProgress.batchIndex).toBe(0);
 
-    // Son çağrı: SAVING
+    // Last call: SAVING
     const lastProgress = job.updateProgress.mock.calls[1]?.[0] as MatcherJobProgress;
     expect(lastProgress.phase).toBe('SAVING');
     expect(lastProgress.percentage).toBe(100);

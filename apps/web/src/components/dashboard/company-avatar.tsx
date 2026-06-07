@@ -2,8 +2,8 @@ import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { getInitial } from "@/lib/job-helpers";
 
-// Şirket adı bazlı deterministik gradient — kart ile uyumlu, modern look.
-// Aynı şirket her zaman aynı gradient'i alır (hash-based).
+// Deterministic gradient derived from company name — matches the card, modern look.
+// Same company always gets the same gradient (hash-based).
 const GRADIENT_PALETTE = [
   "from-violet-500 to-fuchsia-500",
   "from-blue-500 to-indigo-500",
@@ -26,11 +26,11 @@ function pickGradient(name: string): string {
 }
 
 // ═══════════════════════════════════════════
-// CompanyAvatar — Şirket logosu veya renkli baş harf
+// CompanyAvatar — Company logo or colored initial
 // ═══════════════════════════════════════════
-// 1. Scrape edilen logoUrl varsa onu dene.
-// 2. Yoksa / 404 dönerse Clearbit'i kademeli adaylarla dene.
-// 3. Hepsi başarısız olursa deterministik renkli baş harf.
+// 1. If a scraped logoUrl exists, try it first.
+// 2. If missing / 404, try Clearbit with staged domain candidates.
+// 3. If all fail, fall back to a deterministic colored initial.
 
 interface CompanyAvatarProps {
   company: string;
@@ -39,7 +39,7 @@ interface CompanyAvatarProps {
   className?: string;
 }
 
-/** Şirket adından kademeli Clearbit domain adayları üretir.
+/** Builds staged Clearbit domain candidates from the company name.
  *  ICterra Information and Communication Technologies → icterra.com, icterra.com.tr */
 function buildClearbitDomains(company: string): string[] {
   const cleaned = company
@@ -118,8 +118,8 @@ export function CompanyAvatar({
     );
   }
 
-  // Logo bulunamadı → gradient + harf fallback
-  // Kartla uyumlu: rounded-xl (kartla aynı corner radius), shadow-xs, ring.
+  // No logo found → gradient + letter fallback
+  // Matches the card: rounded-xl (same corner radius), shadow-xs, ring.
   return (
     <div
       className={cn(
@@ -131,7 +131,7 @@ export function CompanyAvatar({
       )}
       aria-hidden="true"
     >
-      {/* Üst gloss efekti — premium hissi */}
+      {/* Top gloss effect — premium feel */}
       <span className="absolute inset-0 rounded-xl bg-gradient-to-tr from-white/20 via-transparent to-transparent" />
       <span className="relative">{initial}</span>
     </div>

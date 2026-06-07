@@ -1,14 +1,14 @@
 /**
- * Users Service — Kullanıcı profil CRUD operasyonları.
+ * Users Service — user profile CRUD operations.
  *
- * Bu servis Prisma ORM üzerinden User tablosunu yönetir.
- * Controller HTTP katmanıyla, Service veritabanı katmanıyla ilgilenir (SRP).
+ * This service manages the User table via Prisma ORM.
+ * Controller handles the HTTP layer, Service handles the database layer (SRP).
  *
- * Neden NotFoundException burada fırlatılıyor?
- *   Service katmanında "bu kayıt yok" bilgisi yaşar.
- *   Controller bunu yakalayıp HTTP 404'e çevirir diyebilirsin ama
- *   NestJS exception filter'ı NotFoundException'ı otomatik 404 yapar.
- *   Yani service → exception → NestJS filter → 404 JSON response.
+ * Why is NotFoundException thrown here?
+ *   The "record not found" knowledge lives in the service layer.
+ *   You could let the controller catch and convert to HTTP 404 but
+ *   NestJS exception filter turns NotFoundException into a 404 automatically.
+ *   So: service → exception → NestJS filter → 404 JSON response.
  */
 
 import {
@@ -24,12 +24,12 @@ import type { CreateUserInput, UpdateUserInput } from '@scrape/shared';
 // ═══════════════════════════════════════════
 
 /**
- * User DTO — frontend'e dönen kullanıcı verisi.
+ * User DTO — user data returned to the frontend.
  *
- * Prisma'nın User tipi yerine kendi DTO'muzu tanımlıyoruz:
- *   - Hangi alanların dönüldüğü açıkça belirtilir
- *   - İleride hassas alanlar (password vb.) eklense bile sızmaz
- *   - API contract'ı DB schema'sından bağımsız olur
+ * We define our own DTO instead of Prisma's User type:
+ *   - Returned fields are explicit
+ *   - Sensitive fields (password, etc.) cannot leak later
+ *   - API contract is decoupled from the DB schema
  */
 export interface UserDto {
   id: string;
@@ -43,7 +43,7 @@ export interface UserDto {
   updatedAt: Date;
 }
 
-/** Prisma select — sadece DTO'daki alanları çek (over-fetching önleme) */
+/** Prisma select — fetch only DTO fields (prevent over-fetching) */
 const USER_SELECT = {
   id: true,
   email: true,
@@ -65,18 +65,18 @@ export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Yeni kullanıcı oluştur.
+   * Create a new user.
    *
-   * Normalizasyon Stratejisi (Defense-in-Depth):
-   *   - Frontend: UX iyileştirmesi (immediate feedback)
+   * Normalization Strategy (Defense-in-Depth):
+   *   - Frontend: UX improvement (immediate feedback)
    *   - Backend: Database truth — single source of truth
    *
-   * Neden backend'de de? Eğer birisi API'ye doğrudan "React", "REACT" gönderirse,
-   * backend normalizasyonu olmadan aynı skill 2 farklı şekilde kaydedilirdi.
-   * Bu LLM matching accuracy'sini düşürürdü.
+   * Why also on the backend? If someone hits the API directly with "React", "REACT",
+   * without backend normalization the same skill would be saved two different ways.
+   * That would degrade LLM matching accuracy.
    *
-   * Prisma unique constraint (email) ihlal edilirse P2002 kodu döner.
-   * Bunu yakalayıp anlamlı bir ConflictException fırlatıyoruz.
+   * If the Prisma unique constraint (email) is violated, code P2002 is returned.
+   * We catch it and throw a meaningful ConflictException.
    */
   async create(input: CreateUserInput): Promise<UserDto> {
     const normalizedInput = this.normalizeCreateUserInput(input);
@@ -95,7 +95,7 @@ export class UsersService {
   }
 
   /**
-   * Tüm kullanıcıları listele (son oluşturulan önce).
+   * List all users (most recently created first).
    */
   async findAll(): Promise<UserDto[]> {
     return this.prisma.user.findMany({
@@ -105,10 +105,10 @@ export class UsersService {
   }
 
   /**
-   * Kullanıcı bilgisini ID ile getir.
+   * Fetch user info by ID.
    *
-   * findUnique → primary key ile arar, en hızlı Prisma sorgusu.
-   * Bulunamazsa 404 fırlatırız (frontend "profil yok" mesajı gösterir).
+   * findUnique → primary-key lookup, the fastest Prisma query.
+   * If not found we throw 404 (frontend shows "no profile" message).
    */
   async findById(id: string): Promise<UserDto> {
     const user = await this.prisma.user.findUnique({
@@ -124,13 +124,13 @@ export class UsersService {
   }
 
   /**
-   * Kullanıcı profilini güncelle.
+   * Update the user profile.
    *
-   * Prisma update: undefined olan alanlar güncellenmez (PATCH semantiği).
-   * Yani frontend sadece { techStack: ["React", "TS"] } gönderirse
-   * sadece techStack güncellenir, diğer alanlar aynen kalır.
+   * Prisma update: undefined fields are not updated (PATCH semantics).
+   * So if the frontend sends only { techStack: ["React", "TS"] },
+   * only techStack is updated, the other fields stay the same.
    *
-   * Normalizasyon: input → normalizasyon → DB update (defense-in-depth).
+   * Normalization: input → normalize → DB update (defense-in-depth).
    */
   async update(id: string, input: UpdateUserInput): Promise<UserDto> {
     await this.ensureUserExists(id);
@@ -152,11 +152,11 @@ export class UsersService {
   }
 
   /**
-   * Kullanıcı var mı kontrolü — update/delete öncesi.
+   * Check that the user exists — before update/delete.
    *
-   * Neden ayrı metod? findById zaten yapıyor diyebilirsin ama
-   * update senaryosunda "user yoksa 404, email çakışırsa 409"
-   * gibi farklı hata yolları var. Kontrolü ayırmak daha net.
+   * Why a separate method? You could say findById already does this, but
+   * the update scenario has distinct error paths ("user missing → 404,
+   * email conflict → 409"). Separating the check is cleaner.
    */
   private async ensureUserExists(id: string): Promise<void> {
     const count = await this.prisma.user.count({ where: { id } });
@@ -166,20 +166,20 @@ export class UsersService {
   }
 
   /**
-   * Normalizasyon Helper — techStack, preferredRoles, preferredLocations'ı normalize et.
+   * Normalization Helper — normalize techStack, preferredRoles, preferredLocations.
    *
-   * Normalizasyon Kuralları:
+   * Normalization Rules:
    *   - Lowercase: "React" → "react"
    *   - Dot removal: "Node.js" → "nodejs"
-   *   - Dedup: ["react", "REACT"] → ["react"]  (lowercase'ten sonra)
-   *   - Empty removal: [] ve whitespace-only array'ler ignored
+   *   - Dedup: ["react", "REACT"] → ["react"]  (after lowercase)
+   *   - Empty removal: [] and whitespace-only arrays are ignored
    *
-   * Neden?
-   *   1. LLM matching accuracy: "React" ve "REACT" aynı skill olarak görülecek
+   * Why?
+   *   1. LLM matching accuracy: "React" and "REACT" are treated as the same skill
    *   2. Database consistency: single source of truth
-   *   3. API contract: consumers reliable data alacak
+   *   3. API contract: consumers get reliable data
    *
-   * Immutable pattern: gelen input'u değiştirmeyiz, copy döneriz.
+   * Immutable pattern: we never mutate the input, we return a copy.
    */
   private normalizeCreateUserInput(input: CreateUserInput): CreateUserInput {
     const normalized: CreateUserInput = { ...input };
@@ -222,13 +222,13 @@ export class UsersService {
   }
 
   /**
-   * String array normalizasyon helper.
+   * String array normalization helper.
    *
-   * Adımlar:
-   *   1. Her string'i normalize et: trim() → lowercase() → dot removal
-   *   2. Boş string'leri filtrele
-   *   3. Tekrarlı olanları kaldır (Set dedup)
-   *   4. Array'e çevir ve dön
+   * Steps:
+   *   1. Normalize each string: trim() → lowercase() → dot removal
+   *   2. Filter out empty strings
+   *   3. Drop duplicates (Set dedup)
+   *   4. Convert back to array and return
    *
    * @param items Raw string array
    * @returns Normalized deduplicated string array
@@ -240,10 +240,10 @@ export class UsersService {
       .map((item) =>
         item
           .trim()                    // Whitespace
-          .toLowerCase()             // Büyük harf → küçük
-          .replaceAll('.', ''),      // Nokta removal (Node.js → nodejs)
+          .toLowerCase()             // Upper → lower
+          .replaceAll('.', ''),      // Dot removal (Node.js → nodejs)
       )
-      .filter(Boolean);              // Empty string'ler kaldır
+      .filter(Boolean);              // Drop empty strings
 
     return Array.from(new Set(normalized)); // Dedup via Set
   }
@@ -254,12 +254,12 @@ export class UsersService {
 // ═══════════════════════════════════════════
 
 /**
- * Prisma P2002 unique constraint violation kontrolü.
+ * Prisma P2002 unique constraint violation check.
  *
- * Prisma hataları PrismaClientKnownRequestError tipinde gelir.
- * code="P2002" → unique constraint ihlali.
- * Neden instanceof yerine duck typing? Prisma client
- * farklı output path'lerde farklı class reference'ı olabiliyor.
+ * Prisma errors arrive as PrismaClientKnownRequestError instances.
+ * code="P2002" → unique constraint violation.
+ * Why duck typing instead of instanceof? The Prisma client can have
+ * different class references across output paths.
  */
 function isPrismaUniqueViolation(error: unknown): boolean {
   return (

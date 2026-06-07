@@ -5,7 +5,7 @@ import { apiFetch, ApiError } from "@/lib/api";
 import type { MatchResultDto, PaginatedResponse } from "@/types/job";
 
 // ═══════════════════════════════════════════
-// useScoring — AI puanlama tetikleme + polling
+// useScoring — trigger AI scoring + polling
 // ═══════════════════════════════════════════
 //
 // State Machine:
@@ -13,8 +13,8 @@ import type { MatchResultDto, PaginatedResponse } from "@/types/job";
 //                    → (error)  → error
 //
 // F5 Persistence:
-//   sessionStorage'da aktif scoring bilgisi tutulur.
-//   Sayfa yenilendiğinde mount'ta kontrol edilir, polling devam eder.
+//   Active scoring info is kept in sessionStorage.
+//   On page refresh it is checked at mount and polling resumes.
 
 // ─────────────────────────────────────────
 
@@ -53,10 +53,10 @@ export interface ScoringProgress {
 }
 
 const POLL_INTERVAL_MS = 5_000;
-const POLL_TIMEOUT_MS = 10 * 60_000; // 10 dakika max
+const POLL_TIMEOUT_MS = 10 * 60_000; // 10 minutes max
 const SESSION_KEY = "scrape:scoring-active";
 
-/** sessionStorage'a yazılan aktif scoring bilgisi */
+/** Active scoring info written to sessionStorage */
 interface ScoringSession {
   userId: string;
   totalJobs: number;
@@ -77,7 +77,7 @@ function loadScoringSession(): ScoringSession | null {
     const raw = sessionStorage.getItem(SESSION_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as ScoringSession;
-    // 10 dk'dan eski session'ları geçersiz say
+    // Treat sessions older than 10 min as invalid
     if (Date.now() - parsed.startedAt > POLL_TIMEOUT_MS) {
       sessionStorage.removeItem(SESSION_KEY);
       return null;
@@ -102,7 +102,7 @@ export function useScoring(): UseScoringReturn {
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const resumedRef = useRef(false);
 
-  /** Polling'i temizle */
+  /** Clear polling */
   const stopPolling = useCallback(() => {
     if (pollingRef.current) {
       clearInterval(pollingRef.current);
@@ -110,7 +110,7 @@ export function useScoring(): UseScoringReturn {
     }
   }, []);
 
-  /** State'i sıfırla (yeniden puanlama için) */
+  /** Reset state (for re-scoring) */
   const reset = useCallback(() => {
     stopPolling();
     clearScoringSession();
@@ -120,7 +120,7 @@ export function useScoring(): UseScoringReturn {
     setMessage(null);
   }, [stopPolling]);
 
-  /** Polling başlat — hem triggerScoring hem F5 resume için ortaklaştırıldı */
+  /** Start polling — shared between triggerScoring and F5 resume */
   const startPolling = useCallback(
     (userId: string, totalJobs: number, totalBatches: number, startTime: number) => {
       stopPolling();
@@ -158,14 +158,14 @@ export function useScoring(): UseScoringReturn {
             setStatus("completed");
           }
         } catch {
-          // Poll hatası → sessizce atla
+          // Poll error → silently skip
         }
       }, POLL_INTERVAL_MS);
     },
     [stopPolling]
   );
 
-  /** F5 sonrası: sessionStorage'da aktif scoring varsa polling'i devam ettir */
+  /** After F5: if active scoring exists in sessionStorage, resume polling */
   useEffect(() => {
     if (resumedRef.current) return;
     resumedRef.current = true;
@@ -184,15 +184,15 @@ export function useScoring(): UseScoringReturn {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Unmount cleanup — polling leak'i önle (HMR, sayfa geçişi)
+  // Unmount cleanup — prevent polling leak (HMR, page navigation)
   useEffect(() => {
     return () => stopPolling();
   }, [stopPolling]);
 
-  /** Puanlamayı tetikle + polling başlat */
+  /** Trigger scoring + start polling */
   const triggerScoring = useCallback(
     async (userId: string, input: TriggerScoringInput) => {
-      // Zaten scoring varsa tekrar tetikleme (F5 koruması)
+      // Skip trigger if scoring already in progress (F5 guard)
       if (status === "scoring") return;
 
       stopPolling();
@@ -222,7 +222,7 @@ export function useScoring(): UseScoringReturn {
         };
         setProgress(initialProgress);
 
-        // sessionStorage'a kaydet — F5 sonrasına persist
+        // Save to sessionStorage — persist across F5
         const startedAt = Date.now();
         saveScoringSession({
           userId,

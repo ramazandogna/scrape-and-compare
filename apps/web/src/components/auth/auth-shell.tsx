@@ -5,19 +5,19 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 // ═══════════════════════════════════════════
-// AuthShell — sign-in / sign-up / forgot-password için ortak iki sütunlu layout
+// AuthShell — shared two-column layout for sign-in / sign-up / forgot-password
 // ═══════════════════════════════════════════
-// Sol: marka + 2 stat tile + 2 görsel (sm+ ekranda)
-// Sağ: form children
-// Site paletiyle uyumlu (violet/fuchsia + emerald/amber accent).
+// Left: brand + 2 stat tiles + 2 visuals (on sm+ screens)
+// Right: form children
+// Aligned with the site palette (violet/fuchsia + emerald/amber accent).
 
 interface AuthShellProps {
-  /** Sağ panelin başlığı + açıklaması */
+  /** Heading + description for the right panel */
   heading: ReactNode;
   description: ReactNode;
   /** Form */
   children: ReactNode;
-  /** Header'ın alt sağ köşesinde "Hesabın yok mu? Kaydol" gibi link */
+  /** Link in the bottom-right of the header, e.g. "Don't have an account? Sign up" */
   topRight?: ReactNode;
 }
 
@@ -42,10 +42,10 @@ export function AuthShell({
             "lg:grid-cols-[1.1fr_1fr]",
           )}
         >
-          {/* SOL — marka kolajı (sm- ekranda gizli) */}
+          {/* LEFT — brand collage (hidden on sm- screens) */}
           <BrandPanel />
 
-          {/* SAĞ — form */}
+          {/* RIGHT — form */}
           <div className="flex flex-col gap-6 p-7 sm:p-10">
             {topRight && (
               <div className="flex items-center justify-end text-xs text-muted-foreground">

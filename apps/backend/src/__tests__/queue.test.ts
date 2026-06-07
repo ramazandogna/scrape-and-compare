@@ -1,17 +1,17 @@
 /**
- * Queue Tests — BullMQ entegrasyonunun birim testleri.
+ * Queue Tests — unit tests for the BullMQ integration.
  *
- * Neyi test ediyoruz?
- *   1. ScraperProcessor.process() → ScraperService.runFastScrape() çağırıyor mu
- *   2. Başarılı job → ScrapeJobCompleted dönüyor mu
- *   3. Başarısız job → hata fırlatıyor mu (BullMQ FAILED olarak işaretler)
- *   4. Progress reporting → job.updateProgress() çağrılıyor mu
- *   5. extractProgress() → güvenli progress extraction
+ * What do we test?
+ *   1. Does ScraperProcessor.process() call ScraperService.runFastScrape()
+ *   2. Does a successful job return ScrapeJobCompleted
+ *   3. Does a failed job throw (BullMQ marks it FAILED)
+ *   4. Progress reporting → is job.updateProgress() called
+ *   5. extractProgress() → safe progress extraction
  *
- * Neden mock?
- *   - Gerçek Redis bağlantısı gerekmez (unit test)
- *   - ScraperService mock'lanır — browser açmadan test edilir
- *   - Job nesnesi mock'lanır — Redis'e bağlanmadan BullMQ davranışı test edilir
+ * Why mock?
+ *   - No real Redis connection is needed (unit test)
+ *   - ScraperService is mocked — tested without launching a browser
+ *   - Job object is mocked — BullMQ behavior tested without hitting Redis
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -21,7 +21,7 @@ import type { ScrapeJobData, ScrapeJobCompleted, ScrapeJobProgress } from '@scra
 // MOCK SETUP
 // ═══════════════════════════════════════════
 
-/** Mock ScrapeJobCompleted sonucu — başarılı scrape */
+/** Mock ScrapeJobCompleted result — successful scrape */
 const MOCK_COMPLETED: ScrapeJobCompleted = {
   status: 'completed',
   targetNewJobs: 50,
@@ -36,17 +36,17 @@ const MOCK_COMPLETED: ScrapeJobCompleted = {
   auditId: 'audit-test-123',
 };
 
-/** Mock ScrapeJobData payload'ı */
+/** Mock ScrapeJobData payload */
 const MOCK_JOB_DATA: ScrapeJobData = {
   keywords: ['Frontend Developer', 'React Developer'],
   location: 'Istanbul',
 };
 
 /**
- * Mock Job nesnesi — BullMQ'nun Job<ScrapeJobData, ScrapeJobResult> yerine geçer.
+ * Mock Job object — stands in for BullMQ's Job<ScrapeJobData, ScrapeJobResult>.
  *
- * Neden tip olarak tanımlamak yerine factory kullanıyoruz?
- * Her test kendi bağımsız mock'unu almalı — state paylaşımı test izolasyonunu bozar.
+ * Why a factory instead of a type definition?
+ * Every test should get its own independent mock — shared state breaks isolation.
  */
 const createMockJob = (overrides?: Partial<{ data: ScrapeJobData; id: string }>) => ({
   id: overrides?.id ?? 'test-job-1',
@@ -61,12 +61,12 @@ const createMockJob = (overrides?: Partial<{ data: ScrapeJobData; id: string }>)
 
 describe('ScraperProcessor.process()', () => {
   /**
-   * Process metodunu izole test etmek için ScraperService'i mock'luyoruz.
-   * Processor'ın tek işi: job.data → scraperService.runFastScrape(job.data)
+   * Mock ScraperService to test the process method in isolation.
+   * The Processor's only job: job.data → scraperService.runFastScrape(job.data)
    */
   const mockRunFastScrape = vi.fn();
 
-  /** Processor instance'ı — her testte taze mock ile oluşturulur */
+  /** Processor instance — built with a fresh mock for each test */
   let processMethod: (job: ReturnType<typeof createMockJob>) => Promise<unknown>;
 
   beforeEach(() => {
@@ -74,11 +74,11 @@ describe('ScraperProcessor.process()', () => {
     mockRunFastScrape.mockResolvedValue(MOCK_COMPLETED);
 
     /**
-     * Processor'ın process() mantığını inline olarak test ediyoruz.
+     * Test the Processor's process() logic inline.
      *
-     * Neden doğrudan ScraperProcessor import etmiyoruz?
-     * @Processor decorator'ı NestJS DI + Redis bağlantısı gerektirir.
-     * Unit test'te bunu istemiyoruz — sadece iş mantığını test ediyoruz.
+     * Why not import ScraperProcessor directly?
+     * The @Processor decorator requires NestJS DI + a Redis connection.
+     * We don't want that in a unit test — we test only the business logic.
      */
     processMethod = async (job: ReturnType<typeof createMockJob>) => {
       const { keywords, location } = job.data;
@@ -132,12 +132,12 @@ describe('ScraperProcessor.process()', () => {
 
     expect(job.updateProgress).toHaveBeenCalledTimes(2);
 
-    // İlk çağrı: SCANNING, %0
+    // First call: SCANNING, 0%
     const firstProgress = job.updateProgress.mock.calls[0]?.[0] as ScrapeJobProgress;
     expect(firstProgress.phase).toBe('SCANNING');
     expect(firstProgress.percentage).toBe(0);
 
-    // Son çağrı: EXTRACTING, %100
+    // Last call: EXTRACTING, 100%
     const lastProgress = job.updateProgress.mock.calls[1]?.[0] as ScrapeJobProgress;
     expect(lastProgress.phase).toBe('EXTRACTING');
     expect(lastProgress.percentage).toBe(100);
@@ -158,10 +158,10 @@ describe('ScraperProcessor.process()', () => {
 
 describe('extractProgress()', () => {
   /**
-   * Controller'daki extractProgress() helper'ı — job.progress güvenli extraction.
+   * The extractProgress() helper from the controller — safe job.progress extraction.
    *
-   * BullMQ'da progress herhangi bir değer olabilir (number, object, undefined).
-   * Biz ScrapeJobProgress bekleriz ama defensive programlama şart.
+   * In BullMQ progress can be any value (number, object, undefined).
+   * We expect ScrapeJobProgress but defensive programming is essential.
    */
   const extractProgress = (progress: unknown): ScrapeJobProgress | null => {
     if (
@@ -217,7 +217,7 @@ describe('Queue Payload Types', () => {
 
     expect(data.keywords).toHaveLength(1);
     expect(data.location).toBe('Istanbul');
-    expect(data.config).toBeUndefined(); // opsiyonel
+    expect(data.config).toBeUndefined(); // optional
   });
 
   it('ScrapeJobData opsiyonel config override', () => {
@@ -249,7 +249,7 @@ describe('Queue Payload Types', () => {
       auditId: 'audit-abc',
     };
 
-    // Discriminated union: status alanı tip güvenliğini garanti eder
+    // Discriminated union: the status field guarantees type safety
     expect(result.status).toBe('completed');
     expect(result.totalJobs).toBeGreaterThanOrEqual(result.created + result.updated);
   });

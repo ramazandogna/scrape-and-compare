@@ -1,30 +1,30 @@
 /**
- * Gemini Service Tests — GeminiService birim testleri.
+ * Gemini Service Tests — GeminiService unit tests.
  *
- * Neyi test ediyoruz?
- *   1. extractJSON() — markdown fence temizleme
- *   2. parseAndValidate() — JSON parse + Zod doğrulama
- *   3. Zod validation hatasında retry (exhaustion sonrası son hata dönüşü)
- *   4. Boş yanıt → EMPTY_RESPONSE hatası
- *   5. Geçersiz JSON → PARSE_ERROR hatası
+ * What do we test?
+ *   1. extractJSON() — markdown fence stripping
+ *   2. parseAndValidate() — JSON parse + Zod validation
+ *   3. Retry on Zod validation failure (returns the last error after exhaustion)
+ *   4. Empty response → EMPTY_RESPONSE error
+ *   5. Invalid JSON → PARSE_ERROR error
  *
- * Neden Gemini API'yi gerçekten çağırmıyoruz?
- *   - Unit test = dış bağımlılık yok
- *   - API key gerektirmez, offline çalışır
- *   - Rate limit/maliyet yok
- *   - Deterministic — aynı input → aynı output
+ * Why don't we hit the real Gemini API?
+ *   - Unit test = no external dependencies
+ *   - No API key needed, works offline
+ *   - No rate limits or cost
+ *   - Deterministic — same input → same output
  */
 
 import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
 
 // ═══════════════════════════════════════════
-// extractJSON — markdown fence temizleme
+// extractJSON — markdown fence stripping
 // ═══════════════════════════════════════════
 
 /**
- * GeminiService.extractJSON() — private metodu inline test ediyoruz.
- * Aynı implementasyon gemini.service.ts'teki ile birebir aynı.
+ * GeminiService.extractJSON() — private method tested inline.
+ * Same implementation as in gemini.service.ts, character for character.
  */
 function extractJSON(text: string): string {
   const fenceMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
@@ -81,10 +81,10 @@ describe('extractJSON()', () => {
 });
 
 // ═══════════════════════════════════════════
-// parseAndValidate mantığı
+// parseAndValidate logic
 // ═══════════════════════════════════════════
 
-/** Basit test şeması */
+/** Simple test schema */
 const testSchema = z.object({
   score: z.number().min(0).max(100),
   explanation: z.string().min(5),
@@ -93,8 +93,8 @@ const testSchema = z.object({
 type TestData = z.infer<typeof testSchema>;
 
 /**
- * GeminiService.parseAndValidate() inline implementasyonu.
- * JSON parse + Zod doğrulama mantığını test ediyoruz.
+ * Inline implementation of GeminiService.parseAndValidate().
+ * Tests the JSON parse + Zod validation logic.
  */
 function parseAndValidate<T>(
   rawText: string,
@@ -206,15 +206,15 @@ describe('parseAndValidate()', () => {
 });
 
 // ═══════════════════════════════════════════
-// RETRY MANTIK TESTLERİ
+// RETRY LOGIC TESTS
 // ═══════════════════════════════════════════
 
 describe('generateJSON retry mantığı', () => {
   const MAX_RETRIES = 2;
 
   /**
-   * Retry mantığını simüle eden fonksiyon.
-   * attemptFn her çağrıda GeminiResult döner.
+   * Function that simulates retry behavior.
+   * attemptFn returns a GeminiResult on each invocation.
    */
   async function generateJSONWithRetry<T>(
     attemptFn: (attempt: number) => { status: 'success'; data: T } | { status: 'error'; error: { code: string; message: string } },

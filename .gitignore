@@ -9,7 +9,7 @@ dist/
 .env
 .env.local
 
-# Scrape outputs (büyük dosyalar)
+# Scrape outputs (large files)
 output/
 
 # OS files
@@ -29,3 +29,7 @@ packages/database/src/generated/
 
 # Docker volumes
 pgdata/
+
+# Large media (exceeds GitHub 100MB limit)
+*.mov
+*.mp4

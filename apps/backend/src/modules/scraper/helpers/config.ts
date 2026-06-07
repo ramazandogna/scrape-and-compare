@@ -1,11 +1,11 @@
 /**
- * Scraper Configuration — .env'den config yükleme ve yardımcı fonksiyonlar.
+ * Scraper Configuration — config loading from .env and helper functions.
  *
- * ScraperConfig (shared paketten) temel alanları tanımlar.
- * FastScraperConfig bunu extend eder ve parallelTabs ekler.
+ * ScraperConfig (from the shared package) defines the base fields.
+ * FastScraperConfig extends it and adds parallelTabs.
  *
- * Tüm config değerleri .env'den okunur, güvenli default'lar sağlanır.
- * Adaptive delay: keyword sayısı > 2 ise gecikme 1.5x artar.
+ * All config values are read from .env with safe defaults.
+ * Adaptive delay: if keyword count > 2, the delay is multiplied by 1.5x.
  */
 
 import type { JobListing, ScraperConfig } from '@scrape/shared';
@@ -18,12 +18,12 @@ import { parseSalary, extractSalaryFromDescription } from '@/extractors/salary.p
 
 export interface FastScraperConfig extends ScraperConfig {
   parallelTabs: number;
-  /** Search fazında aynı anda kaç keyword taranacak (default: 2) */
+  /** Number of keywords scanned concurrently during the search phase (default: 2) */
   searchConcurrency: number;
   /**
-   * Her keyword için hedeflenen unique ilan sayısı.
-   * LinkedIn guest API tek sayfada ~25 kart döndürdüğü için pagination
-   * yapmadan bu hedefe ulaşmak çoğu zaman mümkün değil.
+   * Target number of unique listings per keyword.
+   * Since the LinkedIn guest API returns ~25 cards per page, reaching this
+   * target without pagination is usually impossible.
    */
   targetPerKeyword: number;
 }
@@ -32,7 +32,7 @@ export interface FastScraperConfig extends ScraperConfig {
 // CONFIG LOADERS
 // ═══════════════════════════════════════════
 
-/** .env'den keyword listesini okur */
+/** Reads the keyword list from .env */
 export const loadKeywords = (): string[] => {
   const raw = process.env['KEYWORDS'];
   if (!raw || raw.trim().length === 0) {
@@ -41,21 +41,21 @@ export const loadKeywords = (): string[] => {
   return raw.split(',').map((k) => k.trim()).filter((k) => k.length > 0);
 };
 
-/** .env'den location okur */
+/** Reads location from .env */
 export const loadLocation = (): string => process.env['LOCATION']?.trim() || 'Turkey';
 
 /**
- * .env'den fast scraper config yükler.
+ * Loads the fast scraper config from .env.
  *
- * Adaptive delay mantığı:
- * - 1-2 keyword → normal gecikme
- * - 3+ keyword → 1.5x gecikme (LinkedIn rate limiting koruması)
+ * Adaptive delay logic:
+ * - 1-2 keywords → normal delay
+ * - 3+ keywords → 1.5x delay (LinkedIn rate-limit protection)
  *
- * @param keywordCount Keyword sayısı (adaptive delay hesabı için)
- * @param overrides Opsiyonel config override'ları (queue payload'dan gelir)
+ * @param keywordCount Number of keywords (for adaptive-delay calculation)
+ * @param overrides Optional config overrides (received from the queue payload)
  *
- * Öncelik sırası: override > .env > hardcoded default
- * Böylece CLI .env'den okur, Worker queue payload'dan alır.
+ * Precedence: override > .env > hardcoded default.
+ * This way the CLI reads from .env, while the Worker takes values from the queue payload.
  */
 export const loadFastConfig = (
   keywordCount: number,
@@ -65,20 +65,21 @@ export const loadFastConfig = (
   const baseDelayMax = overrides?.requestDelayMax ?? Number(process.env['REQUEST_DELAY_MAX'] ?? 1500);
   const delayMultiplier = keywordCount > 2 ? 1.5 : 1;
 
-  // Smart-target pagination — keyword başına yeni ilan hedefi.
-  // .env: TARGET_NEW_JOBS_PER_KEYWORD (yeni isim) veya TARGET_NEW_JOBS (legacy main).
+  // Smart-target pagination — target new listings per keyword.
+  // .env: TARGET_NEW_JOBS_PER_KEYWORD (new name) or TARGET_NEW_JOBS (legacy main).
   const targetPerKeyword = overrides?.targetNewJobs
     ?? Number(process.env['TARGET_NEW_JOBS_PER_KEYWORD'] ?? process.env['TARGET_NEW_JOBS'] ?? 50);
   const maxSearchPages = overrides?.maxSearchPages
     ?? Number(process.env['MAX_SEARCH_PAGES_PER_KEYWORD'] ?? process.env['MAX_SEARCH_PAGES'] ?? 5);
-  // Detay çekimi varsayılan olarak target × keyword sayısına ölçeklenir.
+  // Detail fetch scales by default to target × keyword count.
   const detailDefault = Math.max(targetPerKeyword * keywordCount, 25);
 
   return {
     headless: overrides?.headless ?? process.env['HEADLESS'] !== 'false',
     slowMo: overrides?.slowMo ?? Number(process.env['SLOW_MO'] ?? 0),
-    // maxJobsPerKeyword artık dış kontrat — pagination toplam toplama hedefini
-    // targetPerKeyword belirler, ama eski deduplicateJobs çağrıları için tutuyoruz.
+    // maxJobsPerKeyword is now an external contract — pagination's overall
+    // collection target is determined by targetPerKeyword, but we keep this for
+    // legacy deduplicateJobs callers.
     maxJobsPerKeyword: overrides?.maxJobsPerKeyword ?? Number(process.env['MAX_JOBS_PER_KEYWORD'] ?? targetPerKeyword),
     maxSearchPages,
     requestDelayMin: Math.round(baseDelayMin * delayMultiplier),
@@ -96,7 +97,7 @@ export const loadFastConfig = (
 // OUTPUT HELPERS
 // ═══════════════════════════════════════════
 
-/** Timestamp bazlı dosya adı üretir: job-YYYY-MM-DD-HH-MM.json */
+/** Generates a timestamp-based filename: job-YYYY-MM-DD-HH-MM.json */
 export const generateOutputFilename = (): string => {
   const now = new Date();
   const pad = (n: number): string => String(n).padStart(2, '0');
@@ -115,8 +116,8 @@ export const generateOutputFilename = (): string => {
 // ═══════════════════════════════════════════
 
 /**
- * Job listesine skill extraction ve salary parsing uygular.
- * Her iş ilanının description'ından skill ve maaş bilgisi çıkarılır.
+ * Applies skill extraction and salary parsing to the job list.
+ * Skill and salary info are extracted from each listing's description.
  */
 export const enrichJobsWithExtractors = (jobs: JobListing[]): JobListing[] =>
   jobs.map((job) => {
@@ -126,10 +127,10 @@ export const enrichJobsWithExtractors = (jobs: JobListing[]): JobListing[] =>
   });
 
 /**
- * Düşük kaliteli ilanları filtreler.
+ * Filters out low-quality listings.
  *
- * Kural: description YOK ve hiç main skill çıkarılamamış ilan değersizdir.
- * Bu ilanlar ne aratılabilir ne de AI tarafından puanlanabilir.
+ * Rule: a listing with NO description AND no extracted main skill is worthless.
+ * Such listings cannot be searched or scored by AI.
  */
 export const filterLowQualityJobs = (jobs: JobListing[]): JobListing[] =>
   jobs.filter(
@@ -141,8 +142,8 @@ export const filterLowQualityJobs = (jobs: JobListing[]): JobListing[] =>
 // ═══════════════════════════════════════════
 
 /**
- * Duplicate job'ları filtreler — ID ve link bazında.
- * Aynı externalId veya aynı link'e sahip ilanlar atılır.
+ * Filters duplicate jobs — by ID and link.
+ * Listings with the same externalId or the same link are discarded.
  */
 export const deduplicateJobs = (
   jobs: JobListing[],

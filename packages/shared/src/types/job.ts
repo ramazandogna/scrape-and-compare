@@ -1,87 +1,86 @@
 /**
- * Job Listing Types — İş ilanı veri modelleri.
+ * Job Listing Types — job listing data models.
  *
- * Bu tipler scraper'dan DB'ye, DB'den frontend'e kadar tüm katmanlarda kullanılır.
- * "Types ARE Documentation" prensibi: tip sistemi kodu okumak için yeterli olmalı.
+ * These types are used across all layers: from scraper to DB, from DB to frontend.
+ * "Types ARE Documentation" principle: the type system should be enough to read the code.
  */
 
 /**
- * Extracted skill — description'dan çıkarılan teknoloji/yetenek.
+ * Extracted skill — technology/skill extracted from the description.
  *
- * İki kategori var:
- * - Main: title veya requirements'da geçen (ilanın ana gereksinimleri)
- * - Side: sadece description'da geçen (nice-to-have veya ekosistem bilgisi)
+ * Two categories:
+ * - Main: appears in title or requirements (core listing requirements)
+ * - Side: appears only in description (nice-to-have or ecosystem context)
  */
 export interface ExtractedSkill {
-  /** Skill adı (ör: "React", "TypeScript") */
+  /** Skill name (e.g. "React", "TypeScript") */
   name: string;
-  /** Kategori (ör: "frontend", "backend", "devops") */
+  /** Category (e.g. "frontend", "backend", "devops") */
   category: string;
-  /** Ana skill mi? title/requirements'da geçiyorsa true */
+  /** Is this a main skill? true if it appears in title/requirements */
   isMain: boolean;
 }
 
 /**
- * Parse edilmiş maaş bilgisi — ham salary string'inden normalize edilir.
- * Tüm değerler TRY/aylık'a çevrilir.
+ * Parsed salary info — normalized from the raw salary string.
+ * All values are converted to TRY/monthly.
  */
 export interface SalaryParsed {
-  /** Minimum maaş (TRY cinsinden, aylık) */
+  /** Minimum salary (in TRY, monthly) */
   min: number | null;
-  /** Maximum maaş (TRY cinsinden, aylık) */
+  /** Maximum salary (in TRY, monthly) */
   max: number | null;
-  /** Orijinal para birimi */
+  /** Original currency */
   currency: SalaryCurrency;
-  /** Orijinal periyot */
+  /** Original period */
   period: SalaryPeriod;
-  /** Ham maaş string'i (orijinal haliyle) */
+  /** Raw salary string (as-is) */
   raw: string;
 }
 
 /**
- * LinkedIn Job Listing — Scraper'dan çıkan veri modeli.
+ * LinkedIn Job Listing — data model emitted by the scraper.
  *
- * Bu interface hem scraper output'u hem de DB'ye yazılacak
- * verinin şeklini tanımlar. Bazı alanlar (salary, description)
- * her zaman mevcut olmayabilir.
+ * This interface defines both the scraper output and the shape of the data
+ * written to the DB. Some fields (salary, description) may not always be present.
  */
 export interface JobListing {
-  /** LinkedIn'deki unique job ID (URL'den parse edilir) */
+  /** Unique LinkedIn job ID (parsed from URL) */
   id: string;
-  /** İş başlığı */
+  /** Job title */
   title: string;
-  /** Şirket adı */
+  /** Company name */
   company: string;
-  /** LinkedIn'den çıkarılan şirket logo URL'i */
+  /** Company logo URL extracted from LinkedIn */
   logoUrl: string | null;
-  /** Lokasyon */
+  /** Location */
   location: string;
-  /** Ham maaş bilgisi (LinkedIn'de her zaman gösterilmez) */
+  /** Raw salary info (not always shown on LinkedIn) */
   salary: string | null;
-  /** Parse edilmiş ve normalize edilmiş maaş bilgisi */
+  /** Parsed and normalized salary info */
   salaryParsed: SalaryParsed | null;
-  /** İş ilanının tam açıklaması */
+  /** Full job description */
   description: string | null;
-  /** Gereksinimler listesi */
+  /** Requirements list */
   requirements: string[];
-  /** Description'dan çıkarılan yetenekler/teknolojiler */
+  /** Skills/technologies extracted from the description */
   skills: ExtractedSkill[];
-  /** Seniority seviyesi */
+  /** Seniority level */
   seniorityLevel: string | null;
-  /** İstihdam tipi */
+  /** Employment type */
   employmentType: string | null;
-  /** Çalışma şekli: Remote, Hybrid, On-site */
+  /** Work mode: Remote, Hybrid, On-site */
   workType: string | null;
-  /** Doğrudan ilan linki */
+  /** Direct listing link */
   link: string;
-  /** Relative tarih ("2 days ago" gibi) */
+  /** Relative date (e.g. "2 days ago") */
   postedDate: string | null;
-  /** Scrape edildiği zaman */
+  /** Timestamp when scraped */
   scrapedAt: string;
 }
 
 /**
- * Scrape sorgusu — hangi keyword ve lokasyonla arandı
+ * Scrape query — which keyword and location were searched
  */
 export interface ScrapeQuery {
   keyword: string;
@@ -90,7 +89,7 @@ export interface ScrapeQuery {
 }
 
 /**
- * Tam scrape output'u — JSON dosyasına yazılacak format
+ * Full scrape output — format written to the JSON file
  */
 export interface ScrapeOutput {
   scrapeTimestamp: string;
@@ -104,26 +103,26 @@ export interface ScrapeOutput {
 }
 
 /**
- * Scraper konfigürasyonu — browser ve rate limit ayarları
+ * Scraper configuration — browser and rate limit settings
  */
 export interface ScraperConfig {
-  /** Tarayıcı görünür mü yoksa arka planda mı */
+  /** Whether the browser is visible or runs in the background */
   headless: boolean;
-  /** Aksiyon arası yapay gecikme (ms) */
+  /** Artificial delay between actions (ms) */
   slowMo: number;
-  /** Her keyword için max iş ilanı sayısı */
+  /** Max job listings per keyword */
   maxJobsPerKeyword: number;
-  /** Her keyword için kaç sonuç sayfası taranacağı */
+  /** How many result pages to scan per keyword */
   maxSearchPages: number;
-  /** Request arası minimum bekleme (ms) */
+  /** Minimum wait between requests (ms) */
   requestDelayMin: number;
-  /** Request arası maximum bekleme (ms) */
+  /** Maximum wait between requests (ms) */
   requestDelayMax: number;
-  /** Detay sayfası çekilsin mi */
+  /** Whether to fetch the detail page */
   fetchDetails: boolean;
-  /** Detay çekilecek max ilan sayısı */
+  /** Max listings for which to fetch details */
   maxDetailFetch: number;
-  /** Yeni ilan hedefi (başarılı scrape KPI) */
+  /** Target new listings (successful scrape KPI) */
   targetNewJobs: number;
 }
 
@@ -131,24 +130,24 @@ export interface ScraperConfig {
 // ENUMS & CONSTANTS
 // ═══════════════════════════════════════════
 
-/** Para birimi */
+/** Currency */
 export type SalaryCurrency = 'TRY' | 'USD' | 'EUR';
 
-/** Maaş periyodu */
+/** Salary period */
 export type SalaryPeriod = 'monthly' | 'yearly';
 
-/** İş ilanı kaynağı */
+/** Job listing source */
 export type JobSource = 'LINKEDIN' | 'INDEED' | 'GLASSDOOR';
 
 /**
- * Scraper State Machine — boolean flag'ler yerine açık durumlar.
- * copilot-instructions kuralı #11: "Use a rigid State Machine"
+ * Scraper State Machine — explicit states instead of boolean flags.
+ * copilot-instructions rule #11: "Use a rigid State Machine"
  */
 export type ScraperStatus = 'IDLE' | 'SCANNING' | 'EXTRACTING' | 'COMPLETED' | 'FAILED';
 
 /**
- * Legacy scraper error — mevcut scraper uyumluluğu için.
- * İleride ScraperError discriminated union'a geçilecek.
+ * Legacy scraper error — kept for compatibility with the current scraper.
+ * Will migrate to the ScraperError discriminated union later.
  */
 export type ScraperErrorLegacy =
   | { code: 'BLOCKED'; message: string; retryAfter?: number }

@@ -1,7 +1,7 @@
 /**
- * Salary Parser — Ham maaş string'lerini normalize eder.
+ * Salary Parser — normalizes raw salary strings.
  *
- * Desteklenen formatlar:
+ * Supported formats:
  * - "30.000 TL", "30,000 TL", "30000₺"
  * - "$5,000", "5.000 USD", "5000$"
  * - "€4.000", "4,000 EUR", "4000€"
@@ -9,19 +9,19 @@
  * - "yıllık 500.000₺", "yearly $60,000"
  * - LinkedIn card format: "$80,000.00/yr - $120,000.00/yr"
  *
- * Normalize:
- * - Tüm değerler TRY'ye çevrilir (statik kur)
- * - Yıllık maaşlar aylığa bölünür
+ * Normalization:
+ * - All values are converted to TRY (static rate)
+ * - Yearly salaries are divided into monthly
  */
 
 import type { SalaryParsed, SalaryCurrency, SalaryPeriod } from '@scrape/shared';
 import { EXCHANGE_RATES } from '@scrape/shared';
 
 // ═══════════════════════════════════════════
-// YARDIMCI FONKSİYONLAR
+// HELPER FUNCTIONS
 // ═══════════════════════════════════════════
 
-/** Currency sembol/kısaltma → standart currency kodu */
+/** Currency symbol/abbreviation → standard currency code */
 const detectCurrency = (text: string): SalaryCurrency => {
   const normalized = text.toUpperCase();
   if (normalized.includes('$') || normalized.includes('USD')) return 'USD';
@@ -30,7 +30,7 @@ const detectCurrency = (text: string): SalaryCurrency => {
   return 'TRY';
 };
 
-/** Yıllık mı aylık mı tespit eder */
+/** Detects whether the value is yearly or monthly */
 const detectPeriod = (text: string): SalaryPeriod | 'unknown' => {
   const lower = text.toLowerCase();
   if (
@@ -48,14 +48,14 @@ const detectPeriod = (text: string): SalaryPeriod | 'unknown' => {
   ) {
     return 'monthly';
   }
-  // Açık belirtilmemişse → "unknown" olarak döner, heuristic ile belirlenir
+  // If not explicitly stated → returns "unknown", determined heuristically
   return 'unknown';
 };
 
 /**
- * Maaş miktarına göre yıllık/aylık tahmini yapar.
- * Açıkça belirtilmemişse (unknown), büyük değerler yıllık kabul edilir.
- * TRY: 100.000+ → yıllık, USD/EUR: 10.000+ → yıllık
+ * Infers yearly/monthly based on the salary amount.
+ * When not explicitly stated (unknown), large values are treated as yearly.
+ * TRY: 100,000+ → yearly, USD/EUR: 10,000+ → yearly
  */
 const inferPeriod = (
   value: number,
@@ -68,7 +68,7 @@ const inferPeriod = (
 };
 
 /**
- * Sayı string'ini temizler ve number'a çevirir.
+ * Cleans a number string and converts to a number.
  * "30.000" → 30000, "30,000" → 30000, "50K" → 50000
  */
 const parseNumber = (numStr: string): number | null => {
@@ -93,7 +93,7 @@ const parseNumber = (numStr: string): number | null => {
   return Number.isNaN(num) ? null : num;
 };
 
-/** Maaş değerini aylık TRY'ye normalize eder */
+/** Normalizes the salary value to monthly TRY */
 const normalizeToMonthlyTRY = (
   value: number,
   currency: SalaryCurrency,
@@ -105,10 +105,10 @@ const normalizeToMonthlyTRY = (
 };
 
 // ═══════════════════════════════════════════
-// ANA PARSER
+// MAIN PARSER
 // ═══════════════════════════════════════════
 
-/** Salary regex pattern'leri — sıralama önemli (spesifik → genel) */
+/** Salary regex patterns — order matters (specific → general) */
 const SALARY_PATTERNS: RegExp[] = [
   /[$€₺]?\s*([\d.,]+)\s*(?:\/\w+)?\s*[-–—]\s*[$€₺]?\s*([\d.,]+)\s*(?:\/\w+)?/,
   /([\d.,]+[kK]?)\s*[-–—]\s*([\d.,]+[kK]?)\s*(?:TL|₺|TRY|USD|\$|EUR|€)/,
@@ -118,10 +118,10 @@ const SALARY_PATTERNS: RegExp[] = [
 ];
 
 /**
- * Ham maaş string'ini parse eder ve normalize eder.
+ * Parses and normalizes a raw salary string.
  *
- * @param rawSalary LinkedIn'den gelen ham maaş string'i
- * @returns Parse edilmiş maaş bilgisi veya null
+ * @param rawSalary Raw salary string from LinkedIn
+ * @returns Parsed salary info or null
  */
 export const parseSalary = (rawSalary: string | null): SalaryParsed | null => {
   if (!rawSalary || rawSalary.trim().length === 0) return null;
@@ -143,7 +143,7 @@ export const parseSalary = (rawSalary: string | null): SalaryParsed | null => {
 
     if (minRaw !== null && minRaw < 100) continue;
 
-    // Heuristic: açık period yoksa, miktara göre yıllık/aylık tahmin et
+    // Heuristic: when no explicit period, infer yearly/monthly from the amount
     const referenceValue = maxRaw ?? minRaw;
     const period = referenceValue !== null
       ? inferPeriod(referenceValue, currency, detectedPeriod)
@@ -159,10 +159,10 @@ export const parseSalary = (rawSalary: string | null): SalaryParsed | null => {
 };
 
 /**
- * Description metninden maaş bilgisi çıkarmaya çalışır.
+ * Attempts to extract salary information from a description text.
  *
- * @param description Job açıklaması
- * @returns Parse edilmiş maaş veya null
+ * @param description Job description
+ * @returns Parsed salary or null
  */
 export const extractSalaryFromDescription = (description: string | null): SalaryParsed | null => {
   if (!description) return null;

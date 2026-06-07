@@ -1,25 +1,25 @@
 /**
  * @scrape/database — Prisma Client re-export
  *
- * Bu dosya Prisma'nın generate ettiği client'ı dışarıya verir.
- * Kullanım: import { PrismaClient } from '@scrape/database';
+ * This file exposes the Prisma-generated client to consumers.
+ * Usage: import { PrismaClient } from '@scrape/database';
  *
- * Neden wrap ediyoruz? Prisma Client'ı doğrudan @prisma/client'tan
- * import etmek yerine bu paketten geçiriyoruz çünkü:
- * 1. Tek import noktası — prisma schema değişince sadece bu paketi rebuild et
- * 2. İleride custom extension'lar veya middleware eklenebilir
- * 3. DB connection config tek yerde yönetilir
+ * Why wrap it? Instead of importing Prisma Client directly from
+ * @prisma/client, we route through this package because:
+ * 1. Single import surface — only rebuild this package when the schema changes
+ * 2. Custom extensions or middleware can be added later
+ * 3. DB connection config is managed in one place
  *
- * Neden './generated/prisma'? pnpm strict isolation altında
- * @prisma/client'ın .prisma/client re-export'unu VS Code TS server
- * symlink zincirinden çözemez. Explicit output ile bu sorun ortadan kalkar.
+ * Why './generated/prisma'? Under pnpm strict isolation the VS Code TS
+ * server cannot resolve @prisma/client's .prisma/client re-export through
+ * the symlink chain. An explicit output path eliminates the issue.
  */
 
 export { PrismaClient } from './generated/prisma';
 
 /**
- * Prisma'nın ürettiği enum tiplerini re-export et.
- * Backend'de Prisma enum'larını doğrudan kullanabilmek için.
+ * Re-export Prisma-generated enum types.
+ * Lets the backend consume Prisma enums directly.
  */
 export {
   SalaryCurrency,
@@ -29,15 +29,15 @@ export {
 } from './generated/prisma';
 
 /**
- * Prisma namespace re-export — input/output tipleri için.
- * Kullanım: import { Prisma } from '@scrape/database';
- *           type CreateInput = Prisma.JobListingCreateInput;
+ * Prisma namespace re-export — for input/output types.
+ * Usage: import { Prisma } from '@scrape/database';
+ *        type CreateInput = Prisma.JobListingCreateInput;
  */
 export { Prisma } from './generated/prisma';
 
 /**
- * Prisma'nın ürettiği model tiplerini re-export et.
- * Type-safe query yazmak için gerekli.
+ * Re-export Prisma-generated model types.
+ * Required for writing type-safe queries.
  */
 export type {
   User,

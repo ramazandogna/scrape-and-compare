@@ -7,11 +7,11 @@ import { useAuth } from "@/contexts/auth-context";
 // ═══════════════════════════════════════════
 // AuthGate — global route protection
 // ═══════════════════════════════════════════
-// Layout'ta children'ı sarar. PUBLIC_ROUTES auth gerektirmez; diğer her yerde
-// status === "unauthenticated" ise /sign-in'e yönlendirir.
-// "checking" sırasında küçük bir nötr ekran gösteririz; flash'ı engeller.
+// Wraps children in the layout. PUBLIC_ROUTES require no auth; everywhere else,
+// if status === "unauthenticated", redirects to /sign-in.
+// During "checking" we render a small neutral screen to prevent a flash.
 
-// Auth gerektirmeyen yollar — landing ("/") ve auth ekranları.
+// Routes that don't require auth — landing ("/") and auth screens.
 const PUBLIC_ROUTES = new Set<string>([
   "/",
   "/sign-in",
@@ -19,8 +19,8 @@ const PUBLIC_ROUTES = new Set<string>([
   "/forgot-password",
   "/reset-password",
 ]);
-// Authenticated kullanıcı buralara giderse /dashboard'a yönlendirilir
-// (giriş yapmış birinin tekrar login ekranına gitmesinin anlamı yok).
+// Authenticated users hitting these routes are redirected to /dashboard
+// (no point sending a logged-in user back to the login screen).
 const REDIRECT_AUTHED_AWAY = new Set<string>([
   "/sign-in",
   "/sign-up",
@@ -50,15 +50,15 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     }
   }, [status, isPublic, isAuthRoute, pathname, router]);
 
-  // Auth route'ları (sign-in/up/forgot/reset): authed user oraya gelirse
-  // form'u FLASH ettirmemek için checking + authenticated durumlarında null
-  // döndür; sadece kesinleşmiş "unauthenticated" iken formu render et.
+  // Auth routes (sign-in/up/forgot/reset): if an authed user lands here,
+  // return null in checking + authenticated states to avoid FLASHing the form;
+  // only render the form when status is definitively "unauthenticated".
   if (isAuthRoute) {
     if (status === "checking" || status === "authenticated") return null;
     return <>{children}</>;
   }
 
-  // Diğer public sayfalar (landing /) — checking sırasında render edilebilir.
+  // Other public pages (landing /) — safe to render during checking.
   if (isPublic) return <>{children}</>;
 
   if (status === "checking") {

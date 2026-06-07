@@ -1,16 +1,16 @@
 /**
- * LinkedIn DOM Parsers — Search ve Detail sayfalarından veri çıkarma.
+ * LinkedIn DOM Parsers — extracts data from Search and Detail pages.
  *
- * İki ana parsing stratejisi:
- * 1. Search Page: Job card'larını listeden toplu parse eder.
- * 2. Detail Page: Tek bir ilanın açıklama, gereksinim, seviye bilgisini çeker.
+ * Two main parsing strategies:
+ * 1. Search Page: bulk-parses job cards from the list.
+ * 2. Detail Page: pulls description, requirements, and level info for a single listing.
  *
- * Her iki parser da page.evaluate() ile BROWSER CONTEXT'inde çalışır.
- * Bu demektir ki: Node.js import'ları, console.log, vs. kullanılamaz.
- * Sadece vanilla DOM API'leri geçerlidir (querySelector, textContent, vb.)
+ * Both parsers run inside page.evaluate() — i.e. in the BROWSER CONTEXT.
+ * This means: no Node.js imports, console.log, etc. are usable.
+ * Only vanilla DOM APIs are available (querySelector, textContent, etc.).
  *
- * Paralel Batch Fetch: Detail sayfalarını N tab ile eşzamanlı çeker.
- * Cooldown stratejisi: Üst üste hatalı batch'lerde otomatik mola.
+ * Parallel Batch Fetch: pulls detail pages concurrently using N tabs.
+ * Cooldown strategy: automatic pause on repeatedly failing batches.
  */
 
 import type { Page } from 'playwright';
@@ -24,8 +24,8 @@ import { sleep, randomBetween, logger } from '@/utils/helpers';
 // ═══════════════════════════════════════════
 
 /**
- * LinkedIn search URL'i oluşturur. `start` parametresi pagination için kullanılır
- * (LinkedIn guest API her sayfada ~25 kart döner; start=0, 25, 50, ... ilerler).
+ * Builds a LinkedIn search URL. The `start` parameter is used for pagination
+ * (the LinkedIn guest API returns ~25 cards per page; start=0, 25, 50, ...).
  */
 export const buildSearchUrl = (
   keyword: string,
@@ -41,10 +41,10 @@ export const buildSearchUrl = (
 };
 
 /**
- * Search sayfasından job card'larını parse eder.
- * Resource blocking aktif olmalı — sayfa ~500ms'de yüklenir.
+ * Parses job cards from the search page.
+ * Resource blocking must be enabled — the page loads in ~500ms.
  *
- * @param start LinkedIn pagination offset'i (0, 25, 50, ...)
+ * @param start LinkedIn pagination offset (0, 25, 50, ...)
  */
 export const fastParseSearchPage = async (
   page: Page,
@@ -77,7 +77,7 @@ export const fastParseSearchPage = async (
   return jobs;
 };
 
-/** Captcha veya AuthWall kontrolü */
+/** Captcha or AuthWall check */
 export const isPageBlocked = async (page: Page): Promise<boolean> =>
   page.evaluate(() => {
     const body = (document.body.textContent ?? '').toLowerCase();
@@ -90,11 +90,11 @@ export const isPageBlocked = async (page: Page): Promise<boolean> =>
   });
 
 /**
- * DOM'dan job card'larını parse eder — page.evaluate içinde çalışır.
- * Bu fonksiyon browser context'inde (Chromium V8) çalışır, Node.js'te değil.
+ * Parses job cards from the DOM — runs inside page.evaluate.
+ * This function runs in the browser context (Chromium V8), not in Node.js.
  *
- * Resilient selector stratejisi: Her eleman için 3-4 CSS selector denenir.
- * LinkedIn sık sık class name değiştirir — fallback'ler bizi korur.
+ * Resilient selector strategy: 3-4 CSS selectors are tried for each element.
+ * LinkedIn frequently changes class names — fallbacks protect us.
  */
 const parseJobCardsFromDom = (scrapedAt: string): JobListing[] => {
   const results: JobListing[] = [];
@@ -109,12 +109,12 @@ const parseJobCardsFromDom = (scrapedAt: string): JobListing[] => {
   };
 
   const readCardLogo = (card: Element): string | null => {
-    // Tracking pixel ve emoji/avatar gibi gürültüyü ele.
+    // Filter out noise such as tracking pixels and emoji/avatar images.
     const isUsableImage = (url: string): boolean => {
       const lower = url.toLowerCase();
       if (lower.includes('ghost-person') || lower.includes('default-anonymous')) return false;
       if (lower.includes('emoji') || lower.includes('static.licdn.com/aero-v1')) return false;
-      // licdn.com domeni veya company-logo path'i = LinkedIn şirket logosu
+      // licdn.com domain or company-logo path = LinkedIn company logo
       return (
         lower.includes('licdn.com') ||
         lower.includes('company-logo') ||
@@ -218,7 +218,7 @@ const parseJobCardsFromDom = (scrapedAt: string): JobListing[] => {
         scrapedAt,
       });
     } catch {
-      // Tek card hata verirse diğerlerine devam
+      // If a single card errors, continue with the rest
     }
   });
 
@@ -230,20 +230,20 @@ const parseJobCardsFromDom = (scrapedAt: string): JobListing[] => {
 // ═══════════════════════════════════════════
 
 /**
- * Aynı keyword için ~50 yeni ilana ulaşana kadar peş peşe sayfa gezer.
+ * Walks consecutive pages for the same keyword until ~50 new listings are gathered.
  *
- * LinkedIn guest API'sinde her sayfa ~25 kart döner. Tek sayfa çoğunlukla
- * dedup + zaman filtresi (r604800) sonrası 5-10 ilana düşebiliyor —
- * bu yüzden hedefe ulaşana kadar `start` offset'ini artırarak ilerliyoruz.
+ * Each page in the LinkedIn guest API returns ~25 cards. A single page can drop to
+ * 5–10 listings after dedup + time filter (r604800) — so we keep advancing the
+ * `start` offset until the target is hit.
  *
- * Durma koşulları (önce hangisi olursa o kazanır):
- *   1. Toplanan unique ilan sayısı >= target
- *   2. maxPages tüketildi
- *   3. Sayfa hiç kart döndürmedi (LinkedIn'de bu keyword için sonuç bitti)
- *   4. Sayfa block/captcha gösterdi
+ * Stopping conditions (first one wins):
+ *   1. Collected unique listings >= target
+ *   2. maxPages exhausted
+ *   3. Page returned no cards (LinkedIn has run out of results for this keyword)
+ *   4. Page showed a block/captcha
  *
- * Dedup, çağıran taraftan paylaşılan `seenIds`/`seenLinks` set'leri ile yapılır.
- * Bu sayede aynı job birden fazla keyword tarafından bulunduğunda sayılmaz.
+ * Dedup is performed using `seenIds`/`seenLinks` sets shared by the caller.
+ * This way a job found by multiple keywords is not counted twice.
  */
 export const paginatedSearchScan = async (
   page: Page,
@@ -265,8 +265,8 @@ export const paginatedSearchScan = async (
     pagesScanned++;
 
     if (pageJobs.length === 0) {
-      // İlk sayfada sıfır → büyük ihtimalle blocklu/captcha; sonraki sayfada
-      // tekrar yapay sonuç dönmesini bekleyemeyiz, döngüyü kır.
+      // Zero on the first page → likely block/captcha; we cannot expect
+      // the next page to suddenly produce results, so break the loop.
       if (pageIndex === 0) blocked = true;
       else exhausted = true;
       break;
@@ -295,8 +295,8 @@ export const paginatedSearchScan = async (
 
     if (collected.length >= options.target) break;
     if (newOnThisPage === 0 && pageIndex >= 1) {
-      // Yeni dedupe edilmiş ilan üretmedi → büyük ihtimalle aynı sayfayı
-      // gösteriyor (LinkedIn pagination'ı bazen tekrar ediyor). Vakit kaybetme.
+      // Produced no newly deduped listings → likely showing the same page
+      // (LinkedIn pagination sometimes repeats). Do not waste time.
       exhausted = true;
       break;
     }
@@ -307,13 +307,13 @@ export const paginatedSearchScan = async (
 };
 
 export interface PaginatedSearchOptions {
-  /** Bu keyword için hedeflenen unique ilan sayısı (örn 50). */
+  /** Target unique-listing count for this keyword (e.g. 50). */
   target: number;
-  /** Maksimum sayfa sayısı (LinkedIn'i çok zorlamamak için). */
+  /** Maximum page count (to avoid hammering LinkedIn). */
   maxPages: number;
-  /** LinkedIn pagination adımı — guest API'de 25. */
+  /** LinkedIn pagination step — 25 in the guest API. */
   startStep?: number;
-  /** Her sayfa parse edildiğinde ilerleme için tetiklenir. */
+  /** Fires after each page is parsed for progress reporting. */
   onPageFetched?: (event: PaginatedSearchPageEvent) => void;
 }
 
@@ -339,11 +339,11 @@ export interface PaginatedSearchOutcome {
 // ═══════════════════════════════════════════
 
 /**
- * Tek bir job'un detail sayfasını parse eder — adaptive retry mekanizmalı.
+ * Parses a single job's detail page — with adaptive retry mechanism.
  *
- * Eski davranış: Sabit 3s/6s backoff, her hata aynı muamele.
- * Yeni davranış: HTTP status ve hata mesajı ScraperError'a sınıflandırılır,
- * her error tipi kendi base delay × exponential + jitter ile beklenir.
+ * Old behavior: fixed 3s/6s backoff, every error treated the same.
+ * New behavior: HTTP status and error message are classified into a ScraperError,
+ * each error type waits its own base delay × exponential + jitter.
  */
 export const fastParseDetailPage = async (
   page: Page,
@@ -407,8 +407,8 @@ export const fastParseDetailPage = async (
 };
 
 /**
- * Detail sayfasından DOM verisi çeker — browser context'inde çalışır.
- * LinkedIn'in sık değişen class name'lerine karşı multiple selector stratejisi.
+ * Extracts DOM data from the detail page — runs in the browser context.
+ * Multi-selector strategy to survive LinkedIn's frequently changing class names.
  */
 const parseDetailFromDom = () => {
   const descSelectors = [
@@ -455,9 +455,9 @@ const parseDetailFromDom = () => {
     if (header.includes('workplace') || header.includes('work type') || header.includes('location type')) workType = value || null;
   });
 
-  // ── Fallback: Description'dan seniority çıkarma ──
-  // LinkedIn'de bazı ilanlarda criteria bölümü boş olabiliyor.
-  // İlan açıklamasında "senior", "junior", "lead" geçiyorsa yakala.
+  // ── Fallback: extract seniority from description ──
+  // On LinkedIn the criteria section can be empty for some listings.
+  // If the description mentions "senior", "junior", "lead", catch it.
   if (!seniorityLevel && description) {
     const descLower = description.toLowerCase();
     if (/\b(senior|sr\.?|kıdemli)\b/i.test(descLower)) seniorityLevel = 'Senior';
@@ -467,8 +467,8 @@ const parseDetailFromDom = () => {
     else if (/\b(intern|stajyer)\b/i.test(descLower)) seniorityLevel = 'Internship';
   }
 
-  // ── Fallback: Description'dan workType çıkarma ──
-  // "Hibrit", "remote", "uzaktan" gibi terimler açıklamada geçebilir.
+  // ── Fallback: extract workType from description ──
+  // Terms like "Hibrit", "remote", "uzaktan" may appear in the description.
   if (!workType && description) {
     const descLower = description.toLowerCase();
     if (/\b(hibrit|hybrid)\b/i.test(descLower)) workType = 'Hybrid';
@@ -476,7 +476,7 @@ const parseDetailFromDom = () => {
     else if (/\b(ofiste|on[\s-]?site|yerinde)\b/i.test(descLower)) workType = 'On-site';
   }
 
-  // ── Fallback: Description'dan employmentType çıkarma ──
+  // ── Fallback: extract employmentType from description ──
   if (!employmentType && description) {
     const descLower = description.toLowerCase();
     if (/\b(part[\s-]?time|yarı[\s-]?zamanlı)\b/i.test(descLower)) employmentType = 'Part-time';
@@ -532,14 +532,14 @@ const parseDetailFromDom = () => {
 };
 
 // ═══════════════════════════════════════════
-// PARALEL BATCH FETCH
+// PARALLEL BATCH FETCH
 // ═══════════════════════════════════════════
 
 /**
- * Job detail'larını batch + paralel tab ile çeker.
+ * Fetches job details in batches across parallel tabs.
  *
- * Strateji: N tab → batch'e böl → her batch paralel → cooldown kontrolü.
- * Üst üste %60+ hatalı batch olursa 8sn mola verir (LinkedIn koruması).
+ * Strategy: N tabs → split into batches → each batch in parallel → cooldown check.
+ * If 60%+ of a batch fails repeatedly, pauses for 8s (LinkedIn protection).
  */
 export const parallelFetchDetails = async (
   pool: PagePool,
@@ -625,7 +625,7 @@ export const parallelFetchDetails = async (
   return enriched;
 };
 
-/** Job index'lerini batch'lere böler */
+/** Splits job indices into batches */
 const buildBatches = (totalJobs: number, batchSize: number): number[][] => {
   const batches: number[][] = [];
   for (let i = 0; i < totalJobs; i += batchSize) {

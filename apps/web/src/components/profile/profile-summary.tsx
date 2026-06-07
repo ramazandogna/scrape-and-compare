@@ -6,8 +6,8 @@ interface ProfileSummaryProps {
   user: UserDto;
 }
 
-// Header'sız, kompakt 4-grid stat kartı.
-// Her stat: ikon + sayı + label. Site CTA paletiyle uyumlu accent renkleri.
+// Compact 4-grid stat card without a header.
+// Each stat: icon + number + label. Accent colors match the site CTA palette.
 
 const STATS_DEF = [
   {

@@ -1,12 +1,12 @@
 /**
  * Scraper Error Types — Discriminated Union Pattern
  *
- * Her hata kendi zorunlu alanlarıyla gelir. `any` yasak.
- * TypeScript compile-time'da hangi alanların mevcut olduğunu bilir:
+ * Each error carries its own required fields. `any` is forbidden.
+ * TypeScript knows at compile-time which fields are present:
  *
  * @example
  * if (error.code === 'CLOUDFLARE_BLOCKED') {
- *   // TypeScript burada `retryAfter` alanının var olduğunu BİLİR
+ *   // TypeScript KNOWS `retryAfter` exists here
  *   console.log(error.retryAfter);
  * }
  */
@@ -19,7 +19,7 @@ export type ScraperError =
   | { code: 'RATE_LIMITED'; resetAt: Date };
 
 /**
- * Parser Error Types — CV/LLM parse hataları
+ * Parser Error Types — CV/LLM parse errors
  */
 export type ParserError =
   | { code: 'INVALID_CV_FORMAT'; format: string }
@@ -28,7 +28,7 @@ export type ParserError =
   | { code: 'VALIDATION_FAILED'; zodError: string };
 
 /**
- * Matcher Error Types — Eşleştirme hataları
+ * Matcher Error Types — Matching errors
  */
 export type MatcherError =
   | { code: 'INVALID_USER_PROFILE'; reason: string }

@@ -1,20 +1,20 @@
 /**
  * Matcher Controller — AI Scoring REST API.
  *
- * Endpoint'ler:
- *   POST /api/matcher/score     — Bir kullanıcı için puanlama başlat (kuyruğa ekle)
- *   GET  /api/matcher/results/:userId — Eşleşme sonuçlarını listele (paginated)
+ * Endpoints:
+ *   POST /api/matcher/score     — Trigger scoring for a user (enqueue)
+ *   GET  /api/matcher/results/:userId — List match results (paginated)
  *
- * Bu dosya sadece HTTP katmanıyla ilgilenir:
- *   - Request body/query'yi al (Zod ile validate et)
- *   - MatcherService'e veya Queue'ya ilet
- *   - Sonucu JSON olarak dön
+ * This file only handles the HTTP layer:
+ *   - Read request body/query (validate with Zod)
+ *   - Forward to MatcherService or the queue
+ *   - Return the result as JSON
  *
- * Scoring neden synchronous değil?
- *   8 ilanlık batch bile ~3-5 saniye sürer (LLM çağrısı).
- *   32 ilanı sırayla puanlamak = ~20 saniye HTTP timeout riski.
- *   Bu yüzden Fire-and-Forget: queue'ya ekle, 202 dön, arka planda işle.
- *   Tıpkı ScraperController'daki pattern gibi.
+ * Why isn't scoring synchronous?
+ *   Even an 8-listing batch takes ~3-5 seconds (LLM call).
+ *   Scoring 32 listings sequentially = ~20 second HTTP timeout risk.
+ *   Hence fire-and-forget: enqueue, return 202, process in the background.
+ *   Same pattern as ScraperController.
  */
 
 import {
@@ -50,7 +50,7 @@ import { logger } from '@/utils/helpers';
 // RESPONSE TYPES
 // ═══════════════════════════════════════════
 
-/** POST /matcher/score yanıtı */
+/** POST /matcher/score response */
 interface ScoreTriggerResponse {
   message: string;
   userId: string;
@@ -60,7 +60,7 @@ interface ScoreTriggerResponse {
   batchSize: number;
 }
 
-/** GET /matcher/results/:userId yanıtı */
+/** GET /matcher/results/:userId response */
 interface MatchResultsResponse {
   data: MatchResultDto[];
   meta: {
@@ -73,7 +73,7 @@ interface MatchResultsResponse {
   };
 }
 
-/** Tek bir eşleşme sonucu DTO */
+/** Single match result DTO */
 interface MatchResultDto {
   id: string;
   score: number;
@@ -105,23 +105,23 @@ export class MatcherController implements OnModuleInit {
   ) {}
 
   /**
-   * Uygulama başlatıldığında önceki session'dan kalan stale job'ları temizler.
+   * Clears stale jobs left over from a previous session on app startup.
    *
-   * Neden gerekli?
-   *   Backend restart edildiğinde Redis'teki eski waiting/delayed job'lar
-   *   hemen işlenmeye başlıyor ama bunlar eski session'a ait stale veriler.
-   *   Kullanıcı yeni scoring başlatana kadar kuyruk temiz olmalı.
+   * Why is this needed?
+   *   When the backend restarts, old waiting/delayed jobs in Redis start
+   *   processing immediately, but they are stale data from the previous session.
+   *   The queue should be empty until the user triggers new scoring.
    */
   async onModuleInit(): Promise<void> {
     try {
-      // 1) waiting + delayed job'ları temizle
+      // 1) drain waiting + delayed jobs
       await this.matcherQueue.drain();
 
-      // 2) completed/failed job geçmişini temizle (stale telemetry birikmesin)
+      // 2) clear completed/failed job history (prevent stale telemetry buildup)
       await this.matcherQueue.clean(0, 10_000, 'completed');
       await this.matcherQueue.clean(0, 10_000, 'failed');
 
-      // 3) active job kaldıysa bu eski session kalıntısıdır; force temizle
+      // 3) any remaining active jobs are stale from the previous session; force clean
       const afterCleanCounts = await this.matcherQueue.getJobCounts();
       if ((afterCleanCounts.active ?? 0) > 0) {
         logger.warn(
@@ -129,8 +129,8 @@ export class MatcherController implements OnModuleInit {
           '[MATCHER] Stale active job bulundu — kuyruk force temizleniyor',
         );
 
-        // QueueEvents/Worker restart sonrası lock'u düşmüş active job'lar
-        // stuck/stalled event üretebilir; bu nedenle startup'ta temizliyoruz.
+        // After a QueueEvents/Worker restart, active jobs with dropped locks
+        // can emit stuck/stalled events; that's why we clean on startup.
         await this.matcherQueue.obliterate({ force: true });
       }
 
@@ -149,23 +149,23 @@ export class MatcherController implements OnModuleInit {
   }
 
   /**
-   * POST /api/matcher/score — Puanlama başlat.
+   * POST /api/matcher/score — Trigger scoring.
    *
-   * Akış:
-   *   1. userId al (Zod validate)
-   *   2. User'ı DB'den bul (yoksa 404)
-   *   3. Puanlanmamış ilanları bul
-   *   4. 8'erli batch'lere böl
-   *   5. Her batch'i BullMQ queue'ya ekle
-   *   6. 202 Accepted dön (arka planda işlenecek)
+   * Flow:
+   *   1. Read userId (Zod validate)
+   *   2. Find user in DB (404 if missing)
+   *   3. Find unscored listings
+   *   4. Split into batches of 8
+   *   5. Enqueue each batch to BullMQ
+   *   6. Return 202 Accepted (will be processed in the background)
    *
-   * HTTP 202 = "İsteğini aldım, işliyorum ama henüz bitmedi."
+   * HTTP 202 = "I received your request, I'm processing it but it isn't done yet."
    */
   @Post('score')
   @HttpCode(HttpStatus.ACCEPTED)
   async triggerScoring(
-    // Method-level @UsePipes CurrentUser objesini de zod'dan geçirir ve siler;
-    // pipe'ı param-level @Body'e bağladık.
+    // A method-level @UsePipes would also run CurrentUser through zod and strip it;
+    // we bind the pipe at the param level on @Body.
     @Body(new ZodValidationPipe(matcherScoreInputSchema)) body: MatcherScoreInput,
     @CurrentUser() authUser: AuthenticatedUser,
   ): Promise<ScoreTriggerResponse> {
@@ -201,10 +201,10 @@ export class MatcherController implements OnModuleInit {
       };
     }
 
-    // ── Re-scoring: eski sonuçları sil ──────────────────
-    // Frontend polling "toplam sonuç sayısı == toplam ilan" kontrolü yapıyor.
-    // Upsert ile eski kayıtlar güncellenir ama sayı artmaz → count zaten 85.
-    // Frontend ilk poll'da "tamamlandı" sanır. Temiz çözüm: önce sıfırla.
+    // ── Re-scoring: delete old results ──────────────────
+    // Frontend polling checks "total result count == total listings".
+    // Upsert updates existing rows but the count doesn't grow → count is already 85.
+    // The frontend would think "completed" on the first poll. Clean fix: reset first.
     const jobIds = jobsToScore.map((j) => j.id);
     const deleted = await this.prisma.matchResult.deleteMany({
       where: { userId: body.userId, jobId: { in: jobIds } },
@@ -286,10 +286,10 @@ export class MatcherController implements OnModuleInit {
   }
 
   /**
-   * GET /api/matcher/results/:userId — Eşleşme sonuçlarını listele.
+   * GET /api/matcher/results/:userId — List match results.
    *
-   * Pagination + score'a göre sıralama (en yüksek puan önce).
-   * Her sonuçla birlikte ilanın temel bilgilerini de döner (join).
+   * Pagination + ordered by score (highest first).
+   * Each result is returned with basic listing info joined.
    */
   @Get('results/:userId')
   async getResults(
@@ -358,10 +358,10 @@ export class MatcherController implements OnModuleInit {
   }
 
   /**
-   * Array'i belirtilen boyutta parçalara böler.
+   * Split an array into chunks of the given size.
    *
    * [1,2,3,4,5,6,7,8,9] → chunkArray(_, 3) → [[1,2,3], [4,5,6], [7,8,9]]
-   * Son batch boyuttan küçük olabilir: 32 ilan / 8 = 4 batch (son batch tam)
+   * The last batch may be smaller: 32 listings / 8 = 4 batches (last is full).
    */
   private chunkArray<T>(array: T[], size: number): T[][] {
     const chunks: T[][] = [];

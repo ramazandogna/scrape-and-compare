@@ -9,9 +9,9 @@ import { ProfileSummary } from "@/components/profile/profile-summary";
 import { ClearJobsButton } from "@/components/profile/clear-jobs-button";
 
 // ═══════════════════════════════════════════
-// ProfilePage — kullanıcı profili (düzenle + özet)
+// ProfilePage — user profile (edit + summary)
 // ═══════════════════════════════════════════
-// AuthGate buraya gelmeden önce login zorunlu kıldığı için user her zaman var.
+// AuthGate enforces login before reaching this point, so user is always defined.
 
 export default function ProfilePage() {
   const { user, isLoading, error, updateUser } = useUser();

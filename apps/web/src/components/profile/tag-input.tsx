@@ -58,10 +58,10 @@ export function TagInput({
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" || e.key === ",") {
-      e.preventDefault(); // form submit'i engelle
+      e.preventDefault(); // prevent form submit
       addTagsFromInput();
     }
-    // Backspace ile son tag'i sil (input boşken)
+    // Backspace removes the last tag (when input is empty)
     if (e.key === "Backspace" && !inputValue && value.length > 0) {
       removeTag(value[value.length - 1]!);
     }

@@ -24,7 +24,7 @@ export default function ForgotPasswordPage() {
       setDevToken(res.devToken);
       setSubmitted(true);
     } catch {
-      // Sessizce sumitted kabul et — email enumeration'a karşı UX güvenliği
+      // Silently accept as submitted — UX defense against email enumeration
       setSubmitted(true);
     } finally {
       setIsLoading(false);

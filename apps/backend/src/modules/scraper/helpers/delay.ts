@@ -1,22 +1,21 @@
 /**
- * Adaptive Backoff — Hata tipine duyarlı akıllı bekleme stratejisi.
+ * Adaptive Backoff — error-aware smart wait strategy.
  *
- * Neden "adaptive"?
+ * Why "adaptive"?
  * ─────────────────
- * Sabit backoff (3s → 6s) her hatayı aynı şekilde ele alır.
- * Ama LinkedIn farklı sinyaller gönderir:
+ * Fixed backoff (3s → 6s) treats every error the same.
+ * But LinkedIn sends different signals:
  *
- *   - HTTP 429 (Rate Limited) → Uzun mola gerekir (15-30s)
- *   - HTTP 403 (Blocked)      → Çok uzun mola (30-60s), belki dur
- *   - HTTP 5xx (Server Error) → Kısa mola yeter (2-5s)
- *   - Timeout                 → Orta mola (5-10s)
- *   - Context destroyed       → Sayfa çökmüş, hızlı tekrar dene (1-3s)
+ *   - HTTP 429 (Rate Limited) → long pause required (15-30s)
+ *   - HTTP 403 (Blocked)      → very long pause (30-60s), maybe stop
+ *   - HTTP 5xx (Server Error) → a short pause suffices (2-5s)
+ *   - Timeout                 → medium pause (5-10s)
+ *   - Context destroyed       → page crashed, retry quickly (1-3s)
  *
- * Ayrıca her retry'da bekleme süresi üstel (exponential) olarak artar
- * ve küçük bir jitter eklenir — böylece paralel tab'lar aynı anda
- * retry yapıp LinkedIn'i "burst" ile tetiklemez.
+ * The wait also grows exponentially with each retry, plus a small jitter —
+ * so parallel tabs do not retry simultaneously and burst LinkedIn.
  *
- * Formül:
+ * Formula:
  *   delay = baseDelay × (2 ^ retryCount) + jitter
  *   jitter = random(0, baseDelay × 0.3)
  *
@@ -27,10 +26,10 @@ import type { ScraperError } from '@scrape/shared';
 import { sleep, randomBetween, logger } from '@/utils/helpers';
 
 // ═══════════════════════════════════════════
-// ERROR SINIFLANDIRMA
+// ERROR CLASSIFICATION
 // ═══════════════════════════════════════════
 
-/** HTTP status code'dan ScraperError üretir */
+/** Produces a ScraperError from an HTTP status code */
 export const classifyHttpError = (status: number, url: string): ScraperError => {
   if (status === 429) return { code: 'RATE_LIMITED', resetAt: new Date(Date.now() + 30_000) };
   if (status === 403) return { code: 'CLOUDFLARE_BLOCKED', retryAfter: 30_000 };
@@ -38,7 +37,7 @@ export const classifyHttpError = (status: number, url: string): ScraperError => 
   return { code: 'NETWORK_ERROR', message: `HTTP ${status} at ${url}` };
 };
 
-/** Hata mesajından ScraperError üretir */
+/** Produces a ScraperError from an error message */
 export const classifyRuntimeError = (message: string): ScraperError => {
   if (message.includes('Timeout') || message.includes('timeout')) {
     return { code: 'TIMEOUT', timeoutMs: 10_000 };
@@ -56,14 +55,14 @@ export const classifyRuntimeError = (message: string): ScraperError => {
 };
 
 // ═══════════════════════════════════════════
-// BACKOFF HESAPLAMA
+// BACKOFF CALCULATION
 // ═══════════════════════════════════════════
 
 /**
- * Her ScraperError tipi için temel bekleme süreleri (ms).
+ * Base wait times (ms) per ScraperError type.
  *
- * Bu değerler retry=0 için geçerlidir.
- * Her retry'da 2^retryCount ile çarpılır.
+ * These values apply to retry=0.
+ * Each retry multiplies by 2^retryCount.
  */
 const BASE_DELAYS: Record<ScraperError['code'], number> = {
   RATE_LIMITED: 15_000,
@@ -74,7 +73,7 @@ const BASE_DELAYS: Record<ScraperError['code'], number> = {
   PARSING_FAILED: 1_000,
 };
 
-/** Her hata tipi için maksimum bekleme üst sınırı (ms) */
+/** Upper bound on wait time per error type (ms) */
 const MAX_DELAYS: Record<ScraperError['code'], number> = {
   RATE_LIMITED: 60_000,
   CLOUDFLARE_BLOCKED: 120_000,
@@ -84,7 +83,7 @@ const MAX_DELAYS: Record<ScraperError['code'], number> = {
   PARSING_FAILED: 5_000,
 };
 
-/** Her hata tipi için izin verilen maksimum retry sayısı */
+/** Maximum allowed retries per error type */
 const MAX_RETRIES: Record<ScraperError['code'], number> = {
   RATE_LIMITED: 3,
   CLOUDFLARE_BLOCKED: 2,
@@ -94,19 +93,19 @@ const MAX_RETRIES: Record<ScraperError['code'], number> = {
   PARSING_FAILED: 1,
 };
 
-/** Hata tipinin retry edilebilir olup olmadığını kontrol eder */
+/** Checks whether the error type is retryable */
 export const isRetryable = (error: ScraperError, currentRetry: number): boolean =>
   currentRetry < MAX_RETRIES[error.code];
 
 /**
- * Adaptive backoff süresi hesaplar.
+ * Computes the adaptive backoff duration.
  *
  * Exponential backoff + jitter:
  *   delay = min(baseDelay × 2^retry + jitter, maxDelay)
  *
- * @param error Sınıflandırılmış ScraperError
- * @param retryCount Mevcut retry sayısı (0-indexed)
- * @returns Beklenmesi gereken süre (ms)
+ * @param error Classified ScraperError
+ * @param retryCount Current retry count (0-indexed)
+ * @returns Duration to wait (ms)
  */
 export const calculateBackoff = (error: ScraperError, retryCount: number): number => {
   const base = BASE_DELAYS[error.code];
@@ -121,16 +120,16 @@ export const calculateBackoff = (error: ScraperError, retryCount: number): numbe
 // ═══════════════════════════════════════════
 
 /**
- * Batch hata oranına göre cooldown süresi hesaplar.
+ * Computes a cooldown duration based on the batch failure rate.
  *
- * Strateji:
- *   - %60-79 hatalı → 5-8s mola (uyarı seviyesi)
- *   - %80-99 hatalı → 10-15s mola (tehlike seviyesi)
- *   - %100 hatalı   → 15-25s mola (tam blok)
+ * Strategy:
+ *   - 60-79% failures → 5-8s pause (warning level)
+ *   - 80-99% failures → 10-15s pause (danger level)
+ *   - 100% failures   → 15-25s pause (full block)
  *
- * @param failCount Batch'teki başarısız iş sayısı
- * @param batchSize Batch'in toplam büyüklüğü
- * @returns Cooldown süresi (ms), 0 ise cooldown gerekmez
+ * @param failCount Number of failed jobs in the batch
+ * @param batchSize Total size of the batch
+ * @returns Cooldown duration (ms); 0 means no cooldown needed
  */
 export const calculateBatchCooldown = (failCount: number, batchSize: number): number => {
   if (batchSize === 0) return 0;
@@ -149,7 +148,7 @@ export const calculateBatchCooldown = (failCount: number, batchSize: number): nu
 // ═══════════════════════════════════════════
 
 /**
- * Adaptive backoff hesaplar ve bekler — tek çağrıda retry kararı verir.
+ * Computes adaptive backoff and waits — single call for the retry decision.
  *
  * @returns true if retry should proceed, false if max retries exceeded
  */

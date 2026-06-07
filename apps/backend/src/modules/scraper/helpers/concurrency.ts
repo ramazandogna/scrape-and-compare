@@ -1,29 +1,29 @@
 /**
- * Concurrency Queue — Kontrollü paralel task yürütücü.
+ * Concurrency Queue — controlled parallel task executor.
  *
  * Problem:
- *   5 keyword'ü LinkedIn'de aramak istiyoruz. Hepsini sırayla yapmak yavaş (100sn),
- *   hepsini aynı anda yapmak tehlikeli (rate limiting → ban). Çözüm: kontrollü parallellik.
+ *   We want to search 5 keywords on LinkedIn. Doing them sequentially is slow (100s);
+ *   doing them all at once is dangerous (rate limiting → ban). Solution: bounded parallelism.
  *
- * Nasıl çalışır? (Semaphore pattern)
- *   - "concurrency" kadar slot var (örn. 2)
- *   - Her task bir slot kullanır
- *   - Slot doluysa yeni task bekler
- *   - Task bitince slot serbest kalır, bekleyen task başlar
+ * How it works (semaphore pattern):
+ *   - "concurrency" slots are available (e.g. 2)
+ *   - Each task consumes a slot
+ *   - If all slots are busy, new tasks wait
+ *   - When a task finishes the slot frees up, a waiting task starts
  *
  *   concurrency=2, tasks=[A,B,C,D,E]:
- *     t=0  → [A başlar] [B başlar] [C bekler] [D bekler] [E bekler]
- *     t=3  → A biter → [C başlar]
- *     t=5  → B biter → [D başlar]
- *     t=7  → C biter → [E başlar]
- *     t=10 → D biter
- *     t=12 → E biter → tamamlandı ✅
+ *     t=0  → [A starts] [B starts] [C waits] [D waits] [E waits]
+ *     t=3  → A done → [C starts]
+ *     t=5  → B done → [D starts]
+ *     t=7  → C done → [E starts]
+ *     t=10 → D done
+ *     t=12 → E done → finished ✅
  *
  * Discriminated Union:
- *   Her task sonucu ya 'fulfilled' (başarılı) ya 'rejected' (hatalı).
- *   Bu Promise.allSettled patternidir — bir task'ın hatası diğerlerini durdurmaz.
+ *   Each task result is either 'fulfilled' (success) or 'rejected' (error).
+ *   This is the Promise.allSettled pattern — one task's failure does not stop the others.
  *
- * Kullanım:
+ * Usage:
  *   const results = await runConcurrent(
  *     ['react', 'angular', 'vue'],
  *     (keyword) => searchLinkedIn(keyword),
@@ -39,9 +39,9 @@ import { logger } from '@/utils/logger';
 // ═══════════════════════════════════════════
 
 /**
- * Başarılı task sonucu.
- * `item`: işlenen giriş elemanı (hangi keyword'dü?).
- * `data`: dönüş değeri.
+ * Successful task result.
+ * `item`: the input element being processed (which keyword?).
+ * `data`: the return value.
  */
 interface ConcurrentFulfilled<TInput, TOutput> {
   status: 'fulfilled';
@@ -50,9 +50,9 @@ interface ConcurrentFulfilled<TInput, TOutput> {
 }
 
 /**
- * Hatalı task sonucu.
- * `item`: başarısız olan giriş elemanı.
- * `error`: hata mesajı (any yasak → string'e çeviriyoruz).
+ * Failed task result.
+ * `item`: the input element that failed.
+ * `error`: error message (any is forbidden → we coerce to string).
  */
 interface ConcurrentRejected<TInput> {
   status: 'rejected';
@@ -61,22 +61,22 @@ interface ConcurrentRejected<TInput> {
 }
 
 /**
- * Her task sonucu ya fulfilled ya rejected — compile-time type safety.
- * İleride `result.status === 'fulfilled'` check → TypeScript `data` field'ı tanır.
+ * Each task result is either fulfilled or rejected — compile-time type safety.
+ * Downstream `result.status === 'fulfilled'` checks → TypeScript narrows the `data` field.
  */
 export type ConcurrentResult<TInput, TOutput> =
   | ConcurrentFulfilled<TInput, TOutput>
   | ConcurrentRejected<TInput>;
 
 /**
- * Queue konfigürasyonu.
+ * Queue configuration.
  */
 export interface ConcurrencyOptions {
-  /** Aynı anda çalışabilecek max task sayısı (default: 2) */
+  /** Maximum tasks that may run concurrently (default: 2) */
   concurrency: number;
-  /** Yeni task başlamadan önceki bekleme (ms) — rate limit koruması */
+  /** Delay (ms) before a new task starts — rate-limit protection */
   delayBetweenMs?: number;
-  /** Log'larda görünecek label (default: 'task') */
+  /** Label shown in logs (default: 'task') */
   label?: string;
 }
 
@@ -85,24 +85,24 @@ export interface ConcurrencyOptions {
 // ═══════════════════════════════════════════
 
 /**
- * Items üzerinde worker fonksiyonunu kontrollü paralel çalıştırır.
+ * Runs the worker function over items with bounded parallelism.
  *
  * Semaphore pattern:
- *   - `running` sayacı kaç task'ın aktif olduğunu tutar
- *   - `running < concurrency` ise yeni task başlar
- *   - `running === concurrency` ise yeni task Promise ile bekler
- *   - Task bitince `running--` ve bekleyen task serbest kalır
+ *   - `running` counter tracks how many tasks are active
+ *   - If `running < concurrency`, a new task starts
+ *   - If `running === concurrency`, a new task waits on a Promise
+ *   - When a task finishes, `running--` and a waiting task is released
  *
- * @param items İşlenecek veriler (keyword'ler, URL'ler, vb.)
- * @param worker Her item için çağrılacak async fonksiyon (item, itemIndex, slotIndex)
- * @param options Concurrency limiti, delay, label
- * @returns Her item için fulfilled veya rejected sonuç
+ * @param items Data to process (keywords, URLs, etc.)
+ * @param worker Async function invoked for each item (item, itemIndex, slotIndex)
+ * @param options Concurrency limit, delay, label
+ * @returns A fulfilled or rejected result for each item
  *
  * @example
  * const results = await runConcurrent(
  *   ['react', 'vue'],
  *   async (keyword, itemIndex, slotIndex) => {
- *     const page = searchPages[slotIndex]; // her slot kendi page'ini kullanır
+ *     const page = searchPages[slotIndex]; // each slot uses its own page
  *     return searchLinkedIn(page, keyword);
  *   },
  *   { concurrency: 2, delayBetweenMs: 500, label: 'search' }
@@ -115,10 +115,10 @@ export async function runConcurrent<TInput, TOutput>(
 ): Promise<ConcurrentResult<TInput, TOutput>[]> {
   const { concurrency, delayBetweenMs = 0, label = 'task' } = options;
 
-  // Edge case: boş liste
+  // Edge case: empty list
   if (items.length === 0) return [];
 
-  // Efektif concurrency: item sayısından fazla olamaz
+  // Effective concurrency: cannot exceed the number of items
   const effectiveConcurrency = Math.min(concurrency, items.length);
 
   logger.info(`[QUEUE] ${items.length} ${label} başlatılıyor`, {
@@ -131,27 +131,27 @@ export async function runConcurrent<TInput, TOutput>(
   let completedCount = 0;
 
   /**
-   * Tek bir worker slot'u — tüm item'ları bitene kadar kuyruktan çeker.
+   * A single worker slot — pulls from the queue until all items are processed.
    *
-   * Her slot bağımsız çalışır:
+   * Each slot runs independently:
    *   Slot 0: item[0] → item[2] → item[4] → ...
    *   Slot 1: item[1] → item[3] → item[5] → ...
    *
-   * Slot boşaldığında sıradaki item'ı alır. Bu "work stealing" pattern'idir.
+   * When a slot frees up, it grabs the next item. This is the "work stealing" pattern.
    *
-   * slotIndex: Bu slot'un sabit index'i (0, 1, 2, ...).
-   * Scraper'da her slot'un kendi browser page'i vardır:
+   * slotIndex: the slot's fixed index (0, 1, 2, ...).
+   * In the scraper each slot has its own browser page:
    *   slot 0 → page[0], slot 1 → page[1]
    */
   async function runSlot(slotIndex: number): Promise<void> {
     while (nextIndex < items.length) {
-      // Sıradaki item'ı al (atomik: tek thread olduğu için race condition yok)
+      // Grab the next item (atomic: single-threaded, no race condition)
       const currentIndex = nextIndex;
       nextIndex++;
 
       const item = items[currentIndex]!;
 
-      // Rate limit koruması — ilk item hariç delay uygula
+      // Rate-limit protection — apply delay for every item except the first
       if (currentIndex > 0 && delayBetweenMs > 0) {
         await sleep(delayBetweenMs);
       }
@@ -173,11 +173,11 @@ export async function runConcurrent<TInput, TOutput>(
     }
   }
 
-  // N slot'u aynı anda başlat — her biri kendi hızında item çeker
+  // Start N slots in parallel — each pulls items at its own pace
   const slots = Array.from({ length: effectiveConcurrency }, (_, i) => runSlot(i));
   await Promise.all(slots);
 
-  // Özet log
+  // Summary log
   const fulfilled = results.filter((r) => r.status === 'fulfilled').length;
   const rejected = results.filter((r) => r.status === 'rejected').length;
 
@@ -196,8 +196,8 @@ export async function runConcurrent<TInput, TOutput>(
 // ═══════════════════════════════════════════
 
 /**
- * Queue sonuçlarından sadece başarılı olanları çıkarır.
- * TypeScript narrowing: fulfilled filtresi sonrası `data` field'ı garanti.
+ * Extracts only the successful results from the queue output.
+ * TypeScript narrowing: after filtering for fulfilled, the `data` field is guaranteed.
  */
 export function extractFulfilled<TInput, TOutput>(
   results: ConcurrentResult<TInput, TOutput>[],
@@ -208,7 +208,7 @@ export function extractFulfilled<TInput, TOutput>(
 }
 
 /**
- * Queue sonuçlarından sadece hatalı olanları çıkarır.
+ * Extracts only the failed results from the queue output.
  */
 export function extractRejected<TInput, TOutput>(
   results: ConcurrentResult<TInput, TOutput>[],

@@ -4,9 +4,9 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ═══════════════════════════════════════════
-// Pagination — Client-side sayfalama kontrolü
+// Pagination — Client-side pagination control
 // ═══════════════════════════════════════════
-// Aktif sayfa: violet→fuchsia gradient (site CTA paleti ile uyumlu).
+// Active page: violet→fuchsia gradient (matches site CTA palette).
 
 interface PaginationProps {
   page: number;
@@ -93,7 +93,7 @@ function ArrowButton({
 }
 
 /**
- * Sayfa numaralarını hesaplar. Örnek:
+ * Computes the visible page numbers. Example:
  * page=5, total=10 → [1, "...", 4, 5, 6, "...", 10]
  */
 function getVisiblePages(

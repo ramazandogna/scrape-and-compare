@@ -12,11 +12,11 @@ import { cn } from "@/lib/utils";
 import type { EnrichedJob } from "@/types/job";
 
 // ═══════════════════════════════════════════
-// JobCard — Tek ilan kartı
+// JobCard — Single job listing card
 // ═══════════════════════════════════════════
-// ui-example 2.4'teki wireframe'e uygun.
-// Puanlanmış ilan: score badge + matched/missing skills
-// Puanlanmamış ilan: badge yok + CTA mesajı
+// Matches the ui-example 2.4 wireframe.
+// Scored listing: score badge + matched/missing skills
+// Unscored listing: no badge + CTA message
 
 interface JobCardProps {
   job: EnrichedJob;
@@ -52,7 +52,7 @@ export function JobCard({
   return (
     <Card className="group/card relative overflow-visible border-border/70 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-brand-200/70 hover:shadow-md">
       <CardContent className="space-y-3">
-        {/* Score Badge — her ilanda eşleşti/eşleşmedi durumu */}
+        {/* Score Badge — matched/unmatched state for every listing */}
         <div className="flex items-center justify-between">
           <ScoreBadge score={displayScore} />
           <div className="flex items-center gap-2">
@@ -135,7 +135,7 @@ export function JobCard({
           </>
         )}
 
-        {/* Match Skills (eşleşen/eksik) */}
+        {/* Match Skills (matched/missing) */}
         <Separator />
         <div className="flex items-end justify-between gap-2">
           <MatchSkills
@@ -164,8 +164,8 @@ export function JobCard({
         </div>
       </CardContent>
 
-      {/* Sil butonu — kartın sağ kenarında, hover'da belirginleşir.
-          confirm state: yumuşak swap (translate + opacity) ile, çat diye değil. */}
+      {/* Delete button — on the card's right edge, becomes visible on hover.
+          confirm state: soft swap (translate + opacity), not abrupt. */}
       {onRemove && (
         <div className="absolute -right-3 top-1/2 z-10 -translate-y-1/2">
           <div className="relative size-7">
@@ -220,9 +220,9 @@ export function JobCard({
 // ═══════════════════════════════════════════
 
 /**
- * Geçici olarak eklenen skill'leri hesaba katarak simüle edilmiş skor döner.
- * Formül: (matchedSkills / totalRequired) × 60 + experienceComponent
- * experienceComponent mevcut skor ve skill oranından geri hesaplanır.
+ * Returns a simulated score factoring in temporarily added skills.
+ * Formula: (matchedSkills / totalRequired) × 60 + experienceComponent
+ * experienceComponent is back-derived from the existing score and skill ratio.
  */
 function computeSimulatedScore(
   originalScore: number | null,

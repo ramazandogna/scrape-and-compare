@@ -1,11 +1,11 @@
 /**
- * Resource Blocker & Page Pool — Ağ optimizasyon katmanı.
+ * Resource Blocker & Page Pool — network optimization layer.
  *
- * LinkedIn sayfalarından sadece HTML (document) yüklenmesini sağlar.
- * Stylesheet, image, font, script gibi gereksiz kaynaklar engellenir.
- * Tracking URL'leri (analytics, bot protection) bloklanır.
+ * Ensures only HTML (document) is loaded from LinkedIn pages.
+ * Stylesheet, image, font, script and similar unneeded resources are blocked.
+ * Tracking URLs (analytics, bot protection) are blocked.
  *
- * PagePool: Paralel tab havuzu oluşturur — her tab'da resource blocking aktif.
+ * PagePool: creates a parallel tab pool — each tab has resource blocking enabled.
  */
 
 import type { BrowserContext, Page, Route } from 'playwright';
@@ -16,14 +16,14 @@ import { logger } from '@/utils/helpers';
 // RESOURCE BLOCKER
 // ═══════════════════════════════════════════
 
-/** Engellenen resource tipleri — LinkedIn verisi için gereksiz */
+/** Blocked resource types — unnecessary for LinkedIn data */
 const BLOCKED_RESOURCE_TYPES = new Set([
   'stylesheet', 'image', 'media', 'font', 'script',
   'texttrack', 'xhr', 'fetch', 'eventsource',
   'websocket', 'manifest', 'other',
 ]);
 
-/** Engellenen URL pattern'leri — tracking, analytics, bot protection */
+/** Blocked URL patterns — tracking, analytics, bot protection */
 const BLOCKED_URL_PATTERNS = [
   'protechts.net', 'google-analytics', 'doubleclick',
   'facebook.com/tr', 'bat.bing.com', 'cdn.linkedin.com',
@@ -31,8 +31,8 @@ const BLOCKED_URL_PATTERNS = [
 ];
 
 /**
- * Page'e resource blocking uygular — sadece document HTML geçer.
- * Playwright route API'si ile her outgoing request intercept edilir.
+ * Applies resource blocking to the page — only document HTML passes through.
+ * Every outgoing request is intercepted via Playwright's route API.
  */
 export const enableResourceBlocking = async (page: Page): Promise<void> => {
   await page.route('**/*', (route: Route) => {
@@ -68,10 +68,10 @@ export interface PagePool {
 }
 
 /**
- * Paralel page pool oluşturur — her tab'da resource blocking aktif.
- * @param browserService Browser instance yöneticisi
+ * Creates a parallel page pool — each tab has resource blocking enabled.
+ * @param browserService Browser instance manager
  * @param context Playwright BrowserContext
- * @param size Kaç paralel tab açılacak
+ * @param size Number of parallel tabs to open
  */
 export const createPagePool = async (
   browserService: BrowserService,
@@ -93,7 +93,7 @@ export const createPagePool = async (
     pages,
     close: async () => {
       for (const page of pages) {
-        try { await page.close(); } catch { /* Zaten kapanmış olabilir */ }
+        try { await page.close(); } catch { /* May already be closed */ }
       }
     },
   };

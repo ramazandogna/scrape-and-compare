@@ -1,17 +1,17 @@
 /**
- * Jobs Controller — İş ilanları REST API.
+ * Jobs Controller — job listings REST API.
  *
- * Endpoint'ler:
- *   GET    /api/jobs                       — Tüm ilanları listele (paginated, filtrelenebilir)
- *   DELETE /api/jobs/user/:userId          — Kullanıcının tüm ilanlarını temizle
- *   DELETE /api/jobs/user/:userId/job/:jobId — Tek bir ilanı kullanıcıdan kaldır
+ * Endpoints:
+ *   GET    /api/jobs                       — List all listings (paginated, filterable)
+ *   DELETE /api/jobs/user/:userId          — Clear all of a user's listings
+ *   DELETE /api/jobs/user/:userId/job/:jobId — Remove a single listing from the user
  *
- * Bu dosya sadece HTTP katmanıyla ilgilenir:
- *   - Query/Param parametrelerini al (Zod ile validate et)
- *   - JobsService'e ilet
- *   - Sonucu JSON olarak dön
+ * This file only handles the HTTP layer:
+ *   - Read query/param parameters (validate with Zod)
+ *   - Forward to JobsService
+ *   - Return the result as JSON
  *
- * İş mantığı (filtreleme, pagination, silme) JobsService'de yaşar.
+ * Business logic (filtering, pagination, deletion) lives in JobsService.
  */
 
 import {
@@ -37,41 +37,41 @@ export class JobsController {
   constructor(private readonly jobsService: JobsService) {}
 
   /**
-   * GET /api/jobs — İş ilanlarını listele.
+   * GET /api/jobs — List job listings.
    *
-   * Query parametreleri (tümü opsiyonel):
-   *   ?page=1       — Sayfa numarası (default: 1)
-   *   ?limit=20     — Sayfa başına kayıt (default: 20, max: 100)
-   *   ?search=React — title veya company'de ara
-   *   ?location=Istanbul — lokasyona göre filtrele
-   *   ?sort=newest  — sıralama: newest (default) veya oldest
+   * Query parameters (all optional):
+   *   ?page=1       — Page number (default: 1)
+   *   ?limit=20     — Records per page (default: 20, max: 100)
+   *   ?search=React — Search in title or company
+   *   ?location=Istanbul — Filter by location
+   *   ?sort=newest  — Ordering: newest (default) or oldest
    *
-   * @UsePipes ile query parametreleri Zod'dan geçer:
-   *   - "2" string → 2 number'a coerce edilir
+   * Query parameters pass through Zod via @UsePipes:
+   *   - "2" string → coerced to number 2
    *   - page=-1 → 400 Bad Request
    *   - limit=500 → 400 Bad Request (max 100)
    */
   @Get()
   async findAll(
-    // Pipe'ı @Query'e bağlıyoruz — method-level @UsePipes tüm parametreleri
-    // (CurrentUser dahil) zod'dan geçirmeye çalışırdı ve user objesini siler;
-    // sonuç olarak user.id undefined olur ve filtre uygulanmazdı.
+    // Bind the pipe to @Query — method-level @UsePipes would push every parameter
+    // (including CurrentUser) through zod and strip the user object;
+    // user.id would become undefined and the filter wouldn't apply.
     @Query(new ZodValidationPipe(jobsQuerySchema)) query: JobsQueryInput,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<PaginatedJobs> {
-    // userId her zaman current user'dan — frontend body/query'den gelirse override edilir.
+    // userId always comes from current user — frontend body/query is overridden.
     return this.jobsService.findAll({ ...query, userId: user.id });
   }
 
   /**
-   * DELETE /api/jobs/user/:userId — Kullanıcının tüm ilanlarını temizle.
+   * DELETE /api/jobs/user/:userId — Clear all of the user's listings.
    *
-   * İş mantığı:
-   *   1. UserJobListing bağlantılarını sil (ilan → kullanıcı ilişkisi)
-   *   2. MatchResult kayıtlarını sil (puanlama sonuçları)
-   *   3. JobListing'ler silinmez — başka kullanıcılar da kullanabilir
+   * Business logic:
+   *   1. Delete UserJobListing links (job → user relation)
+   *   2. Delete MatchResult rows (scoring results)
+   *   3. JobListing rows are NOT deleted — other users may still use them
    *
-   * Transaction: İkisi birden ya başarılı olur ya da hiçbiri olmaz.
+   * Transaction: both succeed together or neither does.
    */
   @Delete('user/:userId')
   @HttpCode(HttpStatus.OK)
@@ -84,8 +84,8 @@ export class JobsController {
   }
 
   /**
-   * DELETE /api/jobs/user/:userId/job/:jobId — Tekil ilanı kullanıcıdan kaldır.
-   * Sadece UserJobListing + MatchResult silinir, JobListing kalır.
+   * DELETE /api/jobs/user/:userId/job/:jobId — Remove a single listing from the user.
+   * Only UserJobListing + MatchResult are deleted; JobListing remains.
    */
   @Delete('user/:userId/job/:jobId')
   @HttpCode(HttpStatus.OK)

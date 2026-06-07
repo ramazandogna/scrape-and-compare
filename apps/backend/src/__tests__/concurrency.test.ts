@@ -1,12 +1,12 @@
 /**
- * Concurrency Queue Tests — Kontrollü paralel task yürütücü testleri.
+ * Concurrency Queue Tests — controlled parallel task runner tests.
  *
- * Neyi test ediyoruz?
- *   1. Temel çalışma: N item → N sonuç (hepsi fulfilled)
- *   2. Hata handling: başarısız task rejected döner, diğerlerini durdurmaz
- *   3. Concurrency limiti: aynı anda max N task çalışır
- *   4. Boş input: boş array → boş sonuç
- *   5. extractFulfilled / extractRejected helper'ları doğru filtreliyor mu
+ * What do we test?
+ *   1. Basic operation: N items → N results (all fulfilled)
+ *   2. Error handling: a failed task returns rejected and does not stop the others
+ *   3. Concurrency limit: at most N tasks run at the same time
+ *   4. Empty input: empty array → empty result
+ *   5. Whether the extractFulfilled / extractRejected helpers filter correctly
  */
 
 import { describe, it, expect } from 'vitest';
@@ -49,7 +49,7 @@ describe('runConcurrent', () => {
     expect(results[1]!.status).toBe('rejected');
     expect(results[2]!.status).toBe('fulfilled');
 
-    // Rejected olanın error mesajı var mı
+    // Does the rejected entry carry an error message
     if (results[1]!.status === 'rejected') {
       expect(results[1]!.error).toBe('Bilerek hata');
     }
@@ -75,7 +75,7 @@ describe('runConcurrent', () => {
       if (currentConcurrent > maxConcurrent) {
         maxConcurrent = currentConcurrent;
       }
-      // Küçük bir bekleme — slot'ların overlap'ini test et
+      // Small wait — verifies slot overlap
       await new Promise((resolve) => setTimeout(resolve, 50));
       currentConcurrent--;
       return _item * 2;
@@ -87,7 +87,7 @@ describe('runConcurrent', () => {
     });
 
     expect(results).toHaveLength(5);
-    // Max concurrent hiçbir zaman 2'yi aşmamalı
+    // Max concurrent must never exceed 2
     expect(maxConcurrent).toBeLessThanOrEqual(2);
   });
 
@@ -103,7 +103,7 @@ describe('runConcurrent', () => {
       { concurrency: 2, label: 'test' },
     );
 
-    // Her slot index 0 veya 1 olmalı (concurrency: 2)
+    // Each slot index must be 0 or 1 (concurrency: 2)
     for (const slot of slotLog) {
       expect(slot).toBeGreaterThanOrEqual(0);
       expect(slot).toBeLessThan(2);

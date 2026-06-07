@@ -5,10 +5,10 @@ import { apiFetch } from "@/lib/api";
 import type { MatchResultDto, PaginatedResponse } from "@/types/job";
 
 // ═══════════════════════════════════════════
-// useMatchResults — Kullanıcıya ait match sonuçlarını çeker
+// useMatchResults — fetches match results for the user
 // ═══════════════════════════════════════════
-// userId yoksa (profil oluşturulmamış) → hiçbir şey çekilmez.
-// Match sonuçları JobCard'lara merge edilerek EnrichedJob oluşturulur.
+// If no userId (profile not created) → nothing is fetched.
+// Match results are merged into JobCards to produce EnrichedJob.
 
 interface UseMatchResultsReturn {
   matches: MatchResultDto[];

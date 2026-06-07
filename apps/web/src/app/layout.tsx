@@ -22,9 +22,9 @@ export const metadata: Metadata = {
     "LinkedIn iş ilanlarını tara, yapay zeka ile profiline en uygun pozisyonları bul.",
 };
 
-// Tema flash önleyici — first-paint öncesi html attr'larını set eder.
-// React hydration başlamadan localStorage okuyup .dark class ve data-accent
-// niteliğini koyar; aksi halde default mor/light bir flash görünür.
+// Theme flash preventer — sets html attrs before first paint.
+// Reads localStorage before React hydration and applies .dark class and data-accent
+// attribute; otherwise a default purple/light flash appears.
 const themeBootstrapScript = `
 (function () {
   try {
@@ -48,8 +48,8 @@ export default function RootLayout({
     <html
       lang="tr"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-      // suppressHydrationWarning gerekir çünkü inline script .dark class'ı
-      // server'dan ayrı olarak ekler — React aksi halde hydration hatası verir.
+      // suppressHydrationWarning is required because the inline script adds the .dark class
+      // independently of the server — React would otherwise throw a hydration error.
       suppressHydrationWarning
     >
       <head>

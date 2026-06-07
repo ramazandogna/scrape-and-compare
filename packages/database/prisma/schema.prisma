@@ -2,21 +2,21 @@
 // Prisma Schema — PostgreSQL Database Definition
 // ═══════════════════════════════════════════════════════════
 //
-// Bu dosya veritabanı yapısının "single source of truth"'u.
-// prisma generate → TypeScript client üretir (type-safe query)
-// prisma migrate  → SQL migration dosyaları üretir
+// This file is the single source of truth for the database structure.
+// prisma generate → emits the TypeScript client (type-safe queries)
+// prisma migrate  → emits SQL migration files
 //
-// copilot-instructions kuralları:
-// - Raw SQL yasak, Prisma ORM kullan
-// - State Machine: ScraperAudit.status enum ile
-// - @unique constraint: externalId, url
+// copilot-instructions rules:
+// - Raw SQL forbidden, use the Prisma ORM
+// - State Machine: via the ScraperAudit.status enum
+// - @unique constraints: externalId, url
 // ═══════════════════════════════════════════════════════════
 
 generator client {
   provider = "prisma-client-js"
-  // pnpm strict isolation: .prisma/client pnpm store içinde kalır,
-  // VS Code TS server symlink zincirini çözemez.
-  // Explicit output ile generated client'ı proje içine alıyoruz.
+  // pnpm strict isolation: .prisma/client stays inside the pnpm store,
+  // and the VS Code TS server cannot resolve the symlink chain.
+  // An explicit output keeps the generated client inside the project.
   output   = "../src/generated/prisma"
 }
 
@@ -25,30 +25,30 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ─── ENUM'LAR ───────────────────────────────────────────
+// ─── ENUMS ──────────────────────────────────────────────
 
-/// Para birimi — salary normalization için
+/// Currency — for salary normalization
 enum SalaryCurrency {
   TRY
   USD
   EUR
 }
 
-/// Maaş periyodu — yıllık mı aylık mı
+/// Salary period — yearly or monthly
 enum SalaryPeriod {
   MONTHLY
   YEARLY
 }
 
-/// İş ilanı kaynağı — hangi platform'dan geldi
+/// Job listing source — which platform it came from
 enum JobSource {
   LINKEDIN
   INDEED
   GLASSDOOR
 }
 
-/// Scraper State Machine — copilot-instructions kural #11
-/// Boolean flag yerine açık durumlar. Geçerli geçişler:
+/// Scraper State Machine — copilot-instructions rule #11
+/// Explicit states instead of boolean flags. Valid transitions:
 /// IDLE → SCANNING → EXTRACTING → COMPLETED
 ///                 ↘ FAILED     ↗ FAILED
 ///                   FAILED → IDLE
@@ -60,43 +60,43 @@ enum ScraperStatus {
   FAILED
 }
 
-// ─── TABLOLAR ───────────────────────────────────────────
+// ─── TABLES ─────────────────────────────────────────────
 
-/// Kullanıcı profili — CV parse sonucu ve tercihler
+/// User profile — CV parse output and preferences
 model User {
   id                 String   @id @default(uuid())
   email              String   @unique
   name               String
-  /// bcrypt hash — legacy seed user'lar için nullable, auth ile gelenler set eder
+  /// bcrypt hash — nullable for legacy seed users; auth-created users always set it
   passwordHash       String?
-  /// Forgot-password akışı için tek-kullanımlık reset token
+  /// Single-use reset token for the forgot-password flow
   passwordResetToken   String?   @unique
   passwordResetExpires DateTime?
-  techStack          String[] /// Bildiği teknolojiler: ["React", "TypeScript", ...]
+  techStack          String[] /// Known technologies: ["React", "TypeScript", ...]
   experienceYears    Int      @default(0)
   preferredRoles     String[] /// ["Frontend Developer", "Fullstack Engineer"]
-  preferredLocations String[] /// ["İstanbul", "Remote"]
+  preferredLocations String[] /// ["Istanbul", "Remote"]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  /// User'ın eşleşme sonuçları
+  /// User's match results
   matchResults MatchResult[]
-  /// User'ın scrape oturumları
+  /// User's scrape sessions
   scraperAudits ScraperAudit[]
-  /// User'ın erişebileceği iş ilanı eşlemeleri
+  /// Job listing access mappings available to the user
   userJobs UserJobListing[]
 
   @@map("users")
 }
 
-/// İş ilanı — scraper'dan gelen zenginleştirilmiş veri
+/// Job listing — enriched data coming from the scraper
 model JobListing {
   id String @id @default(uuid())
 
-  /// LinkedIn'deki orijinal job ID — duplicate önleme
+  /// Original LinkedIn job ID — duplicate prevention
   externalId String @unique
-  /// Doğrudan ilan linki — duplicate önleme
+  /// Direct listing link — duplicate prevention
   url String @unique
 
   title    String
@@ -104,103 +104,103 @@ model JobListing {
   logoUrl  String?
   location String
 
-  /// Ham maaş string'i (LinkedIn'den gelen orijinal)
+  /// Raw salary string (original from LinkedIn)
   salary String?
-  /// Normalize edilmiş maaş aralığı (TRY/ay cinsinden)
+  /// Normalized salary range (in TRY/month)
   salaryMin      Int?
   salaryMax      Int?
   salaryCurrency SalaryCurrency?
   salaryPeriod   SalaryPeriod?
 
-  /// İlan açıklaması (tam metin)
+  /// Listing description (full text)
   description String? @db.Text
-  /// Gereksinimler listesi
+  /// Requirements list
   requirements String[]
-  /// Çıkarılan skill'ler (JSON array: ExtractedSkill[])
+  /// Extracted skills (JSON array: ExtractedSkill[])
   skills Json @default("[]")
 
   seniorityLevel String?
   employmentType String?
-  /// Çalışma şekli: Remote, Hybrid, On-site
+  /// Work mode: Remote, Hybrid, On-site
   workType       String?
   postedDate     String?
 
-  /// Hangi platform'dan geldi
+  /// Source platform
   source JobSource @default(LINKEDIN)
-  /// Ne zaman scrape edildi
+  /// When it was scraped
   scrapedAt DateTime @default(now())
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  /// Bu ilana ait eşleşme sonuçları
+  /// Match results for this listing
   matchResults MatchResult[]
-  /// User erişim eşlemeleri
+  /// User access mappings
   userJobs UserJobListing[]
 
   @@map("job_listings")
 }
 
-/// Eşleşme sonucu — User ile JobListing arasındaki skor
+/// Match result — score between a User and a JobListing
 model MatchResult {
   id     String @id @default(uuid())
 
-  /// İlişkiler
+  /// Relations
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   jobId  String
   job    JobListing @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
-  /// 0-100 arası eşleşme yüzdesi
+  /// Match percentage in the 0-100 range
   score       Float
-  /// AI tarafından üretilen eşleşme gerekçesi
+  /// AI-generated match rationale
   explanation String    @db.Text
-  /// Eşleşen yetenekler
+  /// Matched skills
   matchedSkills  String[]
-  /// Eksik yetenekler
+  /// Missing skills
   missingSkills  String[]
 
   createdAt DateTime @default(now())
 
-  /// Aynı user-job çifti için tek eşleşme
+  /// One match per user-job pair
   @@unique([userId, jobId])
   @@map("match_results")
 }
 
-/// Scraper denetim kaydı — her scrape oturumunun logu
+/// Scraper audit record — log of each scrape session
 model ScraperAudit {
   id String @id @default(uuid())
 
-  /// Bu scrape'i tetikleyen kullanıcı (legacy kayıtlar için nullable)
+  /// User that triggered this scrape (nullable for legacy records)
   userId String?
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  /// State Machine durumu
+  /// State Machine state
   status   ScraperStatus @default(IDLE)
   keyword  String
   location String
 
-  /// Metrikler
+  /// Metrics
   totalFound     Int @default(0)
   totalExtracted Int @default(0)
   errorCount     Int @default(0)
 
-  /// Hata detayları (JSON array: ScraperError[])
+  /// Error details (JSON array: ScraperError[])
   errorDetails Json?
-  /// Toplam süre (milisaniye)
+  /// Total duration (milliseconds)
   durationMs Int @default(0)
 
   startedAt   DateTime @default(now())
   completedAt DateTime?
 
-  /// Bu scrape oturumunda user'a bağlanan ilanlar
+  /// Listings linked to the user during this scrape session
   userJobs UserJobListing[]
 
   @@index([userId, startedAt])
   @@map("scraper_audits")
 }
 
-/// User ve JobListing arası erişim eşleme tablosu
+/// Access mapping table between User and JobListing
 model UserJobListing {
   id String @id @default(uuid())
 

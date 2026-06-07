@@ -1,18 +1,18 @@
 /**
- * GeminiService — Google Gemini API ile iletişim katmanı.
+ * GeminiService — communication layer for the Google Gemini API.
  *
- * Tek sorumluluk: Gemini ile konuş, JSON al, Zod ile doğrula.
- * Bu servis LLM'in "nasıl çağrılacağını" bilir, "ne sorulacağını" bilmez.
- * Prompt mantığı MatcherService'de yaşar.
+ * Single responsibility: talk to Gemini, get JSON, validate with Zod.
+ * This service knows "how to call" the LLM, not "what to ask".
+ * Prompt logic lives in MatcherService.
  *
- * Retry stratejisi:
- *   - Validation/Parse hatası: 2 deneme, 15s bekleme
- *   - 429 Rate Limit: 2 deneme, 30s bekleme
- *   - 503 Service Unavailable: 3 deneme, 30s bekleme + fallback model
+ * Retry strategy:
+ *   - Validation/Parse error: 2 attempts, 15s wait
+ *   - 429 Rate Limit: 2 attempts, 30s wait
+ *   - 503 Service Unavailable: 3 attempts, 30s wait + fallback model
  *
  * Fallback Model:
- *   Birincil model (ör. gemini-2.5-flash) 503 verirse,
- *   fallback model (gemini-2.0-flash) ile tekrar denenir.
+ *   If the primary model (e.g. gemini-2.5-flash) returns 503,
+ *   it retries with the fallback model (gemini-2.0-flash).
  */
 
 import { Injectable } from '@nestjs/common';
@@ -39,33 +39,33 @@ type GeminiError =
 // CONFIG
 // ═══════════════════════════════════════════
 
-/** Normal hatalarda (validation, parse) kaç kez yeniden denenecek */
+/** How many times to retry on normal errors (validation, parse) */
 const MAX_RETRIES = 2;
 
-/** 503 hatasında kaç kez yeniden denenecek (model overloaded daha uzun sürer) */
+/** How many times to retry on 503 (model overloaded takes longer) */
 const MAX_503_RETRIES = 3;
 
-/** Normal retry bekleme süresi (ms) */
+/** Standard retry wait duration (ms) */
 const RETRY_DELAY_MS = 15_000;
 
-/** 503 / 429 gibi kapasite hataları için bekleme süresi (ms) */
+/** Wait duration for capacity errors like 503 / 429 (ms) */
 const CAPACITY_RETRY_DELAY_MS = 30_000;
 
-/** Varsayılan overload fallback modeli — 503/429 için kullanılır */
+/** Default overload fallback model — used for 503/429 */
 const DEFAULT_OVERLOAD_FALLBACK_MODEL = 'gemini-2.5-flash-lite';
 
-/** Varsayılan quota fallback modeli — sadece kota bittiğinde kullanılır */
+/** Default quota fallback model — used only when quota is exhausted */
 const DEFAULT_QUOTA_FALLBACK_MODEL = 'gemini-3.1-flash-lite';
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** Hata mesajından HTTP status tipi çıkar */
+/** Extract HTTP status type from an error message */
 function detectErrorType(message: string): '503' | '429' | '429_zero_quota' | 'other' {
   if (message.includes('503')) return '503';
   if (message.includes('429')) {
-    // limit: 0 / quota exceeded / RESOURCE_EXHAUSTED → model kotası bitmiş
+    // limit: 0 / quota exceeded / RESOURCE_EXHAUSTED → model quota exhausted
     if (
       message.includes('limit: 0')
       || message.includes('RESOURCE_EXHAUSTED')
@@ -80,15 +80,15 @@ function detectErrorType(message: string): '503' | '429' | '429_zero_quota' | 'o
 }
 
 /**
- * 429 hata mesajından Gemini'nin önerdiği retry süresini (ms) çıkar.
- * Örnek: "retryDelay":"2s" → 2000
- * Bulamazsa varsayılan süreyi döner.
+ * Extract Gemini's suggested retry delay (ms) from a 429 error message.
+ * Example: "retryDelay":"2s" → 2000
+ * Returns the fallback duration if not found.
  */
 function parseRetryDelay(message: string, fallbackMs: number): number {
   const match = message.match(/retryDelay[":]+(\d+\.?\d*)s/);
   if (match && match[1]) {
     const seconds = parseFloat(match[1]);
-    // Güvenlik: en az 5s, en fazla 60s (Gemini'nin söylediği bazen çok kısa)
+    // Safety: clamp to [5s, 60s] (Gemini's suggested value can be too short)
     return Math.max(5_000, Math.min(60_000, Math.ceil(seconds * 1000)));
   }
   return fallbackMs;
@@ -141,7 +141,7 @@ export class GeminiService {
       generationConfig,
     });
 
-    // Overload fallback modeli (503/429) sadece birincilden farklıysa oluştur.
+    // Create the overload fallback model (503/429) only if it differs from the primary.
     if (this.overloadFallbackModelName !== this.primaryModelName) {
       this.overloadFallbackModel = genAI.getGenerativeModel({
         model: this.overloadFallbackModelName,
@@ -151,7 +151,7 @@ export class GeminiService {
       this.overloadFallbackModel = null;
     }
 
-    // Quota fallback modeli (429_zero_quota) birincilden farklıysa oluştur.
+    // Create the quota fallback model (429_zero_quota) only if it differs from the primary.
     if (this.quotaFallbackModelName !== this.primaryModelName) {
       this.quotaFallbackModel = genAI.getGenerativeModel({
         model: this.quotaFallbackModelName,
@@ -174,15 +174,15 @@ export class GeminiService {
   }
 
   /**
-   * Gemini'ye prompt gönder, JSON yanıt al, Zod ile doğrula.
+   * Send a prompt to Gemini, get a JSON response, validate with Zod.
    *
-   * Strateji:
-   *   1. Birincil model ile dene (retry loop)
-   *   2. 503 alırsa → uzun bekleme + daha fazla retry
-   *   3. Birincil model tamamen başarısızsa + fallback varsa → fallback model dene
+   * Strategy:
+   *   1. Try the primary model (retry loop)
+   *   2. On 503 → longer wait + more retries
+   *   3. If the primary model fully fails + a fallback exists → try the fallback model
    */
   async generateJSON<T>(prompt: string, schema: ZodSchema<T>): Promise<GeminiResult<T>> {
-    // 1. Birincil model ile dene
+    // 1. Try the primary model
     const primaryResult = await this.tryWithRetries(
       this.primaryModel,
       this.primaryModelName,
@@ -195,11 +195,11 @@ export class GeminiService {
       return primaryResult;
     }
 
-    // 2. Birincil başarısızsa hata tipine göre doğru fallback'i dene.
+    // 2. If primary fails, pick the right fallback based on error type.
     if (primaryResult.error.code === 'API_ERROR') {
       const errorType = detectErrorType(primaryResult.error.message);
 
-      // 429_zero_quota: sadece kota fallback modeline geç.
+      // 429_zero_quota: switch only to the quota fallback model.
       if (errorType === '429_zero_quota' && this.quotaFallbackModel) {
         logger.warn(
           {
@@ -219,7 +219,7 @@ export class GeminiService {
         );
       }
 
-      // 503/429: kapasite/rate problemi → overload fallback modeline geç.
+      // 503/429: capacity/rate issue → switch to the overload fallback model.
       if ((errorType === '503' || errorType === '429') && this.overloadFallbackModel) {
         logger.warn(
           {
@@ -244,14 +244,14 @@ export class GeminiService {
   }
 
   /**
-   * Belirli bir model ile retry loop çalıştırır.
+   * Run the retry loop with a specific model.
    *
-   * 503 hatalarında:
-   *   - Daha fazla retry (MAX_503_RETRIES = 3)
-   *   - Daha uzun bekleme (30s)
-   * Diğer hatalarda:
-   *   - Normal retry (MAX_RETRIES = 2)
-   *   - Standart bekleme (15s, 429 için 30s)
+   * On 503 errors:
+   *   - More retries (MAX_503_RETRIES = 3)
+   *   - Longer wait (30s)
+   * On other errors:
+   *   - Standard retries (MAX_RETRIES = 2)
+   *   - Standard wait (15s, 30s for 429)
    */
   private async tryWithRetries<T>(
     model: GenerativeModel,
@@ -274,7 +274,7 @@ export class GeminiService {
       lastError = result.error;
       const errorType = result.error.code === 'API_ERROR' ? detectErrorType(result.error.message) : 'other';
 
-      // 429 + limit:0 → bu modelin kotası sıfır, retry anlamsız, hemen çık
+      // 429 + limit:0 → this model's quota is zero, retry is pointless, exit immediately
       if (errorType === '429_zero_quota') {
         logger.error(
           { model: modelName, attempt },
@@ -285,15 +285,15 @@ export class GeminiService {
 
       if (errorType === '503') got503 = true;
 
-      // 503 olmayan hatalarda MAX_RETRIES'da kes
+      // For non-503 errors, stop at MAX_RETRIES
       if (!got503 && attempt >= MAX_RETRIES) break;
 
-      // Son deneme → bekleme yapma, çık
+      // Last attempt → don't wait, exit
       if (attempt >= maxAttempts) break;
 
-      // Bekleme süresi belirle
-      // 429: API'nin önerdiği retry süresini parse et (varsa)
-      // 503: sabit 30s
+      // Determine wait duration
+      // 429: parse the API's suggested retry duration (if any)
+      // 503: fixed 30s
       const delay = errorType === '429'
         ? parseRetryDelay(result.error.message, CAPACITY_RETRY_DELAY_MS)
         : errorType === '503'
@@ -318,7 +318,7 @@ export class GeminiService {
   }
 
   /**
-   * Tek bir Gemini çağrısı yapar ve sonucu Zod ile doğrular.
+   * Make a single Gemini call and validate the result with Zod.
    */
   private async attemptGeneration<T>(
     model: GenerativeModel,
@@ -351,7 +351,7 @@ export class GeminiService {
   }
 
   /**
-   * Ham text yanıtını JSON'a parse eder, sonra Zod ile doğrular.
+   * Parse the raw text response into JSON, then validate with Zod.
    */
   private parseAndValidate<T>(
     rawText: string,
@@ -392,8 +392,8 @@ export class GeminiService {
   }
 
   /**
-   * LLM yanıtından JSON bloğunu çıkarır.
-   * Gemini bazen JSON'u markdown code fence içinde döner — bu temizler.
+   * Extract the JSON block from the LLM response.
+   * Gemini sometimes wraps JSON in a markdown code fence — this strips it.
    */
   private extractJSON(text: string): string {
     const fenceMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
@@ -404,7 +404,7 @@ export class GeminiService {
   }
 
   /**
-   * Retry count env değerini güvenli şekilde parse eder.
+   * Safely parse the retry-count env value.
    */
   private parseRetryCount(value: string | undefined, fallback: number): number {
     if (!value) return fallback;

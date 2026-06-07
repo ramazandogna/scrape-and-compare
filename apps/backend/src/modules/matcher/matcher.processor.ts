@@ -1,22 +1,22 @@
 /**
  * Matcher Processor — BullMQ Worker (Rate-Limited).
  *
- * Bu dosya Redis kuyruğu ile MatcherService arasındaki köprüdür.
- * Kendi iş mantığı YOKTUR — sadece:
- *   1. Kuyruktan batch job al (BullMQ otomatik yapar)
- *   2. MatcherService.scoreBatch(user, jobs) çağır
- *   3. Sonucu Redis'e dön (BullMQ otomatik yapar)
+ * This file is the bridge between the Redis queue and MatcherService.
+ * It has NO business logic of its own — only:
+ *   1. Take a batch job from the queue (BullMQ does this automatically)
+ *   2. Call MatcherService.scoreBatch(user, jobs)
+ *   3. Return the result to Redis (BullMQ does this automatically)
  *
  * Rate Limiting:
- *   Gemini free tier = 15 RPM. Biz 10 RPM'de kalıyoruz (5 RPM headroom).
- *   BullMQ Worker'ın `limiter` ayarı bunu otomatik yapar:
- *   { max: 10, duration: 60000 } → "dakikada max 10 job işle"
- *   Kalan job'lar Redis'te bekler, sırası gelince işlenir.
+ *   Gemini free tier = 15 RPM. We stay at 10 RPM (5 RPM headroom).
+ *   The BullMQ Worker's `limiter` option handles this automatically:
+ *   { max: 10, duration: 60000 } → "process max 10 jobs per minute"
+ *   Remaining jobs wait in Redis and are processed when it's their turn.
  *
- * ScraperProcessor'dan farkı:
- *   - Scraper: browser açar, sayfa tarar, DB'ye yazar (ağır I/O)
- *   - Matcher: prompt gönderir, JSON alır, DB'ye yazar (hafif ama rate-limited)
- *   Her ikisi de aynı pattern: WorkerHost extend et, process() implement et.
+ * Difference from ScraperProcessor:
+ *   - Scraper: opens a browser, crawls pages, writes to DB (heavy I/O)
+ *   - Matcher: sends a prompt, receives JSON, writes to DB (light but rate-limited)
+ *   Both follow the same pattern: extend WorkerHost, implement process().
  */
 
 import { Processor, WorkerHost } from '@nestjs/bullmq';
@@ -39,16 +39,16 @@ import { logger } from '@/utils/helpers';
 // ═══════════════════════════════════════════
 
 /**
- * BullMQ Worker — Redis kuyruğundan matcher job'larını işler.
+ * BullMQ Worker — processes matcher jobs from the Redis queue.
  *
- * Generic tipler: Job<MatcherJobData, MatcherJobResult>
+ * Generic types: Job<MatcherJobData, MatcherJobResult>
  *   - MatcherJobData = { user, jobs[], batchIndex, totalBatches }
  *   - MatcherJobResult = { status: 'completed', scored, failed, ... } | { status: 'failed', ... }
  *
  * Rate Limiting:
- *   Worker constructor'da limiter ayarı yapılır.
- *   BullMQ her job'dan sonra "dakikada kaç job işledim?" kontrol eder.
- *   Limit aşılırsa sonraki job'ı bekletir.
+ *   The limiter is configured in the Worker constructor.
+ *   After each job BullMQ checks "how many jobs have I run this minute?".
+ *   If the limit is exceeded, the next job is held.
  */
 @Injectable()
 @Processor(QUEUE_NAMES.MATCHER, {
@@ -57,15 +57,15 @@ import { logger } from '@/utils/helpers';
     duration: 60_000,
   },
   /**
-   * lockDuration: Worker'ın bir job üzerindeki kilit süresi (ms).
+   * lockDuration: Worker's lock duration on a job (ms).
    *
-   * Varsayılan: 30s → Gemini 503 retry (3×30s = 90s) + fallback model retry (3×30s)
-   * sırasında kilit süre doluyor → BullMQ "stalled" sanıp job'ı tekrar kuyruğa atıyor.
+   * Default: 30s → during Gemini 503 retries (3×30s = 90s) + fallback model retries (3×30s),
+   * the lock expires → BullMQ thinks the job is "stalled" and re-enqueues it.
    *
-   * 4 dakika (240s): birincil model (3 retry × 30s = 90s) + fallback model (3 retry × 30s = 90s)
-   * + API çağrı süresi (~30s) + güvenlik marjı = yeterli.
+   * 4 minutes (240s): primary model (3 retries × 30s = 90s) + fallback model (3 retries × 30s = 90s)
+   * + API call time (~30s) + safety margin = enough.
    *
-   * BullMQ lockDuration/2 aralıklarla otomatik kilit yeniler (autorun heartbeat).
+   * BullMQ auto-renews the lock at lockDuration/2 intervals (autorun heartbeat).
    */
   lockDuration: 240_000,
 })
@@ -77,14 +77,14 @@ export class MatcherProcessor extends WorkerHost {
   }
 
   /**
-   * Her batch job geldiğinde BullMQ tarafından çağrılır.
+   * Called by BullMQ for every incoming batch job.
    *
-   * Bu metod:
-   *   - Return ederse → job COMPLETED olarak işaretlenir
-   *   - Throw ederse → job FAILED olarak işaretlenir (retry varsa tekrar dener)
+   * This method:
+   *   - If it returns → the job is marked COMPLETED
+   *   - If it throws → the job is marked FAILED (retried if configured)
    *
-   * @param job BullMQ Job nesnesi — job.data ile MatcherJobData'ya erişilir
-   * @returns MatcherJobResult — başarılı/başarısız sonuç
+   * @param job BullMQ Job object — access MatcherJobData via job.data
+   * @returns MatcherJobResult — success/failure result
    */
   async process(
     job: Job<MatcherJobData, MatcherJobResult>,
@@ -103,7 +103,7 @@ export class MatcherProcessor extends WorkerHost {
       `[MATCHER-WORKER] Batch ${String(batchIndex + 1)}/${String(totalBatches)} başlatılıyor`,
     );
 
-    // İlerleme: SCORING fazına geçiyoruz
+    // Progress: entering SCORING phase
     await this.reportProgress(job, {
       phase: 'SCORING',
       message: `Batch ${String(batchIndex + 1)}/${String(totalBatches)}: ${String(jobs.length)} ilan puanlanıyor`,
@@ -115,7 +115,7 @@ export class MatcherProcessor extends WorkerHost {
     try {
       const result = await this.matcherService.scoreBatch(user, jobs);
 
-      // İlerleme: SAVING fazına geçiyoruz
+      // Progress: entering SAVING phase
       await this.reportProgress(job, {
         phase: 'SAVING',
         message: `Batch ${String(batchIndex + 1)}/${String(totalBatches)}: ${String(result.scored.length)} sonuç kaydedildi`,
@@ -163,12 +163,12 @@ export class MatcherProcessor extends WorkerHost {
         `[MATCHER-WORKER] Batch ${String(batchIndex + 1)}/${String(totalBatches)} başarısız`,
       );
 
-      // ── Safety Net: Son denemede boşluk bırakma ──────────────
-      // "Never Leave Gaps" prensibi:
-      //   Eğer bu son attempt'se, throw edersek BullMQ job'ı FAILED yapar.
-      //   O batch'teki ilanlar hiç MatchResult almaz → frontend takılır.
-      //   Bunun yerine fallback (score=0) kaydet ve completed dön.
-      //   Başarısız bir skor (0), hiç skor olmamasından iyidir.
+      // ── Safety Net: Don't leave gaps on the last attempt ──────────────
+      // "Never Leave Gaps" principle:
+      //   If this is the last attempt, throwing makes BullMQ mark the job FAILED.
+      //   The listings in that batch would get no MatchResult → frontend hangs.
+      //   Instead, save a fallback (score=0) and return completed.
+      //   A failing score (0) is better than no score at all.
       if (isLastAttempt) {
         try {
           await this.matcherService.saveFallbackForBatch(user.id, jobs);
@@ -194,13 +194,13 @@ export class MatcherProcessor extends WorkerHost {
         };
       }
 
-      // İlk deneme — BullMQ retry mekanizmasına bırak
+      // First attempt — defer to BullMQ's retry mechanism
       throw err;
     }
   }
 
   /**
-   * job.updateProgress() wrapper'ı — type-safe progress bildirimi.
+   * Wrapper around job.updateProgress() — type-safe progress reporting.
    */
   private async reportProgress(
     job: Job<MatcherJobData, MatcherJobResult>,
@@ -210,7 +210,7 @@ export class MatcherProcessor extends WorkerHost {
   }
 
   /**
-   * Ortalama skor hesaplar — loglama için.
+   * Compute average score — for logging.
    */
   private calculateAvgScore(scores: number[]): number {
     if (scores.length === 0) return 0;

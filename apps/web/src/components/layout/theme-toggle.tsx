@@ -6,7 +6,7 @@ import { useTheme } from "@/contexts/theme-context";
 // ═══════════════════════════════════════════
 // ThemeToggle — light/dark switcher
 // ═══════════════════════════════════════════
-// Header'a yerleştirilen tek-tıklık ikon. Cross-fade animasyonlu.
+// Single-click icon placed in the header. Cross-fade animation.
 
 export function ThemeToggle() {
   const { mode, toggleMode } = useTheme();

@@ -1,30 +1,30 @@
 /**
  * CLI Entry Point — NestJS Standalone Application.
  *
- * Bu dosya eski index.fast.ts'in yerini alır. Ama artık NestJS DI kullanır:
- * - ScraperService inject edilir (browser yönetimi, paralel tab)
- * - PrismaService inject edilir (DB'ye kaydet)
- * - NestJS lifecycle hook'ları çalışır (onModuleInit, onModuleDestroy)
+ * This file replaces the old index.fast.ts but now uses NestJS DI:
+ * - ScraperService is injected (browser management, parallel tabs)
+ * - PrismaService is injected (write to DB)
+ * - NestJS lifecycle hooks run (onModuleInit, onModuleDestroy)
  *
- * İki mod destekler:
+ * Supports two modes:
  *
- * 1. Direct Mode (varsayılan):
+ * 1. Direct Mode (default):
  *    pnpm scrape
- *    → ScraperService.runFastScrape() direkt çağrılır
- *    → Sunucu gerekmez, standalone app açılır/kapanır
+ *    → ScraperService.runFastScrape() is called directly
+ *    → No server needed, standalone app opens/closes
  *
  * 2. Queue Mode (--queue flag):
  *    pnpm scrape --queue
- *    → Job BullMQ kuyruğuna eklenir
- *    → Asenkron çalışır — sunucu (main.ts) Worker'ı çalıştırmalı
- *    → CLI hemen çıkar, işi Worker yapar
+ *    → Job is pushed to the BullMQ queue
+ *    → Runs asynchronously — the server (main.ts) must run the Worker
+ *    → CLI exits immediately, Worker does the work
  *
- * NestJS Standalone App nedir?
- * NestFactory.createApplicationContext() — HTTP listener OLMADAN DI container'ı
- * bootstrap eder. Tüm @Injectable() servisler kullanılabilir ama HTTP port
- * dinlenmez. Script bitince app.close() ile temizlik yapılır.
+ * What is a NestJS Standalone App?
+ * NestFactory.createApplicationContext() — bootstraps the DI container
+ * WITHOUT an HTTP listener. All @Injectable() services are available but no HTTP
+ * port is bound. When the script finishes app.close() performs cleanup.
  *
- * Çalıştırma:
+ * Run:
  *   pnpm scrape          → Direct mode
  *   pnpm scrape --queue  → Queue mode
  */
@@ -42,18 +42,18 @@ import { QUEUE_NAMES } from '@scrape/shared';
 import { logger } from '@/utils/helpers';
 
 /**
- * CLI argümanlarından --queue flag'ini kontrol eder.
+ * Checks the --queue flag in CLI arguments.
  *
- * process.argv yapısı: ['node', 'cli.ts', ...args]
- * Basit flag kontrolü — ileride yargs/commander eklenebilir.
+ * process.argv structure: ['node', 'cli.ts', ...args]
+ * Simple flag check — yargs/commander can be added later.
  */
 const isQueueMode = (): boolean => process.argv.includes('--queue');
 
 /**
- * Direct Mode — ScraperService'i doğrudan çağırır.
+ * Direct Mode — calls ScraperService directly.
  *
- * Browser açar, scrape yapar, DB'ye yazar, kapanır.
- * Aynı process içinde senkron çalışır.
+ * Opens browser, scrapes, writes to DB, shuts down.
+ * Runs synchronously within the same process.
  */
 const runDirect = async (app: Awaited<ReturnType<typeof NestFactory.createApplicationContext>>): Promise<void> => {
   const scraperService = app.get(ScraperService);
@@ -73,14 +73,14 @@ const runDirect = async (app: Awaited<ReturnType<typeof NestFactory.createApplic
 };
 
 /**
- * Queue Mode — Job'ı BullMQ kuyruğuna ekler.
+ * Queue Mode — adds the job to the BullMQ queue.
  *
- * getQueueToken() ne yapar?
- * NestJS BullMQ entegrasyonunda her kuyruk DI'a `BullModule_<name>` token'ıyla kaydedilir.
- * getQueueToken(QUEUE_NAMES.SCRAPER) bu token'ı üretir, app.get() ile Queue instance'ı alınır.
+ * What does getQueueToken() do?
+ * In the NestJS BullMQ integration every queue is registered in DI with a `BullModule_<name>` token.
+ * getQueueToken(QUEUE_NAMES.SCRAPER) produces that token, app.get() returns the Queue instance.
  *
- * CLI hemen çıkar — işi Worker (main.ts process'inde) yapar.
- * Sonucu görmek için: GET /scrape/status/:jobId
+ * The CLI exits immediately — the Worker (running in the main.ts process) handles the job.
+ * To see the result: GET /scrape/status/:jobId
  */
 const runQueue = async (app: Awaited<ReturnType<typeof NestFactory.createApplicationContext>>): Promise<void> => {
   const queue = app.get<Queue<ScrapeJobData, ScrapeJobResult>>(getQueueToken(QUEUE_NAMES.SCRAPER));
@@ -102,9 +102,9 @@ const runQueue = async (app: Awaited<ReturnType<typeof NestFactory.createApplica
 };
 
 const run = async (): Promise<void> => {
-  // Standalone App — HTTP listener olmadan DI container bootstrap
+  // Standalone App — bootstrap the DI container without an HTTP listener
   const app = await NestFactory.createApplicationContext(AppModule, {
-    logger: false, // NestJS'in kendi log'larını bastır, biz kendi logger'ımızı kullanıyoruz
+    logger: false, // Suppress NestJS's own logs — we use our own logger
   });
 
   try {
@@ -114,7 +114,7 @@ const run = async (): Promise<void> => {
       await runDirect(app);
     }
   } finally {
-    // Temizlik — browser kapat, connection'ları temizle
+    // Cleanup — close browser, release connections
     await app.close();
   }
 };

@@ -1,21 +1,21 @@
 /**
- * MatcherService — Batch Scoring iş mantığı.
+ * MatcherService — Batch Scoring business logic.
  *
- * Bu servis "beyin" rolünde:
- *   - Kullanıcı profili + iş ilanlarını alır
- *   - Prompt oluşturur (buildPrompt)
- *   - GeminiService üzerinden LLM'e gönderir
- *   - Zod-validated sonuçları DB'ye yazar
+ * This service plays the "brain" role:
+ *   - Takes the user profile + job listings
+ *   - Builds the prompt (buildPrompt)
+ *   - Sends it to the LLM via GeminiService
+ *   - Writes Zod-validated results to the DB
  *
- * Neden GeminiService'den ayrı?
- *   GeminiService = "Gemini ile nasıl konuşulur" (transport)
- *   MatcherService = "Ne sorulur ve sonuçla ne yapılır" (business logic)
- *   Yarın farklı bir LLM kullansak MatcherService'e dokunmayız.
+ * Why separate from GeminiService?
+ *   GeminiService = "how to talk to Gemini" (transport)
+ *   MatcherService = "what to ask and what to do with the result" (business logic)
+ *   If we switch to a different LLM tomorrow, MatcherService stays untouched.
  *
- * Batch mantığı:
- *   - 8 ilan tek prompt'ta gönderilir (API çağrısı minimize)
- *   - Gemini 8 ilanın hepsini aynı anda puanlar
- *   - Sonuçlar Zod ile doğrulanır, DB'ye yazılır
+ * Batch logic:
+ *   - 8 listings are sent in a single prompt (minimize API calls)
+ *   - Gemini scores all 8 listings at once
+ *   - Results are Zod-validated and written to the DB
  */
 
 import { Injectable } from '@nestjs/common';
@@ -35,7 +35,7 @@ const MAX_REQUIREMENT_LENGTH = 120;
 // ═══════════════════════════════════════════
 
 /**
- * scoreBatch'in dönüş tipi — her ilan için skor + meta bilgi.
+ * Return type of scoreBatch — score + metadata for each listing.
  */
 export interface BatchScoreResult {
   scored: SingleScoringResult[];
@@ -57,13 +57,13 @@ export class MatcherService {
   ) {}
 
   /**
-   * Bir batch (max 8) ilanı kullanıcı profiliyle puanla.
+   * Score a batch (max 8) of listings against the user profile.
    *
-   * Akış:
+   * Flow:
    *   1. User + Jobs → buildPrompt() → prompt string
    *   2. prompt → GeminiService.generateJSON() → BatchScoringResult
-   *   3. Sonuçları DB'ye yaz (score >= minScore olanlar)
-   *   4. Başarılı/başarısız ilanları raporla
+   *   3. Write results to DB (those with score >= minScore)
+   *   4. Report successful/failed listings
    */
   async scoreBatch(user: MatcherUserProfile, jobs: MatcherJobSummary[]): Promise<BatchScoreResult> {
     if (jobs.length === 0) {
@@ -119,11 +119,11 @@ export class MatcherService {
   }
 
   /**
-   * Kullanıcının sahip olduğu TÜM iş ilanlarını çeker.
+   * Fetch ALL job listings the user owns.
    *
-   * Neden "unscored" değil?
-   * Kullanıcı "İlanları puanla" dediğinde mevcut tüm ilanlarını tekrar puanlayabilir.
-   * Bu sayede eski kayıtlar da güncel profile göre yeniden hesaplanır.
+   * Why not "unscored"?
+   * When the user says "Score listings" they may re-score all of their existing listings.
+   * This way old records are recomputed against the current profile.
    */
   async getUserJobsForScoring(input: MatcherScoreRequest): Promise<MatcherJobSummary[]> {
     const where = this.buildScoringWhere(input);
@@ -177,13 +177,13 @@ export class MatcherService {
   }
 
   /**
-   * Kullanıcı profili + iş ilanlarını LLM prompt'una dönüştürür.
+   * Convert the user profile + job listings into an LLM prompt.
    *
-   * Prompt tasarımı neden bu kadar detaylı?
-   *   - LLM'e açık talimat ver → tutarlı output
-   *   - Scoring formülünü prompt'a göm → her seferinde aynı ağırlıkları kullan
-   *   - JSON format belirt → Zod validation şansını artır
-   *   - Türkçe explanation iste → kullanıcı doğrudan okuyabilsin
+   * Why is the prompt design this detailed?
+   *   - Give the LLM explicit instructions → consistent output
+   *   - Embed the scoring formula in the prompt → same weights every time
+   *   - Specify JSON format → improve Zod validation odds
+   *   - Request Turkish explanation → user can read it directly
    */
   private buildPrompt(user: MatcherUserProfile, jobs: MatcherJobSummary[]): string {
     const allowedJobIds = jobs.map((job) => job.id).join(', ');
@@ -256,13 +256,13 @@ Her ilan için MUTLAKA bir sonuç döndür. results array'inde ${String(jobs.len
   }
 
   /**
-   * Gemini sonuçlarını doğrular — batch'teki jobId'ler eşleşiyor mu?
+   * Validate Gemini results — do the jobIds match the batch?
    *
-   * Gemini bazen:
-   *   - Aynı jobId'yi iki kez döner
-   *   - Batch'te olmayan bir jobId uydurur
-   *   - Bazı ilanları atlar
-   * Bu helper geçerli olanları filtreler.
+   * Sometimes Gemini:
+   *   - Returns the same jobId twice
+   *   - Invents a jobId that isn't in the batch
+   *   - Skips some listings
+   * This helper filters down to the valid ones.
    */
   private validateBatchResults(
     data: BatchScoringResult,
@@ -286,12 +286,12 @@ Her ilan için MUTLAKA bir sonuç döndür. results array'inde ${String(jobs.len
   }
 
   /**
-   * Puanlama sonuçlarını MatchResult tablosuna yazar.
+   * Write scoring results to the MatchResult table.
    *
-   * Promise.allSettled kullanılır — tek bir upsert hatası tüm batch'i çökertmez.
-   * Bu "partial failure tolerance" (kısmi hata toleransı) pattern'i:
-   *   8 ilandan 7'si başarıyla kaydedilir, 1'i hata verirse → 7 kayıt DB'ye girer.
-   *   Promise.all kullansak → 1 hata tümünü sıfırlar.
+   * Uses Promise.allSettled — a single upsert error doesn't sink the whole batch.
+   * This is the "partial failure tolerance" pattern:
+   *   If 7 of 8 listings save successfully and 1 errors → 7 rows land in the DB.
+   *   With Promise.all → a single error wipes them all.
    */
   async saveResults(userId: string, results: SingleScoringResult[]): Promise<void> {
     if (results.length === 0) {
@@ -342,7 +342,7 @@ Her ilan için MUTLAKA bir sonuç döndür. results array'inde ${String(jobs.len
   }
 
   /**
-   * LLM sonucu eksik/başarısız döndüğünde tüm ilanlar için fallback skor üretir.
+   * Produce fallback scores for all listings when the LLM result is missing/failed.
    */
   private createFallbackResults(jobs: MatcherJobSummary[]): SingleScoringResult[] {
     return jobs.map((job) => ({
@@ -355,16 +355,16 @@ Her ilan için MUTLAKA bir sonuç döndür. results array'inde ${String(jobs.len
   }
 
   /**
-   * Processor'ın son denemesinde çağırdığı "güvenlik ağı" (safety net).
+   * "Safety net" called on the processor's last attempt.
    *
-   * Neden gerekli?
-   *   BullMQ processor'da hem birinci hem ikinci attempt başarısız olabilir.
-   *   Bu durumda o batch'teki ilanlar MatchResult tablosunda HİÇ yer almaz.
-   *   Frontend "scoredCount >= totalJobs" kontrolünü yapıyor → count hiç yetmez
-   *   → polling sonsuza kadar devam eder → timeout hatası.
+   * Why is this needed?
+   *   In the BullMQ processor both the first and second attempts can fail.
+   *   In that case the listings in that batch have NO row in MatchResult.
+   *   The frontend checks "scoredCount >= totalJobs" → count never catches up
+   *   → polling runs forever → timeout error.
    *
-   *   Bu metod: "her koşulda her ilan bir MatchResult'a sahip olsun" garantisi sağlar.
-   *   score=0 ile kaydedilir → frontend en azından "eşleşmedi" gösterir, takılmaz.
+   *   This method guarantees "every listing has a MatchResult under any circumstance".
+   *   Saved with score=0 → the frontend at least shows "no match" and doesn't hang.
    */
   async saveFallbackForBatch(userId: string, jobs: MatcherJobSummary[]): Promise<void> {
     const fallback = this.createFallbackResults(jobs);
@@ -372,10 +372,10 @@ Her ilan için MUTLAKA bir sonuç döndür. results array'inde ${String(jobs.len
   }
 
   /**
-   * JSON skills alanından skill isimlerini çıkarır.
+   * Extract skill names from the JSON skills field.
    *
-   * DB'deki skills alanı Json tipinde — ExtractedSkill[] formatında.
-   * Prompt'a sadece skill isimlerini gönderiyoruz (category, isMain gereksiz).
+   * The DB skills field is Json — in ExtractedSkill[] format.
+   * We only send skill names in the prompt (category, isMain are unnecessary).
    */
   private extractSkillNames(skills: unknown): string[] {
     if (!Array.isArray(skills)) return [];
@@ -385,7 +385,7 @@ Her ilan için MUTLAKA bir sonuç döndür. results array'inde ${String(jobs.len
   }
 
   /**
-   * Ortalama skor hesaplar — loglama için.
+   * Compute average score — for logging.
    */
   private calculateAvgScore(results: SingleScoringResult[]): number {
     if (results.length === 0) return 0;

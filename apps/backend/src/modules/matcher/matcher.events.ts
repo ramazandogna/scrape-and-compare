@@ -1,18 +1,18 @@
 /**
  * Matcher Event Listener — BullMQ Queue Event Monitoring.
  *
- * Bu dosya Redis kuyruğundaki matcher event'lerini dinler ve loglar.
- * MatcherService'ten farklı olarak, burada iş mantığı YOKTUR — sadece:
+ * This file listens to and logs matcher events on the Redis queue.
+ * Unlike MatcherService, there is NO business logic here — only:
  *   1. Structured logging (queue lifecycle observability)
  *   2. Crash recovery (stalled job detection)
  *
- * Neden QueueEventsHost?
- *   - OnWorkerEvent: Sadece Worker kendi işlediği job'lar için çalışır.
- *     Worker crash ederse event ateşlenmez.
- *   - QueueEventsHost: Redis Pub/Sub ile TÜM event'leri dinler.
- *     Worker crash etse bile "stalled" event'i gelir.
+ * Why QueueEventsHost?
+ *   - OnWorkerEvent: Only fires for jobs this Worker itself processed.
+ *     If the Worker crashes, no event is emitted.
+ *   - QueueEventsHost: Listens to ALL events via Redis Pub/Sub.
+ *     Even if the Worker crashes, a "stalled" event arrives.
  *
- * ScraperEventListener ile birebir aynı pattern.
+ * Same pattern as ScraperEventListener.
  */
 
 import { QueueEventsListener, QueueEventsHost, OnQueueEvent } from '@nestjs/bullmq';
@@ -25,14 +25,14 @@ import { logger } from '@/utils/helpers';
 // ═══════════════════════════════════════════
 
 /**
- * Redis Pub/Sub üzerinden 'matcher' kuyruğundaki event'leri dinler.
+ * Listens to events on the 'matcher' queue via Redis Pub/Sub.
  */
 @QueueEventsListener(QUEUE_NAMES.MATCHER)
 export class MatcherEventListener extends QueueEventsHost {
   /**
-   * Batch scoring başarıyla tamamlandığında tetiklenir.
+   * Fires when batch scoring completes successfully.
    *
-   * returnvalue Redis'ten JSON string olarak gelir — parse edip logluyoruz.
+   * returnvalue arrives from Redis as a JSON string — we parse and log it.
    */
   @OnQueueEvent('completed')
   onCompleted({
@@ -59,10 +59,10 @@ export class MatcherEventListener extends QueueEventsHost {
   }
 
   /**
-   * Batch scoring başarısız olduğunda tetiklenir.
+   * Fires when batch scoring fails.
    *
-   * failedReason düz string — BullMQ error.message'ı buraya yazar.
-   * Retry ayarı varsa BullMQ otomatik tekrar dener.
+   * failedReason is a plain string — BullMQ writes error.message here.
+   * If retry is configured, BullMQ retries automatically.
    */
   @OnQueueEvent('failed')
   onFailed({
@@ -80,10 +80,10 @@ export class MatcherEventListener extends QueueEventsHost {
   }
 
   /**
-   * Worker heartbeat göndermezse tetiklenir — crash recovery.
+   * Fires when the Worker stops sending heartbeats — crash recovery.
    *
-   * Worker çöktüyse (OOM, segfault) bu event ile tespit edilir.
-   * BullMQ stalled job'ları otomatik olarak tekrar kuyruğa ekler.
+   * If the Worker crashed (OOM, segfault), this event detects it.
+   * BullMQ automatically re-enqueues stalled jobs.
    */
   @OnQueueEvent('stalled')
   onStalled({ jobId }: { jobId: string }): void {
@@ -99,10 +99,10 @@ export class MatcherEventListener extends QueueEventsHost {
 // ═══════════════════════════════════════════
 
 /**
- * JSON string'i güvenli parse eder.
+ * Safely parse a JSON string.
  *
- * QueueEvents returnvalue'lar Redis'ten raw string gelir.
- * Parse başarısız olursa null döner (crash yerine graceful degradation).
+ * QueueEvents returnvalues arrive from Redis as raw strings.
+ * Returns null on parse failure (graceful degradation instead of crash).
  */
 function safeParse<T>(json: string): T | null {
   try {

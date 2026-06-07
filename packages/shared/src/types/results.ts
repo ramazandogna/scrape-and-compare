@@ -1,20 +1,20 @@
 /**
  * Generic Result Types — Discriminated Union Pattern
  *
- * Neden generic? Çünkü 3 farklı modül (Scraper, Parser, Matcher) aynı
- * "ya başarılı ya hatalı" pattern'ini kullanıyor. Kodu tekrarlamak yerine
- * generic tip ile tek seferde tanımlıyoruz.
+ * Why generic? Because 3 different modules (Scraper, Parser, Matcher) all use
+ * the same "either success or error" pattern. Instead of duplicating code,
+ * we define it once with a generic type.
  *
  * @example
- * // Fonksiyon: ya JobListing[] döner ya ScraperError
+ * // Function: returns either JobListing[] or ScraperError
  * type FetchResult = ScraperResult<JobListing[]>;
  *
  * function handleResult(result: FetchResult) {
  *   if (result.status === 'success') {
- *     // TypeScript BİLİR: result.data var, result.error YOK
+ *     // TypeScript KNOWS: result.data exists, result.error does NOT
  *     console.log(result.data);
  *   } else {
- *     // TypeScript BİLİR: result.error var, result.data YOK
+ *     // TypeScript KNOWS: result.error exists, result.data does NOT
  *     console.log(result.error.code);
  *   }
  * }
@@ -23,24 +23,24 @@
 import type { ScraperError, ParserError, MatcherError } from './errors';
 
 /**
- * Scraper sonuç tipi — `status` alanına göre TypeScript data veya error'u ayırt eder.
- * @typeParam T Başarılı durumda dönen veri tipi
+ * Scraper result type — TypeScript discriminates data vs error via `status`.
+ * @typeParam T Data type returned on success
  */
 export type ScraperResult<T> =
   | { status: 'success'; data: T }
   | { status: 'error'; error: ScraperError };
 
 /**
- * Parser sonuç tipi — CV/LLM parse işlemleri için.
- * @typeParam T Başarılı durumda dönen veri tipi
+ * Parser result type — for CV/LLM parse operations.
+ * @typeParam T Data type returned on success
  */
 export type ParserResult<T> =
   | { status: 'success'; data: T }
   | { status: 'error'; error: ParserError };
 
 /**
- * Matcher sonuç tipi — Job-User eşleştirme işlemleri için.
- * @typeParam T Başarılı durumda dönen veri tipi
+ * Matcher result type — for job-user matching operations.
+ * @typeParam T Data type returned on success
  */
 export type MatcherResult<T> =
   | { status: 'success'; data: T }

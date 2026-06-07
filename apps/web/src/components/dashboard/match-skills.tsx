@@ -20,10 +20,10 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 // ═══════════════════════════════════════════
-// MatchSkills — Eşleşen ✅ ve eksik ❌ skill'ler
+// MatchSkills — Matched ✅ and missing ❌ skills
 // ═══════════════════════════════════════════
-// Puanlanmış ilanlarda kartın alt kısmında gösterilir.
-// Puanlanmamış → CTA mesajı gösterilir.
+// Rendered at the bottom of scored listing cards.
+// Unscored → CTA message is shown.
 
 interface MatchSkillsProps {
   matchedSkills: string[] | null;

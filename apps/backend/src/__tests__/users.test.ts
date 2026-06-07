@@ -1,13 +1,13 @@
 /**
- * Users Tests — Kullanıcı CRUD ve Zod validation testleri.
+ * Users Tests — User CRUD and Zod validation tests.
  *
- * Neyi test ediyoruz?
- *   1. Zod schema validasyonu (createUserSchema, updateUserSchema)
- *   2. Service iş mantığı (mock Prisma ile)
- *   3. Edge case'ler: boş array, max sınır, email format
+ * What do we test?
+ *   1. Zod schema validation (createUserSchema, updateUserSchema)
+ *   2. Service business logic (with a mock Prisma)
+ *   3. Edge cases: empty array, max limit, email format
  *
- * Test yaklaşımı: Service'i mock PrismaService ile test ediyoruz.
- * Real DB gerektirmez — unit test hızlı ve izole olmalı.
+ * Test approach: the service is tested with a mock PrismaService.
+ * No real DB required — unit tests must be fast and isolated.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -178,10 +178,10 @@ describe('updateUserSchema', () => {
 // ═══════════════════════════════════════════
 
 /**
- * Mock PrismaService factory — her test için temiz mock.
+ * Mock PrismaService factory — clean mock for every test.
  *
- * Neden factory? vi.fn() referansları test'ler arası paylaşılırsa
- * bir test'in mock davranışı diğerini etkiler. Factory yeni obje üretir.
+ * Why a factory? If vi.fn() references are shared across tests, one test's
+ * mock behavior affects another. The factory produces a new object each time.
  */
 function createMockPrisma() {
   return {
@@ -200,8 +200,8 @@ describe('UsersService', () => {
 
   beforeEach(() => {
     mockPrisma = createMockPrisma();
-    // UsersService constructor'ı PrismaService bekler,
-    // ama biz mock veriyoruz — DI'ı bypass ediyoruz (unit test)
+    // The UsersService constructor expects PrismaService,
+    // but we pass a mock — bypassing DI (unit test)
     service = new UsersService(mockPrisma as never);
   });
 

@@ -1,20 +1,20 @@
 /**
- * Scraper Service — Orkestrasyon katmanı.
+ * Scraper Service — orchestration layer.
  *
- * Bu dosya "ne zaman, hangi sırayla, neyi çağır" sorusuna cevap verir.
- * "Nasıl yapılır" detayları helpers/ dizininde yaşar:
- *   - resource.ts → Ağ optimizasyonu (resource blocking, page pool)
- *   - parsers.ts  → DOM parsing (search + detail sayfaları)
+ * This file answers "when, in what order, what to call".
+ * The "how to do it" details live under helpers/:
+ *   - resource.ts → network optimization (resource blocking, page pool)
+ *   - parsers.ts  → DOM parsing (search + detail pages)
  *   - config.ts   → .env config, enrichment, deduplication
  *
- * Akış:
- *   1. Config yükle (parametre veya .env fallback)
- *   2. Browser aç (stealth)
- *   3. Search sayfalarını tara (keyword başına)
- *   4. Detail sayfalarını paralel çek (N tab)
+ * Flow:
+ *   1. Load config (params or .env fallback)
+ *   2. Launch browser (stealth)
+ *   3. Scan search pages (per keyword)
+ *   4. Fetch detail pages in parallel (N tabs)
  *   5. Skill extraction + salary parsing
- *   6. DB'ye upsert (PostgreSQL via Prisma)
- *   7. JSON dosyasına yaz (debug/backup)
+ *   6. Upsert to DB (PostgreSQL via Prisma)
+ *   7. Write JSON file (debug/backup)
  */
 
 import { Injectable } from '@nestjs/common';
@@ -71,7 +71,7 @@ import type { Prisma } from '@scrape/database';
 import { ScraperStatus } from '@scrape/database';
 
 // ═══════════════════════════════════════════
-// ANA SERVİS
+// MAIN SERVICE
 // ═══════════════════════════════════════════
 
 @Injectable()
@@ -82,15 +82,15 @@ export class ScraperService {
   ) {}
 
   /**
-   * Fast scrape çalıştırır — CLI veya BullMQ Worker tarafından çağrılır.
+   * Runs a fast scrape — called by the CLI or the BullMQ Worker.
    *
-   * @param jobData Queue payload'ı — keywords, location ve opsiyonel config override
-   * @param onProgress Opsiyonel progress callback — processor her aşamada çağırır
-   * @returns ScrapeJobCompleted — Worker bu sonucu Redis'e yazar
+   * @param jobData Queue payload — keywords, location and optional config override
+   * @param onProgress Optional progress callback — the processor invokes it at each phase
+   * @returns ScrapeJobCompleted — the Worker writes this result to Redis
    *
    * Audit lifecycle:
    *   createAudit (IDLE) → SCANNING → EXTRACTING → COMPLETED
-   *   Herhangi bir adımda hata → FAILED
+   *   Any failure along the way → FAILED
    */
   async runFastScrape(
     jobData: ScrapeJobData,
@@ -99,7 +99,7 @@ export class ScraperService {
     const { keywords, location, userId } = jobData;
     const config = loadFastConfig(keywords.length, jobData.config);
 
-    // Audit kaydı oluştur (keyword'leri virgülle birleştir — schema tek string)
+    // Create the audit record (join keywords with commas — schema stores a single string)
     const auditId = await createAudit(this.prisma, keywords.join(', '), location, userId);
 
     logger.info('FAST LinkedIn Job Scraper v2.0.0 (NestJS) başlatılıyor', {
@@ -139,7 +139,7 @@ export class ScraperService {
         );
       }
 
-      // ADIM 4: DB'ye kaydet (upsert — varsa güncelle, yoksa oluştur)
+      // STEP 4: persist to DB (upsert — update if exists, otherwise create)
       const dbResult = await upsertJobs(this.prisma, qualityJobs, {
         userId,
         auditId,
@@ -156,7 +156,7 @@ export class ScraperService {
         errorDetails: scrapeErrors as unknown as Prisma.InputJsonValue,
       });
 
-      // ADIM 5: JSON çıktısı (debug/backup — ileride kaldırılabilir)
+      // STEP 5: JSON output (debug/backup — may be removed later)
       this.writeOutput(qualityJobs, errors, keywords, location);
 
       const durationMs = Date.now() - startTime;
@@ -189,19 +189,19 @@ export class ScraperService {
         perKeyword,
       };
     } catch (err) {
-      // Herhangi bir adımda beklenmeyen hata → FAILED
+      // Any unexpected error along the way → FAILED
       const message = err instanceof Error ? err.message : 'Unknown error';
       await failAudit(this.prisma, auditId, [
         { code: 'NETWORK_ERROR', message },
       ] as unknown as Prisma.InputJsonValue).catch(() => {
-        // failAudit kendisi de hata verirse (DB bağlantısı kopmuş olabilir) sessizce geç
+        // If failAudit itself errors (DB connection may be down), swallow silently
         logger.error('[AUDIT] failAudit yazılamadı — DB bağlantısı kopmuş olabilir');
       });
-      throw err; // Hatayı yukarıya fırlat — CLI'da yakalanır
+      throw err; // Re-throw — caught upstream by the CLI
     }
   }
 
-  /** Scraping işlemini gerçekleştirir — browser aç, tara, kapat */
+  /** Performs the scraping operation — launch browser, scan, close */
   private async executeScrape(
     keywords: string[],
     location: string,
@@ -213,13 +213,13 @@ export class ScraperService {
     perKeyword: KeywordOutcome[];
   }> {
     const context = await this.browserService.launch(config);
-    // Aynı job'ı birden fazla keyword bulunca tekrar saymayalım — set'ler tüm
-    // keyword'ler arası paylaşılır.
+    // Avoid recounting the same job when multiple keywords find it — the sets
+    // are shared across all keywords.
     const seenIds = new Set<string>();
     const seenLinks = new Set<string>();
 
     try {
-      // ADIM 1: Search sayfalarını concurrent tara
+      // STEP 1: scan search pages concurrently
       logger.info('ADIM 1: Search sayfaları taranıyor...', {
         keywords: keywords.length,
         concurrency: config.searchConcurrency,
@@ -227,7 +227,7 @@ export class ScraperService {
         maxSearchPages: config.maxSearchPages,
       });
 
-      // Her concurrent slot için ayrı bir search page oluştur
+      // Create a dedicated search page for each concurrent slot
       const searchPool = await createPagePool(
         this.browserService,
         context,
@@ -246,7 +246,7 @@ export class ScraperService {
               target: config.targetPerKeyword,
               maxPages: config.maxSearchPages,
               onPageFetched: (event) => {
-                // sayfa başına ilerleme: %0-50 aralığı, keyword sayısına ve hedef sayfaya bölünür
+                // per-page progress: 0–50% range, divided by keyword count and target pages
                 const denom = keywords.length * config.maxSearchPages;
                 const numerator = _itemIndex * config.maxSearchPages + event.pageIndex;
                 const pct = Math.min(50, Math.round((numerator / denom) * 50));
@@ -261,7 +261,7 @@ export class ScraperService {
             seenLinks,
           );
 
-          // keyword tarama ilerlemesi: %0-50 aralığı (en azından bu keyword tamamlandı)
+          // keyword scan progress: 0–50% range (at minimum this keyword finished)
           const pct = Math.round(((_itemIndex + 1) / keywords.length) * 50);
           onProgress?.(
             'SCANNING',
@@ -280,7 +280,7 @@ export class ScraperService {
 
       await searchPool.close();
 
-      // Sonuçları topla — fulfilled olanlardan job'ları, rejected olanlardan error'ları çıkar
+      // Aggregate results — pull jobs from fulfilled, errors from rejected
       const allJobs: JobListing[] = [];
       const errors: Array<{ keyword: string; error: ScraperErrorLegacy }> = [];
       const perKeyword: KeywordOutcome[] = [];
@@ -318,7 +318,7 @@ export class ScraperService {
         perKeyword: perKeyword.map((k) => `${k.keyword}: ${k.collected}/${k.target} (${k.pagesScanned}p)`),
       });
 
-      // ADIM 2: Detail sayfalarını paralel çek
+      // STEP 2: fetch detail pages in parallel
       if (config.fetchDetails && allJobs.length > 0) {
         const jobsToEnrich = allJobs.slice(0, config.maxDetailFetch);
         logger.info(`ADIM 2: ${jobsToEnrich.length} ilanın detayı ${config.parallelTabs} paralel tab ile çekilecek...`);
@@ -340,7 +340,7 @@ export class ScraperService {
     }
   }
 
-  /** Sonuçları JSON dosyasına yazar */
+  /** Writes results to a JSON file */
   private writeOutput(
     jobs: JobListing[],
     errors: Array<{ keyword: string; error: ScraperErrorLegacy }>,
@@ -365,7 +365,7 @@ export class ScraperService {
     logger.success(`Çıktı: ${outputPath}`);
   }
 
-  /** Sonuç özetini konsola yazdırır */
+  /** Prints the result summary to the console */
   private printSummary(
     jobs: JobListing[],
     errors: Array<{ keyword: string; error: ScraperErrorLegacy }>,
@@ -395,12 +395,12 @@ export class ScraperService {
     }
     logger.success(`Hatalar: ${errors.length}`);
     logger.success(`Paralel tab: ${config.parallelTabs}`);
-    logger.success(`${'═'.repeat(55)}`);  
+    logger.success(`${'═'.repeat(55)}`);
 
     this.printTopResults(jobs);
   }
 
-  /** İlk 5 sonucu gösterir */
+  /** Shows the first 5 results */
   private printTopResults(jobs: JobListing[]): void {
     if (jobs.length === 0) return;
 
@@ -425,7 +425,7 @@ export class ScraperService {
     });
   }
 
-  /** Yeni ilan hedefi için kullanıcıya anlaşılır durum notu üretir */
+  /** Builds a user-friendly status note for the new-listings target */
   private buildDiscoveryMessage(input: {
     targetNewJobs: number;
     totalJobs: number;

@@ -1,23 +1,23 @@
 /**
- * Matcher Module — AI Scoring Engine'in NestJS modülü.
+ * Matcher Module — NestJS module for the AI Scoring Engine.
  *
- * Bu modül iş ilanlarını kullanıcı profiliyle eşleştirip puanlayan
- * tüm bileşenleri barındırır:
+ * This module hosts all components that match job listings against
+ * the user profile and score them:
  *
  * imports:
- *   - BullModule.registerQueue() → 'matcher' kuyruğunu Redis'e kaydeder
- *     Bu kayıt olmadan @InjectQueue ve @Processor çalışmaz.
+ *   - BullModule.registerQueue() → registers the 'matcher' queue with Redis
+ *     Without this registration, @InjectQueue and @Processor don't work.
  *
  * controllers:
  *   - MatcherController → HTTP API: POST /matcher/score, GET /matcher/results/:userId
  *
  * providers:
- *   - GeminiService → Gemini API iletişim katmanı
- *   - MatcherService → Batch scoring iş mantığı
+ *   - GeminiService → Gemini API communication layer
+ *   - MatcherService → batch scoring business logic
  *   - MatcherProcessor → BullMQ Worker (rate-limited, 10 RPM)
- *   - MatcherEventListener → Queue event monitor (completed, failed, stalled)
+ *   - MatcherEventListener → queue event monitor (completed, failed, stalled)
  *
- * Bağlantı akışı:
+ * Wiring flow:
  *   Controller ──@InjectQueue──► Queue ──Redis──► Processor ──► MatcherService ──► GeminiService
  *                                                    ↕
  *                                           MatcherEventListener (Pub/Sub)
@@ -35,10 +35,10 @@ import { MatcherController } from './matcher.controller';
 @Module({
   imports: [
     /**
-     * BullModule.registerQueue() — 'matcher' kuyruğunu kaydeder.
+     * BullModule.registerQueue() — registers the 'matcher' queue.
      *
-     * Redis bağlantısını AppModule'deki BullModule.forRoot()'tan alır.
-     * Rate limiting Worker tarafında yapılır (@Processor options.limiter).
+     * Picks up the Redis connection from BullModule.forRoot() in AppModule.
+     * Rate limiting is handled on the Worker side (@Processor options.limiter).
      */
     BullModule.registerQueue({
       name: QUEUE_NAMES.MATCHER,

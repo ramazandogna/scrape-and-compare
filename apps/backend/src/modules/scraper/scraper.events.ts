@@ -1,20 +1,20 @@
 /**
  * Scraper Event Listener — BullMQ Queue Event Monitoring.
  *
- * Bu dosya Redis kuyruğundaki TÜM event'leri dinler ve loglar.
- * ScraperService'ten farklı olarak, burada iş mantığı YOKTUR — sadece:
+ * This file listens to ALL events on the Redis queue and logs them.
+ * Unlike ScraperService, it contains NO business logic — only:
  *   1. Structured logging (queue lifecycle observability)
  *   2. Crash recovery (stalled job detection)
  *
- * Neden QueueEventsHost, OnWorkerEvent değil?
- *   - OnWorkerEvent: Worker kendi işlediği job'lar için ateşlenir.
- *     Worker crash ederse event ateşlenmez — çünkü ateşleyecek Worker yok.
- *   - QueueEventsHost: Redis Pub/Sub ile TÜM event'leri dinler.
- *     Worker crash etse bile "stalled" event'i gelir — çünkü dinleme
- *     Worker'dan bağımsız, ayrı bir Redis bağlantısı üzerinden çalışır.
+ * Why QueueEventsHost instead of OnWorkerEvent?
+ *   - OnWorkerEvent: fires for jobs the Worker itself processes.
+ *     If the Worker crashes, no event fires — there is no Worker to fire it.
+ *   - QueueEventsHost: listens to ALL events via Redis Pub/Sub.
+ *     Even if the Worker crashes, the "stalled" event still arrives — because
+ *     the listener is independent of the Worker and runs on a separate Redis connection.
  *
- * QueueEvents event payload'ları:
- *   Event'ler Redis'ten raw string olarak gelir:
+ * QueueEvents event payloads:
+ *   Events arrive from Redis as raw strings:
  *   - completed: { jobId, returnvalue (JSON string), prev }
  *   - failed:    { jobId, failedReason (string), prev }
  *   - stalled:   { jobId }
@@ -31,21 +31,21 @@ import { logger } from '@/utils/helpers';
 // ═══════════════════════════════════════════
 
 /**
- * Redis Pub/Sub üzerinden 'scraper' kuyruğundaki event'leri dinler.
+ * Listens for events on the 'scraper' queue via Redis Pub/Sub.
  *
- * @QueueEventsListener(QUEUE_NAMES.SCRAPER) ne yapar?
- *   1. NestJS bu class'ı bir QueueEvents listener olarak kaydeder
- *   2. Ayrı bir Redis bağlantısı açar (Worker'dan bağımsız)
- *   3. 'scraper' kuyruğundaki tüm event'leri subscribe eder
- *   4. Event geldiğinde ilgili @OnQueueEvent metodu çağrılır
+ * What does @QueueEventsListener(QUEUE_NAMES.SCRAPER) do?
+ *   1. NestJS registers this class as a QueueEvents listener
+ *   2. Opens a separate Redis connection (independent of the Worker)
+ *   3. Subscribes to all events on the 'scraper' queue
+ *   4. Invokes the matching @OnQueueEvent method when an event arrives
  */
 @QueueEventsListener(QUEUE_NAMES.SCRAPER)
 export class ScraperEventListener extends QueueEventsHost {
   /**
-   * Job başarıyla tamamlandığında tetiklenir.
+   * Fires when a job completes successfully.
    *
-   * returnvalue Redis'ten JSON string olarak gelir — parse etmemiz lazım.
-   * ScrapeJobCompleted tipine cast ediyoruz (Worker bu tipi döndürüyor).
+   * returnvalue arrives from Redis as a JSON string — we must parse it.
+   * Cast to ScrapeJobCompleted (the Worker returns this type).
    */
   @OnQueueEvent('completed')
   onCompleted({
@@ -71,11 +71,11 @@ export class ScraperEventListener extends QueueEventsHost {
   }
 
   /**
-   * Job başarısız olduğunda tetiklenir.
+   * Fires when a job fails.
    *
-   * failedReason düz string — BullMQ error.message'ı buraya yazar.
-   * Audit zaten ScraperService catch bloğunda FAILED olarak işaretleniyor.
-   * Burada sadece logluyoruz (observability).
+   * failedReason is a plain string — BullMQ writes error.message here.
+   * The audit is already marked FAILED in the ScraperService catch block.
+   * Here we only log (observability).
    */
   @OnQueueEvent('failed')
   onFailed({
@@ -93,13 +93,13 @@ export class ScraperEventListener extends QueueEventsHost {
   }
 
   /**
-   * Worker heartbeat göndermezse tetiklenir — crash recovery.
+   * Fires when the Worker stops sending heartbeats — crash recovery.
    *
-   * Bu en önemli event: Worker çöktüyse (OOM, segfault, force kill)
-   * ScraperService'in catch bloğu çalışamaz. Bu event ile durumu loglarız.
+   * This is the most important event: if the Worker crashed (OOM, segfault, force kill)
+   * the ScraperService catch block cannot run. We log the situation via this event.
    *
-   * Not: BullMQ stalled job'ları otomatik olarak tekrar kuyruğa ekler
-   * (stalledInterval ayarına göre). Biz sadece bilgilendiriliyoruz.
+   * Note: BullMQ re-enqueues stalled jobs automatically (per stalledInterval).
+   * We are only being notified.
    */
   @OnQueueEvent('stalled')
   onStalled({ jobId }: { jobId: string }): void {
@@ -115,10 +115,10 @@ export class ScraperEventListener extends QueueEventsHost {
 // ═══════════════════════════════════════════
 
 /**
- * JSON string'i güvenli parse eder.
+ * Safely parses a JSON string.
  *
- * QueueEvents returnvalue'lar Redis'ten raw string gelir.
- * Parse başarısız olursa null döner (crash yerine graceful degradation).
+ * QueueEvents returnvalues arrive from Redis as raw strings.
+ * Returns null on parse failure (graceful degradation instead of crashing).
  */
 function safeParse<T>(json: string): T | null {
   try {

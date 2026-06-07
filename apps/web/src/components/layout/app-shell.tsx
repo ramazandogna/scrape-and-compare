@@ -7,10 +7,10 @@ import { PageTransition } from "@/components/layout/page-transition";
 import { AuthGate } from "@/components/auth/auth-gate";
 
 // ═══════════════════════════════════════════
-// AppShell — header/footer + AuthGate sarmalayıcı
+// AppShell — header/footer + AuthGate wrapper
 // ═══════════════════════════════════════════
-// Auth sayfalarında header/footer gizlenir — full-bleed brand layout'u için
-// gereksiz UI gürültüsü engelleniyor.
+// Header/footer are hidden on auth pages — avoids unnecessary UI noise
+// for the full-bleed brand layout.
 
 const AUTH_ROUTES_PREFIX = ["/sign-in", "/sign-up", "/forgot-password", "/reset-password"];
 
@@ -19,8 +19,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isAuthRoute = AUTH_ROUTES_PREFIX.some((p) => pathname.startsWith(p));
 
   if (isAuthRoute) {
-    // AuthGate yine de çalışır — authenticated kullanıcı /sign-in'e gelirse
-    // /dashboard'a yönlendirilir.
+    // AuthGate still runs — an authenticated user hitting /sign-in
+    // gets redirected to /dashboard.
     return (
       <AuthGate>
         <PageTransition>{children}</PageTransition>

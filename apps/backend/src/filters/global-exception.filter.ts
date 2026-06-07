@@ -1,15 +1,15 @@
 /**
- * Global HTTP Exception Filter — Tüm hataları standart JSON formatında döner.
+ * Global HTTP Exception Filter — returns all errors in a standard JSON format.
  *
- * NestJS'te fırlatılan exception'lar bu filter'dan geçer.
- * Hem HttpException'lar (400, 404, vb.) hem de beklenmeyen hatalar
- * tutarlı bir format ile client'a iletilir.
+ * Exceptions thrown in NestJS pass through this filter.
+ * Both HttpException instances (400, 404, etc.) and unexpected errors
+ * are delivered to the client in a consistent format.
  *
  * Format:
  *   { statusCode, message, errors?, timestamp, path }
  *
- * Güvenlik: Beklenmeyen hatalarda stack trace veya iç detaylar
- * client'a sızdırılmaz — sadece "Internal server error" döner.
+ * Security: stack traces and internal details from unexpected errors
+ * are not leaked to the client — only "Internal server error" is returned.
  */
 
 import {
@@ -85,7 +85,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       };
     }
 
-    // Beklenmeyen hatalar — iç detayları sızdırma
+    // Unexpected errors — do not leak internal details
     return {
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
       body: {

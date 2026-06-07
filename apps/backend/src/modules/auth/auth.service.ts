@@ -1,11 +1,11 @@
 /**
- * AuthService — şifre hash, JWT imza, register/login/forgot-password mantığı.
+ * AuthService — password hashing, JWT signing, register/login/forgot-password logic.
  *
- * Kasıtlı side-effect'ler:
- *   - signUp: User row create + auto-login (token üretir, cookie controller'da set edilir)
- *   - logIn: email + bcrypt karşılaştırma + token üretir
- *   - issueResetToken: random 32-byte hex + 1 saat geçerli
- *   - resetPassword: token doğrula + yeni hash + token sıfırla
+ * Intentional side effects:
+ *   - signUp: create User row + auto-login (issues a token, controller sets the cookie)
+ *   - logIn: email + bcrypt comparison + issues a token
+ *   - issueResetToken: random 32-byte hex + valid for 1 hour
+ *   - resetPassword: validate token + new hash + clear token
  */
 
 import {
@@ -15,7 +15,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-// bcryptjs ESM named exports vermiyor — default import + destructure.
+// bcryptjs doesn't expose ESM named exports — default import + destructure.
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 const { hash, compare } = bcrypt;
@@ -54,16 +54,16 @@ export class AuthService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Yeni kullanıcı oluşturur ve otomatik giriş yaptırır.
-   * Email zaten kayıtlıysa 409 Conflict döner.
+   * Creates a new user and signs them in automatically.
+   * Returns 409 Conflict if the email is already registered.
    */
   async signUp(input: SignUpInput): Promise<AuthSession> {
     const email = input.email.toLowerCase().trim();
     const existing = await this.prisma.user.findUnique({ where: { email } });
 
     if (existing) {
-      // Legacy seed user (passwordHash null) varsa yeni şifre ile upgrade et;
-      // aksi halde "zaten kayıtlı" hatası.
+      // If a legacy seed user exists (passwordHash null), upgrade with the new password;
+      // otherwise raise an "already registered" error.
       if (existing.passwordHash === null) {
         const passwordHash = await hash(input.password, BCRYPT_ROUNDS);
         const upgraded = await this.prisma.user.update({
@@ -90,14 +90,14 @@ export class AuthService {
   }
 
   /**
-   * Email + password ile login. Sabit-süreli karşılaştırma için her zaman
-   * bcrypt.compare çağırıyoruz (timing-attack koruması).
+   * Login with email + password. We always call bcrypt.compare to keep the
+   * comparison constant-time (timing-attack protection).
    */
   async logIn(input: LogInInput): Promise<AuthSession> {
     const email = input.email.toLowerCase().trim();
     const user = await this.prisma.user.findUnique({ where: { email } });
 
-    // User yoksa yine de bcrypt çağırarak timing'i sabit tut.
+    // Even when user is missing, call bcrypt to keep timing constant.
     const dummyHash =
       '$2a$10$CwTycUXWue0Thq9StjUM0uJ8nrbKyMU3y3J3MqVgjGpYzhPPbz3hC';
     const comparisonHash = user?.passwordHash ?? dummyHash;
@@ -115,9 +115,9 @@ export class AuthService {
   }
 
   /**
-   * Forgot-password: random token üretir, DB'ye yazar.
-   * MVP'de SMTP yok — token API response'unda dönüyor (dev kullanım).
-   * Üretimde mail servisinin entegrasyonu için TODO işareti var.
+   * Forgot-password: generates a random token and writes it to the DB.
+   * No SMTP in MVP — token is returned in the API response (dev usage).
+   * A TODO is left for integrating a mail service in production.
    */
   async issueResetToken(email: string): Promise<{ token: string | null }> {
     const normalized = email.toLowerCase().trim();
@@ -126,7 +126,7 @@ export class AuthService {
       select: { id: true },
     });
 
-    // Email enumeration'a karşı: kullanıcı yoksa bile null token dönüyoruz.
+    // Against email enumeration: return a null token even when the user is missing.
     if (!user) return { token: null };
 
     const token = randomBytes(32).toString('hex');
@@ -140,7 +140,7 @@ export class AuthService {
       },
     });
 
-    // TODO(prod): mail servisi (Resend / SES) ile reset link gönder.
+    // TODO(prod): send the reset link via a mail service (Resend / SES).
     return { token };
   }
 
@@ -168,7 +168,7 @@ export class AuthService {
   }
 
   /**
-   * /auth/me — req.user'dan tam profil çeker (techStack vs).
+   * /auth/me — fetches the full profile from req.user (techStack, etc).
    */
   async getProfile(userId: string) {
     const user = await this.prisma.user.findUnique({

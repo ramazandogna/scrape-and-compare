@@ -1,25 +1,25 @@
 /**
- * Scraper Module — Ghost Scraper'ın NestJS modülü.
+ * Scraper Module — Ghost Scraper's NestJS module.
  *
- * Bu modül scraping ile ilgili TÜM bileşenleri barındırır:
+ * This module hosts ALL scraping-related components:
  *
  * imports:
- *   - BullModule.registerQueue() → 'scraper' kuyruğunu Redis'e kaydeder
- *     Bu kayıt olmazsa @InjectQueue ve @Processor çalışmaz.
+ *   - BullModule.registerQueue() → registers the 'scraper' queue with Redis
+ *     Without this registration, @InjectQueue and @Processor will not work.
  *
  * controllers:
  *   - ScraperController → HTTP API: POST /scrape/trigger, GET /scrape/status/:id
  *
  * providers:
- *   - ScraperService → İş mantığı (browser aç, tara, DB'ye yaz)
+ *   - ScraperService → business logic (open browser, scrape, write to DB)
  *   - BrowserService → Playwright browser lifecycle
- *   - ScraperProcessor → BullMQ Worker (kuyruktan al, service'e ver)
+ *   - ScraperProcessor → BullMQ Worker (pulls from queue, hands to service)
  *   - ScraperEventListener → Queue event monitor (completed, failed, stalled)
  *
  * exports:
- *   - ScraperService → CLI ve diğer modüller doğrudan çağırabilsin
+ *   - ScraperService → so the CLI and other modules can call it directly
  *
- * Bağlantı akışı:
+ * Wiring flow:
  *   Controller ──@InjectQueue──► Queue ──Redis──► Processor ──► ScraperService
  *                                                    ↕
  *                                           ScraperEventListener (Pub/Sub)
@@ -37,16 +37,16 @@ import { ScraperController } from './scraper.controller';
 @Module({
   imports: [
     /**
-     * BullModule.registerQueue() — 'scraper' kuyruğunu kaydeder.
+     * BullModule.registerQueue() — registers the 'scraper' queue.
      *
-     * Bu çağrı ne yapar?
-     *   1. Redis'te 'bull:scraper:*' key pattern'ında veri yapıları oluşturur
-     *   2. NestJS DI'a Queue<ScrapeJobData, ScrapeJobResult> instance'ı kaydeder
-     *   3. @InjectQueue(QUEUE_NAMES.SCRAPER) bu kayıt sayesinde çalışır
-     *   4. @Processor(QUEUE_NAMES.SCRAPER) bu kuyruktan job almaya başlar
+     * What does this call do?
+     *   1. Creates data structures in Redis under the 'bull:scraper:*' key pattern
+     *   2. Registers a Queue<ScrapeJobData, ScrapeJobResult> instance with NestJS DI
+     *   3. @InjectQueue(QUEUE_NAMES.SCRAPER) works thanks to this registration
+     *   4. @Processor(QUEUE_NAMES.SCRAPER) starts pulling jobs from this queue
      *
-     * Redis bağlantısını nereden alır?
-     *   AppModule'deki BullModule.forRoot() → ortak connection config
+     * Where does the Redis connection come from?
+     *   AppModule's BullModule.forRoot() → shared connection config
      */
     BullModule.registerQueue({
       name: QUEUE_NAMES.SCRAPER,

@@ -1,17 +1,17 @@
 // ═══════════════════════════════════════════
 // JOB & MATCH TYPES — Frontend Data Models
 // ═══════════════════════════════════════════
-// Backend API response'larının type-safe karşılıkları.
-// Bu dosya tüm dashboard bileşenlerinin ortak dili.
+// Type-safe counterparts of backend API responses.
+// This file is the shared vocabulary for all dashboard components.
 
-/** AI tarafından çıkarılan skill bilgisi */
+/** Skill info extracted by AI */
 export interface ExtractedSkill {
   name: string;
   category: string;
   isMain: boolean;
 }
 
-/** GET /api/jobs response'undaki tek ilan */
+/** Single listing in GET /api/jobs response */
 export interface JobDto {
   id: string;
   externalId: string;
@@ -46,7 +46,7 @@ export interface PaginatedResponse<T> {
   };
 }
 
-/** GET /api/matcher/results/:userId response'undaki tek match */
+/** Single match in GET /api/matcher/results/:userId response */
 export interface MatchResultDto {
   id: string;
   score: number;
@@ -66,8 +66,8 @@ export interface MatchResultDto {
 }
 
 /**
- * Frontend JOIN sonucu: Job + opsiyonel match bilgisi.
- * Dashboard'daki her kart bu tipi kullanır.
+ * Frontend JOIN result: Job + optional match info.
+ * Every card in the dashboard uses this type.
  */
 export interface EnrichedJob extends JobDto {
   match: {
@@ -114,7 +114,7 @@ export const INITIAL_SORT: SortState = {
 };
 
 // ═══════════════════════════════════════════
-// FILTER OPTIONS (UI'da gösterilecek seçenekler)
+// FILTER OPTIONS (options rendered in UI)
 // ═══════════════════════════════════════════
 
 export const SENIORITY_OPTIONS = [

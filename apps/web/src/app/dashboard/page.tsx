@@ -23,10 +23,10 @@ import { INITIAL_FILTERS, INITIAL_SORT } from "@/types/job";
 import type { FilterState, SortState } from "@/types/job";
 
 // ═══════════════════════════════════════════
-// Dashboard — Ana sayfa (Scrape + Sonuçlar)
+// Dashboard — Main page (Scrape + Results)
 // ═══════════════════════════════════════════
-// "Tara" → POST /scrape/trigger → polling → tamamlanınca ilanları yenile
-// Mevcut ilanlar her zaman gösterilir (kümülatif havuz)
+// "Scrape" → POST /scrape/trigger → polling → refresh jobs on completion
+// Existing jobs are always shown (cumulative pool)
 
 const PAGE_SIZE = 10;
 
@@ -43,7 +43,7 @@ export default function DashboardPage() {
   const listTopRef = useRef<HTMLDivElement | null>(null);
   const latestScrapeToastRef = useRef<string | null>(null);
 
-  // User seçildiyse sadece o kullanıcıya ait ilanları çek
+  // If a user is selected, fetch only jobs belonging to that user
   useEffect(() => {
     if (user?.id) {
       fetchJobs(user.id);
@@ -53,12 +53,12 @@ export default function DashboardPage() {
     clearJobs();
   }, [user?.id, fetchJobs, clearJobs]);
 
-  // User varsa match sonuçlarını çek
+  // If a user exists, fetch match results
   useEffect(() => {
     if (user?.id) fetchMatches(user.id);
   }, [user?.id, fetchMatches]);
 
-  // Scrape tamamlanınca kullanıcıya ait ilanları yeniden çek
+  // When scrape completes, re-fetch the user's jobs
   useEffect(() => {
     if (scrapeState.phase === "completed" && user?.id) {
       fetchJobs(user.id);
@@ -73,7 +73,7 @@ export default function DashboardPage() {
     }
   }, [scrapeState.phase, scrapeState.result, user?.id, fetchJobs]);
 
-  // Filtre/sort değiştiğinde sayfa 1'e dön
+  // When filter/sort changes, reset to page 1
   function handleFilterChange(f: FilterState) {
     setFilters(f);
     setPage(1);
@@ -89,7 +89,7 @@ export default function DashboardPage() {
     listTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  // "Tara" → gerçek scrape tetikle
+  // "Scrape" → trigger actual scrape
   function handleSearch(keywords: string[], location: string): void {
     if (!user?.id) return;
 
@@ -98,21 +98,21 @@ export default function DashboardPage() {
   }
 
   // ── Scoring Callbacks ──────────────────────────────────
-  // ScoringButton her batch tamamlandığında ve scoring bittiğinde bizi bilgilendirir.
-  // Biz de match verilerini yenileyerek kartlardaki skorları canlı güncelliyoruz.
-  // Bu "reactive data refresh" pattern'i: UI her zaman güncel veriyi yansıtır.
+  // ScoringButton notifies us on every completed batch and when scoring finishes.
+  // We refresh match data to live-update scores on the cards.
+  // This is the "reactive data refresh" pattern: UI always reflects current data.
 
-  /** Yeni batch puanlandı → match'leri yenile (skorlar kartlarda canlı güncellenir) */
+  /** New batch scored → refresh matches (scores update live on cards) */
   function handleScoringProgress(scoredJobs: number) {
     if (scoredJobs > 0 && user?.id) fetchMatches(user.id);
   }
 
-  /** Tüm ilanlar puanlandı → son kez match'leri yenile (tam veri) */
+  /** All jobs scored → refresh matches one final time (full data) */
   function handleScoringComplete() {
     if (user?.id) fetchMatches(user.id);
   }
 
-  // Tekil ilan kaldırma
+  // Single job removal
   async function handleRemoveJob(jobId: string) {
     if (!user?.id) return;
     const removed = await removeJob(user.id, jobId);
@@ -175,7 +175,7 @@ export default function DashboardPage() {
         total={total}
       />
 
-      {/* Scoring — profil oluşturulduysa göster */}
+      {/* Scoring — shown once a profile exists */}
       {user && (
         <div className="mt-4">
           <ScoringButton
@@ -184,9 +184,9 @@ export default function DashboardPage() {
             favoriteJobIds={favoriteJobIds.filter((jobId) => jobs.some((job) => job.id === jobId))}
             onComplete={handleScoringComplete}
             onProgress={handleScoringProgress}
-            // Scrape biter bitmez yeni unscored ilanları otomatik puanla.
-            // auditId her başarılı scrape'de değişir → ScoringButton içindeki
-            // useEffect bunu yakalayıp tek tıklama olmadan başlatır.
+            // Automatically score new unscored jobs as soon as scrape finishes.
+            // auditId changes on every successful scrape → the useEffect inside
+            // ScoringButton catches it and starts without a click.
             autoTriggerSignal={
               scrapeState.phase === "completed"
                 ? scrapeState.result?.auditId ?? null
@@ -198,7 +198,7 @@ export default function DashboardPage() {
 
       {/* 3-Column Grid */}
       <div ref={listTopRef} className="mt-6 grid gap-6 lg:grid-cols-[240px_1fr_280px]">
-        {/* Sol: Filtreler */}
+        {/* Left: Filters */}
         <div className="hidden min-w-0 lg:block">
           <FilterSidebar
             filters={filters}
@@ -206,7 +206,7 @@ export default function DashboardPage() {
           />
         </div>
 
-        {/* Orta: İlan Kartları */}
+        {/* Middle: Job Cards */}
         <JobCardList
           paginatedJobs={paginatedJobs}
           sort={sort}
@@ -218,7 +218,7 @@ export default function DashboardPage() {
           onToggleFavorite={toggleFavorite}
         />
 
-        {/* Sağ: Sidebar */}
+        {/* Right: Sidebar */}
         <div className="hidden min-w-0 lg:block">
           <RightSidebar />
         </div>

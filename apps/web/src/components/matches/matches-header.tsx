@@ -3,7 +3,7 @@
 import { Trophy } from "lucide-react";
 
 // ═══════════════════════════════════════════
-// MatchesHeader — Eşleşme sonuçları başlık
+// MatchesHeader — Match results header
 // ═══════════════════════════════════════════
 
 interface MatchesHeaderProps {

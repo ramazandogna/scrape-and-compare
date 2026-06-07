@@ -11,8 +11,8 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 [a]:hover:bg-primary/90",
-        // Hero ve "ana aksiyon" CTA'sı — diğer butonlardan görsel olarak ayrılması gerekir.
-        // bg-brand-gradient brand-* CSS var'larını kullandığı için accent toggle anında flip olur.
+        // Hero and "primary action" CTA — must be visually distinct from other buttons.
+        // bg-brand-gradient uses brand-* CSS vars so it flips instantly on accent toggle.
         hero: "bg-brand-gradient shadow-brand hover:shadow-brand-lg text-white transition-all duration-500",
         outline:
           "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",

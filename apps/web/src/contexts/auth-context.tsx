@@ -15,20 +15,20 @@ import type { UserDto } from "@/hooks/use-user";
 // ═══════════════════════════════════════════
 // AuthContext — global auth state
 // ═══════════════════════════════════════════
-// Backend httpOnly cookie ile token tutar; frontend sadece /auth/me ile
-// "kullanıcı kim" sorusunu cevaplar. Login/Signup sonrası cookie set edilir,
-// biz hemen profile'i fetch ederiz.
+// Backend holds the token in an httpOnly cookie; frontend answers
+// "who is the user" only via /auth/me. After Login/Signup the cookie is set,
+// then we fetch the profile immediately.
 
 export type AuthStatus = "checking" | "authenticated" | "unauthenticated";
 
 interface AuthContextValue {
   status: AuthStatus;
   user: UserDto | null;
-  /** Login sonrası kullanıcıyı set eder + status authenticated */
+  /** Sets the user after login + status authenticated */
   setUser: (user: UserDto) => void;
-  /** Logout — backend cookie'yi temizler, local state sıfırlar */
+  /** Logout — backend clears the cookie, resets local state */
   logout: () => Promise<void>;
-  /** /auth/me'yi yeniden çağırır (profil güncellemesi sonrası) */
+  /** Re-calls /auth/me (after profile update) */
   refresh: () => Promise<void>;
 }
 
@@ -52,7 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUserState(null);
         setStatus("unauthenticated");
       } else {
-        // Backend kapalıysa bile login sayfasına gönderelim — sessizce.
+        // Send to login page even if backend is down — silently.
         setUserState(null);
         setStatus("unauthenticated");
       }

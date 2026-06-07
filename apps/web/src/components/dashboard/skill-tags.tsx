@@ -7,11 +7,11 @@ import {
 import type { ExtractedSkill } from "@/types/job";
 
 // ═══════════════════════════════════════════
-// SkillTags — Skill etiketleri (max N göster, geri kalanı +N)
+// SkillTags — Skill tags (show max N, the rest as +N)
 // ═══════════════════════════════════════════
 // ui-example: [React] [TypeScript] [Node.js] [+2]
-// isMain: true olanlar önce, sonra secondary. Max 4 görünür.
-// 8+ skill varsa +N badge'ine tıklayınca popover açılır.
+// isMain: true entries first, then secondary. Max 4 visible.
+// With 8+ skills, clicking the +N badge opens a popover.
 
 interface SkillTagsProps {
   skills: ExtractedSkill[];
@@ -21,7 +21,7 @@ interface SkillTagsProps {
 export function SkillTags({ skills, maxVisible = 4 }: SkillTagsProps) {
   if (!skills.length) return null;
 
-  // isMain olanlar önce
+  // isMain entries first
   const sorted = [...skills].sort(
     (a, b) => (b.isMain ? 1 : 0) - (a.isMain ? 1 : 0)
   );

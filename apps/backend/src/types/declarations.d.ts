@@ -1,8 +1,8 @@
 /**
- * Tip tanımı olmayan paketler için manuel deklarasyonlar.
+ * Manual declarations for packages without type definitions.
  *
- * Bazı npm paketlerinin @types/... paketi yoktur.
- * Bu dosyayla TypeScript'e "bu modül var, güven bana" diyoruz.
+ * Some npm packages don't ship an @types/... package.
+ * This file tells TypeScript "this module exists, trust me".
  */
 
 declare module 'puppeteer-extra-plugin-stealth' {

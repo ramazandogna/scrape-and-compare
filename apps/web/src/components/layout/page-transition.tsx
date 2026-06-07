@@ -4,11 +4,11 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 // ═══════════════════════════════════════════
-// PageTransition — App Router için yumuşak fade-in
+// PageTransition — soft fade-in for the App Router
 // ═══════════════════════════════════════════
-// Pathname her değiştiğinde key değişir → child remount olur → animasyon
-// yeniden tetiklenir. Skeleton'dan içeriğe geçişte de küçük bir fade verir,
-// "yine bir garip" hissini yumuşatır.
+// Each pathname change updates the key → child remounts → animation
+// re-triggers. Also adds a small fade on skeleton-to-content transitions,
+// softening the jarring switch.
 
 export function PageTransition({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

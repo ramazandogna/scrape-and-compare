@@ -13,10 +13,10 @@ import {
 // ═══════════════════════════════════════════
 // ThemeContext — light/dark + accent (purple/green)
 // ═══════════════════════════════════════════
-// Iki bağımsız aks:
-//   mode    → "light" | "dark"  (CSS .dark class'ı toggle)
-//   accent  → "purple" | "green" (data-accent attr; brand CSS var'larını swap)
-// Persist: localStorage. SSR güvenli — initial state "light/purple" + mount sonrası okuma.
+// Two independent axes:
+//   mode    → "light" | "dark"  (toggles CSS .dark class)
+//   accent  → "purple" | "green" (data-accent attr; swaps brand CSS vars)
+// Persist: localStorage. SSR safe — initial state "light/purple" + read after mount.
 
 export type ThemeMode = "light" | "dark";
 export type AccentKey = "purple" | "green";
@@ -39,7 +39,7 @@ function readStoredMode(): ThemeMode {
   if (typeof window === "undefined") return "light";
   const stored = window.localStorage.getItem(STORAGE_MODE);
   if (stored === "dark" || stored === "light") return stored;
-  // Sistem tercihi
+  // System preference
   return window.matchMedia?.("(prefers-color-scheme: dark)").matches
     ? "dark"
     : "light";
@@ -55,7 +55,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [mode, setModeState] = useState<ThemeMode>("light");
   const [accent, setAccentState] = useState<AccentKey>("purple");
 
-  // Mount sonrası storage'dan oku — SSR/CSR uyumsuzluğunu önler
+  // Read from storage after mount — prevents SSR/CSR mismatch
   useEffect(() => {
     setModeState(readStoredMode());
     setAccentState(readStoredAccent());
